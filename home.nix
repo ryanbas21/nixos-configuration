@@ -22,6 +22,32 @@
     pkgs.sshfs
   ];
 
+systemd.user.services.nixos-config-backup = {
+  Unit = {
+    Description = "Backup NixOS configuration to Git";
+  };
+
+  Service = {
+    Type = "oneshot";
+    ExecStart = "/home/batman/programming/nixos/scripts/git-backup.sh";
+  };
+};
+
+systemd.user.timers.nixos-config-backup = {
+  Unit = {
+    Description = "Daily NixOS configuration Git backup";
+  };
+
+  Timer = {
+    OnCalendar = "daily";
+    Persistent = true;
+  };
+
+  Install = {
+    WantedBy = [ "timers.target" ];
+  };
+};
+
 systemd.user.services.borgmatic = {
   Service = {
     Environment = [
