@@ -1,0 +1,82 @@
+{
+  "nodes": {
+    "fzf-git-sh": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1786002972,
+        "narHash": "sha256-j7co9UjWdSMC7Ojyhuz2bIALrucF94o+irF4pJ6hgG4=",
+        "owner": "junegunn",
+        "repo": "fzf-git.sh",
+        "rev": "d5b0a5dcd1e073b8bfca45338d5dfad3e5642471",
+        "type": "github"
+      },
+      "original": {
+        "owner": "junegunn",
+        "repo": "fzf-git.sh",
+        "type": "github"
+      }
+    },
+    "home-manager": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1787797243,
+        "narHash": "sha256-8+Q7NOB7RPajRjA4pbCDLzqH+MTjnG9x6LUPLfL2joA=",
+        "owner": "nix-community",
+        "repo": "home-manager",
+        "rev": "99c9ec63390f1d8c14d95d9e8b17cc29cfbd4e11",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "home-manager",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1787736819,
+        "narHash": "sha256-cV5xEJJK3BvhU8rEd4mC9UsmDi5qscv/kzGPhBRC5WA=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "9fbb54b33e91ee4ca368e35a78e0613c720600b3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "fzf-git-sh": "fzf-git-sh",
+        "home-manager": "home-manager",
+        "nixpkgs": "nixpkgs",
+        "ryan-nvim": "ryan-nvim"
+      }
+    },
+    "ryan-nvim": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1786979978,
+        "narHash": "sha256-ZdVHFtSld+VL4Pi7LLeu25IZ850fxlDg55O/aXlk5lM=",
+        "owner": "ryanbas21",
+        "repo": "dotfiles",
+        "rev": "5ea56cc243b4521d1a24e0b080cb81a926a7f150",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ryanbas21",
+        "repo": "dotfiles",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
