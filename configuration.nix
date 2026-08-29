@@ -110,6 +110,27 @@
     enable = true;
     enableSSHSupport = true;
   };
+  boot.supportedFilesystems = [ "nfs" ];
+  fileSystems."/mnt/media" = {
+    device = "192.168.1.30:/volume1/jellyfin-data/";
+    fsType = "nfs4";
+    options = [
+      "x-systemd.automount"
+      "noauto"
+      "nofail"
+    ];
+  };
+
+  fileSystems."/home/batman/mnt/notes" = {
+    device = "192.168.1.30:/volume1/Notes";
+    fsType = "nfs4";
+    options = [
+      "x-systemd.automount"
+      "noauto"
+      "nofail"
+    ];
+  };
+
   fileSystems."/home/batman/mnt/nix-backups" = {
 	  device = "192.168.1.30:/volume1/Backups/nix";
 	  fsType = "nfs";
@@ -121,6 +142,22 @@
 	    "user"                # Allows your user to trigger it
 	  ];
 	};
+  nix.settings = {
+    substituters = [
+      "http://192.168.1.82:5000"
+      "https://cache.nixos.org/"
+    ];
+  
+    trusted-substituters = [
+      "http://192.168.1.82:5000"
+    ];
+  
+    trusted-public-keys = [
+      "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+      "nix-cache-1:8LZd4WztKvAnxaGKaM8L0tqv8x9RhwH6DsWn+xkg13c="
+    ];
+  };
+
   # List services that you want to enable:
 
   # Enable the OpenSSH daemon.

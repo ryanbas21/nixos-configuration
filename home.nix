@@ -22,6 +22,9 @@
     pkgs.sshfs
   ];
 
+systemd.user.services.borgmatic.Service.EnvironmentFile =
+  "%h/.borg-passphrase.env";
+
 systemd.user.services.nixos-config-backup = {
   Unit = {
     Description = "Backup NixOS configuration to Git";
@@ -47,22 +50,19 @@ systemd.user.timers.nixos-config-backup = {
     WantedBy = [ "timers.target" ];
   };
 };
-
-systemd.user.services.borgmatic = {
-  Service = {
-    Environment = [
-      "BORG_PASSPHRASE_FILE=%h/.borg-passphrase"
-    ];
-  };
+ programs.kodi = {
+  enable = true;
+  package = pkgs.kodi.withPackages (kodiPkgs: with kodiPkgs; [
+    pvr-iptvsimple
+  ]);
 };
-
   # backups
   programs.borgmatic = {
   enable = true;
   backups = {
     nix-home = {
       location = {
-        sourceDirectories = [ "${config.home.homeDirectory}/Documents" ];
+        sourceDirectories = [ "${config.home.homeDirectory}/" "/var/lib" ];
         repositories = [ "${config.home.homeDirectory}/mnt/nix-backups" ];
       };
       retention = {
@@ -85,6 +85,8 @@ systemd.user.services.borgmatic = {
   programs.fzf = {
     enable = true;
     enableFishIntegration = true;
+    defaultCommand = "fd --type f --strip-cwd-prefix --hidden --follow --exclude .git";
+    fileWidgetCommand = "fd --type f --strip-cwd-prefix --hidden --follow --exclude .git";
   };
   xdg.configFile = {
     "fish/conf.d/fzf-git.fish".source = "${fzf-git-sh}/fzf-git.fish";
@@ -120,6 +122,8 @@ systemd.user.services.borgmatic = {
       font-size = 12;
     };
   };
+  
+
 
   programs.zoxide.enable = true;
   programs.starship.enable = true;
@@ -132,5 +136,14 @@ systemd.user.services.borgmatic = {
     enable = true;
     settings.git_protocol = "ssh";
   };
+  programs.obsidian = {
+   enable = true;
 
+   vaults.notes.target = "Documents/Obsidian";
+
+   defaultSettings.app = {
+     alwaysUpdateLinks = true;
+     spellcheck = true;
+   };
+  };
 }
