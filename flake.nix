@@ -14,6 +14,11 @@
       flake = false;
     };
 
+    nvf = {
+      url = "github:NotAShelf/nvf/v26.07";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     fzf-git-sh = {
       url = "github:junegunn/fzf-git.sh";
       flake = false;
@@ -21,7 +26,7 @@
 
   };
 
-  outputs = { self, nixpkgs, home-manager, ryan-nvim, fzf-git-sh, ... }: {
+  outputs = { self, nixpkgs, home-manager, ryan-nvim, nvf, fzf-git-sh, ... }: {
     nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
 
@@ -35,7 +40,7 @@
           home-manager.useUserPackages = true;
 
           home-manager.extraSpecialArgs = {
-            inherit ryan-nvim fzf-git-sh;
+            inherit ryan-nvim nvf fzf-git-sh;
           };
 
           home-manager.users.batman = {

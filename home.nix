@@ -6,7 +6,6 @@
   ];
 
   home.stateVersion = "26.05";
-  home.sessionVariables.EDITOR = "nvim";
 
   home.packages = with pkgs; [
     fzf
