@@ -3,7 +3,7 @@
 {
   imports = [
     ./nvim.nix
-    "${ryan-nvim}/home/fish.nix"
+    ./fish.nix
   ];
 
   home.stateVersion = "26.05";
