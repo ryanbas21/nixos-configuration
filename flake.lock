@@ -118,11 +118,11 @@
     "ryan-nvim": {
       "flake": false,
       "locked": {
-        "lastModified": 1788111127,
-        "narHash": "sha256-RqSTsqvKhEFi+T09ixzvmTdVNaU5Io1cCRLJqjMIkG0=",
+        "lastModified": 1788112561,
+        "narHash": "sha256-oMC/Uo9lfa7QXtX0giuQA52sBYjnSC1oQ403mvkKclk=",
         "owner": "ryanbas21",
         "repo": "dotfiles",
-        "rev": "1a860d2e4997f7491dc1751ed627767cd0b8ff46",
+        "rev": "48a847084098aefd28a1e5df3429d4a4d112a286",
         "type": "github"
       },
       "original": {

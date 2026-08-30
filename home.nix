@@ -1,14 +1,14 @@
-{ config, pkgs, fzf-git-sh, ... }:
+{ config, pkgs, ryan-nvim, ... }:
 
 {
   imports = [
     ./nvim.nix
+    "${ryan-nvim}/home/fish.nix"
   ];
 
   home.stateVersion = "26.05";
 
   home.packages = with pkgs; [
-    fzf
     fd
     bat
     kdePackages.kate
@@ -78,39 +78,6 @@ systemd.user.services.borgmatic = {
   };
 
 
-  programs.carapace.enable = true;
-  programs.carapace.enableFishIntegration = true;
-
-  programs.fzf = {
-    enable = true;
-    enableFishIntegration = true;
-  };
-  xdg.configFile = {
-    "fish/conf.d/fzf-git.fish".source = "${fzf-git-sh}/fzf-git.fish";
-    "fish/conf.d/fzf-git.sh".source = "${fzf-git-sh}/fzf-git.sh";
-  };
-
-  programs.fish = {
-    enable = true;
-
-    interactiveShellInit = ''
-      set fish_greeting
-    '';
-
-    plugins = [
-      { name = "fzf-fish"; src = pkgs.fishPlugins.fzf-fish; }
-      { name = "autopair"; src = pkgs.fishPlugins.autopair; }
-      { name = "sponge"; src = pkgs.fishPlugins.sponge; }
-      { name = "done"; src = pkgs.fishPlugins.done; }
-      { name = "colored-man-pages"; src = pkgs.fishPlugins.colored-man-pages; }
-    ];
-
-    shellAbbrs = {
-      gco = "git checkout";
-      ns = "nix shell nixpkgs#";
-    };
-  };
-
   programs.ghostty = {
     enable = true;
 
@@ -120,13 +87,6 @@ systemd.user.services.borgmatic = {
     };
   };
 
-  programs.zoxide.enable = true;
-  programs.starship.enable = true;
-  programs.eza.enable = true;
-  programs.direnv = {
-    enable = true;
-    nix-direnv.enable = true;
-  }; 
   programs.gh = {
     enable = true;
     settings.git_protocol = "ssh";
