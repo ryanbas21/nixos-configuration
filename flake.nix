@@ -24,33 +24,14 @@
       flake = false;
     };
 
-  };
+    flake-parts.url = "github:hercules-ci/flake-parts";
 
-  outputs = { self, nixpkgs, home-manager, ryan-nvim, nvf, fzf-git-sh, ... }: {
-    nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-
-      modules = [
-        ./configuration.nix
-
-        home-manager.nixosModules.home-manager
-
-        {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
-
-          home-manager.extraSpecialArgs = {
-            inherit ryan-nvim nvf fzf-git-sh;
-          };
-
-          home-manager.users.batman = {
-            imports = [
-              ./home.nix
-            ];
-          };
-        }
-      ];
+    import-tree = {
+      url = "github:vic/import-tree";
+      flake = false;
     };
-  };
-}
 
+  };
+
+  outputs = inputs: import ./outputs.nix inputs;
+}
