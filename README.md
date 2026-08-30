@@ -1,6 +1,6 @@
 # NixOS configuration
 
-System configuration for the NixOS laptop: one host (`nixos`) and one user
+System configuration for the NixOS desktop: one host (`nixos`) and one user
 (`batman`), built with NixOS + home-manager on flake-parts. The repo is
 organized as one feature per file: dropping a `.nix` file into `modules/` is
 the only step needed to enable it. Neovim is built by nvf, with its lua
@@ -14,22 +14,22 @@ implementation.
 
 Two configuration repos, one per machine:
 
-- **github:ryanbas21/dotfiles** — the CachyOS desktop. A plain GNU Stow repo
+- **github:ryanbas21/dotfiles** — the CachyOS laptop. A plain GNU Stow repo
   (zsh, lazy.nvim neovim, i3/xmonad, ...). It contains no Nix code; its
   `nvim/.config/nvim` lua tree survives there as data.
 - **github:ryanbas21/nixos-configuration** — this repo, the only Nix repo:
-  the NixOS laptop's system plus batman's home-manager (fish shell bundle,
+  the NixOS desktop's system plus batman's home-manager (fish shell bundle,
   nvf-managed neovim, backups).
 
 The bridge between them:
 
 ```
-github:ryanbas21/dotfiles        (CachyOS desktop; GNU Stow; no Nix)
+github:ryanbas21/dotfiles        (CachyOS laptop; GNU Stow; no Nix)
         |
         | pinned as flake input `ryan-nvim`
         | (the nvim lua tree, consumed as data)
         v
-github:ryanbas21/nixos-configuration   (this repo; the NixOS laptop)
+github:ryanbas21/nixos-configuration   (this repo; the NixOS desktop)
         system config + batman's home-manager (fish, nvf neovim, backups)
 ```
 
@@ -67,8 +67,6 @@ Read the repo in this order. Three terms, one sentence each:
 4. `modules/nixos.nix` is machinery: each `nixos.configurations.<name>`
    wraps nixpkgs' `eval-config.nix` and exports, per host:
    - `flake.nixosConfigurations.<name>` — the full evaluation result;
-   - `flake.nixosModules.host` — the raw `nixos` host module; this is what
-     the machine-local wrapper flake composes with the hardware file;
    - `flake.checks."x86_64-linux"."configurations:nixos:nixos"` — the host
      toplevel, so `nix flake check` builds the whole system.
 5. `modules/users.nix` wires a user together: the static part of
@@ -82,11 +80,11 @@ Read the repo in this order. Three terms, one sentence each:
    `sharedModules` to `homeManager.modules.base` plus a small module syncing
    `home.stateVersion` from `osConfig.system.stateVersion`.
 7. `modules/computers/nixos.nix` is the host itself, as data:
-   `system.stateVersion = "26.05"`, plain
-   `nixpkgs.hostPlatform = "x86_64-linux"`,
-   `imports = [ config.nixos.modules.base config.users.batman.nixos.base ]`,
-   and an `mkDefault` stand-in root filesystem (explained under
-   [Hardware & deployment](#hardware--deployment)).
+    `system.stateVersion = "26.05"`, plain
+    `nixpkgs.hostPlatform = "x86_64-linux"`, and
+    `imports = [ ./nixos/_hardware.nix config.nixos.modules.base
+    config.users.batman.nixos.base ]` (the hardware import is explained under
+    [Hardware & deployment](#hardware--deployment)).
 
 ## File tour
 
@@ -96,16 +94,18 @@ Read the repo in this order. Three terms, one sentence each:
 ├── outputs.nix                  mkFlake + import-tree of ./modules
 ├── flake.lock                   locked input revisions
 ├── LICENSE                      public domain
-├── .gitignore                   result/, .direnv, hardware-configuration.nix
+├── .gitignore                   result/, .direnv, test-driver history
 ├── modules/
 │   ├── lib.nix                  mkModuleOption helper
 │   ├── eval-modules.nix         generic "wrap any eval-config" machinery
 │   ├── nixos.nix                host option tree; nixosConfigurations /
-│   │                            nixosModules.host / checks exports
+│   │                            checks exports
 │   ├── home-manager.nix         homeManager.modules.base; wires HM into NixOS
 │   ├── users.nix                users.<name>.* slots; declares batman
 │   ├── computers/
-│   │   └── nixos.nix            the host, as data
+│   │   ├── nixos.nix            the host, as data
+│   │   └── nixos/
+│   │       └── _hardware.nix    the desktop's hardware scan (manual import)
 │   ├── nixos/
 │   │   ├── base.nix             system-level base (ex-configuration.nix)
 │   │   └── flake-source.nix     nixpkgs.flake.source + version metadata
@@ -117,9 +117,7 @@ Read the repo in this order. Three terms, one sentence each:
 │       └── _nvf/
 │           └── default.nix      nvf settings module (manual import)
 └── scripts/
-    ├── git-backup.sh            the script the backup timer runs
-    └── etc-nixos/
-        └── flake.nix            COPY-ME wrapper template for /etc/nixos
+    └── git-backup.sh            the script the backup timer runs
 ```
 
 Notes on the files that are not self-explanatory:
@@ -214,55 +212,35 @@ original dotfiles nvf configuration:
 
 ## Hardware & deployment
 
-**Why no hardware file lives here.** `hardware-configuration.nix` is
-machine-local data, and flake evaluation only sees git-tracked files — a
-gitignored hardware file inside a clone can never be used via
-`nixos-rebuild --flake .`. (The repo once tracked one; it was removed and
-gitignored, and each box now composes its own.) The laptop therefore builds
-from `/etc/nixos`, a path flake — path flakes see all files, tracked or not —
-whose entire module list is:
+**Hardware lives in the repo, per host.** The desktop's generated hardware
+scan is tracked as `modules/computers/nixos/_hardware.nix` — machine-local
+data, kept next to its host file. The underscore prefix matters: the file is
+a NixOS module (`imports = [ (modulesPath +
+"/installer/scan/not-detected.nix") ];`) that would infinitely recurse if
+import-tree auto-imported it as a flake-parts module; the `/_` in its path
+keeps it manual, and `modules/computers/nixos.nix` imports it explicitly.
 
-```nix
-modules = [
-  nixcfg.nixosModules.host
-  ./hardware-configuration.nix
-];
-```
-
-`nixcfg` is this repo, and `nixpkgs.follows = "nixcfg/nixpkgs"` keeps the
-wrapper on the repo's pin. The wrapper needs no other inputs: home-manager,
-nvf, ryan-nvim, and fzf-git-sh are all closed over inside this repo's
-modules.
-
-**First-time setup on the machine** (template: `scripts/etc-nixos/flake.nix`):
+**Deployment** needs nothing beyond a clone of this repo:
 
 ```sh
-sudo cp scripts/etc-nixos/flake.nix /etc/nixos/flake.nix
-# ensure /etc/nixos/hardware-configuration.nix is this laptop's real
-# install-time file, created by nixos-generate-config
-sudo nixos-rebuild switch --flake /etc/nixos
+git pull
+sudo nixos-rebuild switch --flake .
 ```
 
-**Routine updates:**
-
-```sh
-cd /etc/nixos && sudo nix flake update nixcfg
-sudo nixos-rebuild switch --flake /etc/nixos
-```
+**When hardware changes** (a disk swap, a new partition layout): run
+`nixos-generate-config` on the machine, copy the generated
+`hardware-configuration.nix` content into
+`modules/computers/nixos/_hardware.nix`, and commit it.
 
 **Validation from anywhere, no hardware needed:** `nix flake check` builds
-the host toplevel. It passes because `modules/computers/nixos.nix` carries
-an `mkDefault` stand-in root filesystem — a filesystem-less eval fails the
-"fileSystems does not specify your root file system" assertion — while the
-machine's real hardware file defines `/` at plain priority, overriding every
-field of the stand-in.
+the host toplevel against the real tracked hardware file.
 
 ## Adding a second host someday
 
 Drop `modules/computers/<name>.nix` assigning
 `nixos.configurations.<name>.module` (stateVersion, hostPlatform,
-`imports = [ config.nixos.modules.base ... ]`); `nixosConfigurations.<name>`
-and a flake check appear automatically. One caveat: `flake.nixosModules.host`
-in `modules/nixos.nix` is currently bound to the `nixos` host specifically,
-so a second machine needs its own export before the `/etc/nixos` wrapper
-trick works for it.
+`imports = [ ./<name>/_hardware.nix config.nixos.modules.base ... ]`);
+`nixosConfigurations.<name>` and a flake check appear automatically.
+Generate the new machine's `modules/computers/<name>/_hardware.nix` on the
+box itself via `nixos-generate-config`, copy the output in, and prefix the
+filename with `_` so import-tree leaves it to the host file.

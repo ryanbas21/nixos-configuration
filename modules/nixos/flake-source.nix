@@ -7,8 +7,8 @@
   ...
 }: {
   nixos.modules.base = {
-    # mkDefault so an external nixosSystem composition (the /etc/nixos wrapper
-    # flake) can win with its own injected plain-priority definitions instead
+    # mkDefault so any external composition (e.g. a plain nixosSystem call)
+    # can win with its own injected plain-priority definitions instead
     # of relying on value-equality merging.
     nixpkgs.flake.source = lib.mkDefault inputs.nixpkgs.outPath;
 

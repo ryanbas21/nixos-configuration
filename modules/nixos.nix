@@ -13,12 +13,6 @@
     flake.nixosConfigurations =
       lib.mapAttrs (name: {configuration, ...}: configuration) config.nixos.configurations;
 
-    # The complete host module (base + users + stateVersion) for external
-    # composition: a machine-local wrapper flake (scripts/etc-nixos/flake.nix)
-    # builds nixosSystem { modules = [ this ./hardware-configuration.nix ]; }
-    # so hardware config lives only on the box.
-    flake.nixosModules.host = config.nixos.configurations.nixos.module;
-
     flake.checks =
       lib.mkMerge (lib.mapAttrsToList (name: {configuration, ...}: {
         "${configuration.config.nixpkgs.hostPlatform.system}"."configurations:nixos:${name}" =
