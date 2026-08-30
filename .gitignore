@@ -7,3 +7,9 @@ result-*
 
 # Ignore NixOS interactive test driver history
 **/.nixos-test-history
+
+# Ignore machine-local hardware scans (basename anywhere in the tree). Each
+# box composes its own /etc/nixos/hardware-configuration.nix via the wrapper
+# flake in scripts/etc-nixos/flake.nix; this also keeps the daily auto-backup
+# timer (`git add -A` in scripts/git-backup.sh) from ever committing one.
+hardware-configuration.nix

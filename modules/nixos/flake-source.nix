@@ -7,11 +7,14 @@
   ...
 }: {
   nixos.modules.base = {
-    nixpkgs.flake.source = inputs.nixpkgs.outPath;
+    # mkDefault so an external nixosSystem composition (the /etc/nixos wrapper
+    # flake) can win with its own injected plain-priority definitions instead
+    # of relying on value-equality merging.
+    nixpkgs.flake.source = lib.mkDefault inputs.nixpkgs.outPath;
 
     system.nixos = {
-      versionSuffix = ".${lib.substring 0 8 (inputs.nixpkgs.lastModifiedDate or "19700101")}.${inputs.nixpkgs.shortRev or "dirty"}";
-      revision = inputs.nixpkgs.rev or null;
+      versionSuffix = lib.mkDefault ".${lib.substring 0 8 (inputs.nixpkgs.lastModifiedDate or "19700101")}.${inputs.nixpkgs.shortRev or "dirty"}";
+      revision = lib.mkDefault (inputs.nixpkgs.rev or null);
     };
   };
 }
