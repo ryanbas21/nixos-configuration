@@ -9,13 +9,11 @@
     programs.git = {
       enable = true;
       signing = {
-        format = "gpg";
         signByDefault = true;
       };
       settings = {
         pull.rebase = true;
         rebase.autoStash = true;
-        gpg.format = "ssh";
         user.name = "ryan bas";
         user.email = "ryanbas21@gmail.com";
         init.defaultBranch = "main";
