@@ -1,7 +1,8 @@
 # NixOS configuration
 
-System configuration for the NixOS desktop: one host (`nixos`) and one user
-(`batman`), built with NixOS + home-manager on flake-parts. The repo is
+Clone-and-run configuration for every machine in the fleet: a NixOS desktop
+(host `nixos`, user batman), a CachyOS laptop (standalone home-manager as
+ryan), and an Intel Mac (standalone home-manager as ryan). The repo is
 organized as one feature per file: dropping a `.nix` file into `modules/` is
 the only step needed to enable it. Neovim is built by nvf, with its lua
 sourced from the dotfiles repo through the `ryan-nvim` flake input.
@@ -12,26 +13,68 @@ implementation.
 
 ## The big picture
 
-Two configuration repos, one per machine:
+Two repos, three machines:
 
-- **github:ryanbas21/dotfiles** — the CachyOS laptop. A plain GNU Stow repo
-  (zsh, lazy.nvim neovim, i3/xmonad, ...). It contains no Nix code; its
-  `nvim/.config/nvim` lua tree survives there as data.
+- **github:ryanbas21/dotfiles** — home of the nvim lua tree, pinned here as
+  the `ryan-nvim` flake input and consumed by nvf; its remaining GNU Stow
+  configs turn legacy as machines move onto this repo.
 - **github:ryanbas21/nixos-configuration** — this repo, the only Nix repo:
   the NixOS desktop's system plus batman's home-manager (fish shell bundle,
-  nvf-managed neovim, backups).
-
-The bridge between them:
+  nvf-managed neovim, backups), and the standalone home-manager exports the
+  laptop and Mac pull as users `ryan`.
 
 ```
-github:ryanbas21/dotfiles        (CachyOS laptop; GNU Stow; no Nix)
+github:ryanbas21/dotfiles        (data only; the nvim lua tree)
         |
         | pinned as flake input `ryan-nvim`
-        | (the nvim lua tree, consumed as data)
         v
-github:ryanbas21/nixos-configuration   (this repo; the NixOS desktop)
-        system config + batman's home-manager (fish, nvf neovim, backups)
+github:ryanbas21/nixos-configuration   (this repo; all three machines)
+        ├── nixos desktop: system config + batman's home-manager
+        ├── ryan-linux:     standalone home-manager for the CachyOS laptop
+        └── ryan-intel-mac: standalone home-manager for the Intel Mac
 ```
+
+## Machines
+
+| Machine | OS | Consume via | Command |
+|---|---|---|---|
+| Desktop (host `nixos`, user batman) | NixOS | `nixosConfigurations.nixos` | `sudo nixos-rebuild switch --flake .#nixos` |
+| CachyOS laptop (user ryan) | Arch-based Linux | `homeConfigurations.ryan-linux` | `nix run home-manager -- switch --flake github:ryanbas21/nixos-configuration#ryan-linux` |
+| Intel Mac (user ryan) | macOS + nix | `homeConfigurations.ryan-intel-mac` | `nix run home-manager -- switch --flake github:ryanbas21/nixos-configuration#ryan-intel-mac` |
+
+On the desktop the repo lives at `/etc/nixos`, so the steady state is
+`git pull` followed by the rebuild command above; the laptop and Mac need
+nothing but nix installed.
+
+The model in three sentences: NixOS machines are hosts under
+`modules/computers/`, each committing its own hardware scan
+(`_hardware.nix`; the underscore keeps import-tree away so the host file
+imports it manually). Non-NixOS machines consume the standalone
+`homeConfigurations` built by `modules/home.nix` — no hardware anything,
+user-space only. Both kinds eat the same feature files through
+`users.<name>.home.*`, so fish and packages stay identical across the
+fleet (modulo the Linux-only bits: nvf, kate, ghostty, sshfs, and the
+desktop's backup timers).
+
+### Adding a machine
+
+**New NixOS host:**
+
+1. On the box, run `nixos-generate-config`; copy the generated
+   `hardware-configuration.nix` content into
+   `modules/computers/<name>/_hardware.nix` (the `_` prefix is required —
+   see [Hardware & deployment](#hardware--deployment)).
+2. Create `modules/computers/<name>.nix` assigning
+   `nixos.configurations.<name>.module`: `system.stateVersion`,
+   `nixpkgs.hostPlatform`, and
+   `imports = [ ./<name>/_hardware.nix config.nixos.modules.base config.users.<user>.nixos.base ]`.
+3. Commit, then `sudo nixos-rebuild switch --flake .#<name>`.
+   `nixosConfigurations.<name>` and a flake check appear automatically.
+
+**New standalone machine (any non-NixOS box):** add an entry to
+`home.configurations` in `modules/home.nix` (username, system,
+homeDirectory) and commit. The Mac entry assumes username `ryan`; if the
+account is named differently, change `username` in that entry.
 
 ## How a host is assembled
 
@@ -61,8 +104,10 @@ Read the repo in this order. Three terms, one sentence each:
    | `nixos.configurations.<name>` | per-host data, one submodule per host |
    | `nixos.modules.base` | the shared system-level module, merged into every host |
    | `homeManager.modules.base` | the shared home-manager module |
+   | `home.configurations.<name>` | per-machine data for the standalone home-manager exports |
    | `users.<name>.nixos.base` | the NixOS-side module for a user |
-   | `users.<name>.home.base` | the home-manager-side module for a user |
+   | `users.<name>.home.base` | the home-manager-side module for a user, all machines |
+   | `users.<name>.home.pc` | home.base plus desktop-only extras (backups); NixOS hosts only |
 
 4. `modules/nixos.nix` is machinery: each `nixos.configurations.<name>`
    wraps nixpkgs' `eval-config.nix` and exports, per host:
@@ -72,14 +117,21 @@ Read the repo in this order. Three terms, one sentence each:
 5. `modules/users.nix` wires a user together: the static part of
    `users.batman.nixos.base` declares the batman account (normal user,
    `wheel` + `networkmanager`) and sets
-   `home-manager.users.batman = users.batman.home.base`, so everything the
-   batman feature files assign to `users.batman.home.base` lands inside
-   home-manager.
+   `home-manager.users.batman = users.batman.home.pc`, so everything the
+   batman feature files assign to `users.batman.home.base` (plus the
+   desktop-only `home.pc` extras) lands inside home-manager.
 6. `modules/home-manager.nix` adds home-manager's NixOS module to
    `nixos.modules.base` (with `useGlobalPkgs` and `useUserPackages`) and sets
    `sharedModules` to `homeManager.modules.base` plus a small module syncing
    `home.stateVersion` from `osConfig.system.stateVersion`.
-7. `modules/computers/nixos.nix` is the host itself, as data:
+7. `modules/home.nix` is the standalone counterpart: each
+   `home.configurations.<name>` wraps home-manager's
+   `homeManagerConfiguration` over `homeManager.modules.base` +
+   `users.batman.home.base` (never `home.pc`, and never the osConfig
+   stateVersion sync — `osConfig` is null standalone) and exports
+   `flake.homeConfigurations.<name>`. The Intel Mac entry builds against
+   the `nixpkgs-intel-mac` input because unstable dropped `x86_64-darwin`.
+8. `modules/computers/nixos.nix` is the host itself, as data:
     `system.stateVersion = "26.05"`, plain
     `nixpkgs.hostPlatform = "x86_64-linux"`, and
     `imports = [ ./nixos/_hardware.nix config.nixos.modules.base
@@ -100,6 +152,8 @@ Read the repo in this order. Three terms, one sentence each:
 │   ├── eval-modules.nix         generic "wrap any eval-config" machinery
 │   ├── nixos.nix                host option tree; nixosConfigurations /
 │   │                            checks exports
+│   ├── home.nix                 standalone home option tree;
+│   │                            homeConfigurations exports
 │   ├── home-manager.nix         homeManager.modules.base; wires HM into NixOS
 │   ├── users.nix                users.<name>.* slots; declares batman
 │   ├── computers/
@@ -111,9 +165,9 @@ Read the repo in this order. Three terms, one sentence each:
 │   │   └── flake-source.nix     nixpkgs.flake.source + version metadata
 │   └── batman/
 │       ├── fish.nix             fish + shell UX
-│       ├── nvf.nix              nvf wiring (+ ryan-nvim injection)
+│       ├── nvf.nix              nvf wiring (+ ryan-nvim injection); Linux-only
 │       ├── packages.nix         home.packages, ghostty, gh
-│       ├── backup.nix           borgmatic + git backup timer
+│       ├── backup.nix           borgmatic + git backup timer (home.pc; desktop)
 │       └── _nvf/
 │           └── default.nix      nvf settings module (manual import)
 └── scripts/
@@ -147,8 +201,11 @@ Notes on the files that are not self-explanatory:
   fzf-git.sh keybindings closed over from `inputs.fzf-git-sh`.
 - `modules/batman/packages.nix`: `home.packages` (fd, bat, ripgrep, git,
   gcc, gnumake, sshfs, ghostty, discord, kate) plus ghostty (Catppuccin
-  Frappe) and gh (ssh protocol).
-- `modules/batman/backup.nix`: daily borgmatic run (Documents to the NFS
+  Frappe) and gh (ssh protocol). Kate, ghostty, and sshfs are wrapped in
+  `mkIf stdenv.isLinux` — they have no `x86_64-darwin` package, so the Mac
+  export skips them.
+- `modules/batman/backup.nix`: assigned to `users.batman.home.pc`, so only
+  the NixOS host gets it: a daily borgmatic run (Documents to the NFS
   backup mount; 7 daily / 4 weekly retention) and a daily systemd user timer
   running `scripts/git-backup.sh`, which commits and pushes the local repo
   clone only when something changed.
@@ -156,7 +213,11 @@ Notes on the files that are not self-explanatory:
 ## The neovim bridge (nvf + dotfiles lua)
 
 `modules/batman/nvf.nix` enables nvf as a home-manager program and imports
-`./_nvf/default.nix` as its settings module. The subtlety is the
+`./_nvf/default.nix` as its settings module. The nvf home-manager module is
+imported unconditionally but the program assignment is wrapped in
+`mkIf stdenv.isLinux` — nvf's tool bundle has no `x86_64-darwin` story, so
+the Mac export carries the module with nvf disabled and the Linux machines
+are unaffected. The subtlety is the
 `_module.args` dance: nvf's `settings` submodule runs its own module system,
 and modules imported via `settings.imports` receive only nvf's own module
 arguments — arguments from the outer home-manager evaluation do not flow
@@ -187,7 +248,8 @@ original dotfiles nvf configuration:
   imported automatically; deleting it removes the feature. There are no
   `imports = [ ./foo.nix ];` lists between feature files.
 - **`/_` means manual.** Any file or directory whose path contains `/_` is
-  skipped by import-tree; `modules/batman/_nvf/` is the only example.
+  skipped by import-tree: `modules/batman/_nvf/` (nvf settings data) and
+  every host's `modules/computers/<name>/_hardware.nix`.
 - **One feature per file, freely named.** Paths carry no structural meaning;
   `modules/batman/` grouping is convention, not mechanism.
 - **No `specialArgs` / `extraSpecialArgs`.** Feature files close over the
@@ -202,7 +264,8 @@ original dotfiles nvf configuration:
 
 | Input | Provides |
 |---|---|
-| `nixpkgs` | `github:NixOS/nixpkgs/nixos-unstable`; the single package set for system and home |
+| `nixpkgs` | `github:NixOS/nixpkgs/nixos-unstable`; the package set for the system, the desktop's home, and `ryan-linux` |
+| `nixpkgs-intel-mac` | `github:NixOS/nixpkgs/nixpkgs-26.05-darwin`; feeds only the `ryan-intel-mac` export, since unstable dropped `x86_64-darwin` |
 | `home-manager` | user environments; follows `nixpkgs` |
 | `nvf` | the neovim distribution, `github:NotAShelf/nvf/v26.07`; follows `nixpkgs` |
 | `ryan-nvim` | `github:ryanbas21/dotfiles`, `flake = false`; the pinned lua tree nvf sources |
@@ -220,12 +283,16 @@ a NixOS module (`imports = [ (modulesPath +
 import-tree auto-imported it as a flake-parts module; the `/_` in its path
 keeps it manual, and `modules/computers/nixos.nix` imports it explicitly.
 
-**Deployment** needs nothing beyond a clone of this repo:
+**Deployment** needs nothing beyond a clone of this repo. On the desktop the
+clone lives at `/etc/nixos`, so the steady state is:
 
 ```sh
-git pull
-sudo nixos-rebuild switch --flake .
+cd /etc/nixos && git pull
+sudo nixos-rebuild switch --flake .#nixos
 ```
+
+The laptop and Mac deploy with the one-liners in
+[Machines](#machines) — no clone required.
 
 **When hardware changes** (a disk swap, a new partition layout): run
 `nixos-generate-config` on the machine, copy the generated
@@ -234,13 +301,3 @@ sudo nixos-rebuild switch --flake .
 
 **Validation from anywhere, no hardware needed:** `nix flake check` builds
 the host toplevel against the real tracked hardware file.
-
-## Adding a second host someday
-
-Drop `modules/computers/<name>.nix` assigning
-`nixos.configurations.<name>.module` (stateVersion, hostPlatform,
-`imports = [ ./<name>/_hardware.nix config.nixos.modules.base ... ]`);
-`nixosConfigurations.<name>` and a flake check appear automatically.
-Generate the new machine's `modules/computers/<name>/_hardware.nix` on the
-box itself via `nixos-generate-config`, copy the output in, and prefix the
-filename with `_` so import-tree leaves it to the host file.
