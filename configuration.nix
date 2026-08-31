@@ -49,6 +49,10 @@
   # Enable the KDE Plasma Desktop Environment.
   services.displayManager.sddm.enable = true;
   services.desktopManager.plasma6.enable = true;
+  environment.profiles = [
+    "$HOME/.nix-profile"
+    "/etc/profiles/per-user/$USER"
+  ];
 
   # Configure keymap in X11
   services.xserver.xkb = {
@@ -145,6 +149,7 @@
   nix.settings = {
     substituters = [
       "http://192.168.1.82:5000"
+      "https://psysonic.cachix.org"
       "https://cache.nixos.org/"
     ];
   
@@ -154,6 +159,7 @@
   
     trusted-public-keys = [
       "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+      "psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA="
       "nix-cache-1:8LZd4WztKvAnxaGKaM8L0tqv8x9RhwH6DsWn+xkg13c="
     ];
   };

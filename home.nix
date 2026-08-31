@@ -1,8 +1,9 @@
-{ config, pkgs, fzf-git-sh, ... }:
+{ config, pkgs, fzf-git-sh, rigup, ... }:
 
 {
   imports = [
     ./nvim.nix
+    ./agents.nix
   ];
 
   home.stateVersion = "26.05";
@@ -20,6 +21,7 @@
     git
     ghostty
     pkgs.sshfs
+    rigup.packages.${pkgs.system}.rigup
   ];
 
 systemd.user.services.borgmatic.Service.EnvironmentFile =
@@ -86,8 +88,11 @@ systemd.user.timers.nixos-config-backup = {
     enable = true;
     enableFishIntegration = true;
     defaultCommand = "fd --type f --strip-cwd-prefix --hidden --follow --exclude .git";
-    fileWidgetCommand = "fd --type f --strip-cwd-prefix --hidden --follow --exclude .git";
+    fileWidget = {
+      command = "fd --type f --strip-cwd-prefix --hidden --follow --exclude .git";
+    };
   };
+
   xdg.configFile = {
     "fish/conf.d/fzf-git.fish".source = "${fzf-git-sh}/fzf-git.fish";
     "fish/conf.d/fzf-git.sh".source = "${fzf-git-sh}/fzf-git.sh";
