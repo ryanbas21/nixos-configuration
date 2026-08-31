@@ -44,7 +44,10 @@ github:ryanbas21/nixos-configuration   (this repo; all three machines)
 
 On the desktop the repo lives at `/etc/nixos`, so the steady state is
 `git pull` followed by the rebuild command above; the laptop and Mac need
-nothing but nix installed.
+nothing but nix installed. The desktop's git-backup timer operates on
+that `/etc/nixos` checkout itself (the path is bound once, as `repoPath`,
+in `modules/batman/backup.nix`), so moving the checkout means changing
+that binding.
 
 The model in three sentences: NixOS machines are hosts under
 `modules/computers/`, each committing its own hardware scan
@@ -66,7 +69,9 @@ desktop's backup timers).
    see [Hardware & deployment](#hardware--deployment)).
 2. Create `modules/computers/<name>.nix` assigning
    `nixos.configurations.<name>.module`: `system.stateVersion`,
-   `nixpkgs.hostPlatform`, and
+   `nixpkgs.hostPlatform`, the machine's `networking.hostName` and any
+   NFS mounts it needs (with `boot.supportedFilesystems = [ "nfs" ]` —
+   host-specific data lives here, not in the shared base), and
    `imports = [ ./<name>/_hardware.nix config.nixos.modules.base config.users.<user>.nixos.base ]`.
 3. Commit, then `sudo nixos-rebuild switch --flake .#<name>`.
    `nixosConfigurations.<name>` and a flake check appear automatically.
@@ -133,7 +138,9 @@ Read the repo in this order. Three terms, one sentence each:
    the `nixpkgs-intel-mac` input because unstable dropped `x86_64-darwin`.
 8. `modules/computers/nixos.nix` is the host itself, as data:
     `system.stateVersion = "26.05"`, plain
-    `nixpkgs.hostPlatform = "x86_64-linux"`, and
+    `nixpkgs.hostPlatform = "x86_64-linux"`, the hostname, the NFS
+    automounts (media, notes, nix-backups) with
+    `boot.supportedFilesystems = [ "nfs" ]`, and
     `imports = [ ./nixos/_hardware.nix config.nixos.modules.base
     config.users.batman.nixos.base ]` (the hardware import is explained under
     [Hardware & deployment](#hardware--deployment)).
@@ -148,7 +155,7 @@ Read the repo in this order. Three terms, one sentence each:
 ├── LICENSE                      public domain
 ├── .gitignore                   result/, .direnv, test-driver history
 ├── modules/
-│   ├── lib.nix                  mkModuleOption helper
+│   ├── lib.nix                  mkModuleOption helper; shared unfree allowlist
 │   ├── eval-modules.nix         generic "wrap any eval-config" machinery
 │   ├── nixos.nix                host option tree; nixosConfigurations /
 │   │                            checks exports
@@ -157,11 +164,11 @@ Read the repo in this order. Three terms, one sentence each:
 │   ├── home-manager.nix         homeManager.modules.base; wires HM into NixOS
 │   ├── users.nix                users.<name>.* slots; declares batman
 │   ├── computers/
-│   │   ├── nixos.nix            the host, as data
+│   │   ├── nixos.nix            the host, as data (hostname, NFS mounts)
 │   │   └── nixos/
 │   │       └── _hardware.nix    the desktop's hardware scan (manual import)
 │   ├── nixos/
-│   │   ├── base.nix             system-level base (ex-configuration.nix)
+│   │   ├── base.nix             host-agnostic system base (ex-configuration.nix)
 │   │   └── flake-source.nix     nixpkgs.flake.source + version metadata
 │   └── batman/
 │       ├── fish.nix             fish + shell UX
@@ -180,7 +187,8 @@ Notes on the files that are not self-explanatory:
   (delivered to all modules via `_module.args.mkModuleOption`). It types the
   option as `deferredModuleWith` (merging optional `static` modules); its
   `apply` wraps the result with a `key` so merge errors point at the right
-  slot.
+  slot. It also carries `unfreeNames`, the single allowlist behind every
+  `allowUnfreePredicate` in the repo.
 - `modules/eval-modules.nix`: a reusable option set (`fn`, `module`, `args`,
   `configuration`) that calls any eval-config-style function with the
   accumulated module; `modules/nixos.nix` instantiates it with
@@ -192,9 +200,11 @@ Notes on the files that are not self-explanatory:
   `ns = "nix shell nixpkgs#"` depends on it) plus revision-aware
   `system.nixos` version metadata.
 - `modules/nixos/base.nix`: systemd-boot, Plasma 6 + SDDM, pipewire,
-  NetworkManager, fish as `users.defaultUserShell`, gnupg agent, sshd, the
-  NFS automount at `/home/batman/mnt/nix-backups`, Firefox, CUPS, unfree
-  packages, and the `nix-command`/`flakes` experimental features.
+  NetworkManager, fish as `users.defaultUserShell`, gnupg agent, sshd,
+  Firefox, CUPS, the unfree allowlist (see `modules/lib.nix`), and the
+  `nix-command`/`flakes` experimental features. Host-specific data
+  (hostname, NFS automounts) does not live here — it stays in
+  `modules/computers/<name>.nix`.
 - `modules/batman/fish.nix`: fish (cleared greeting; fzf-fish, autopair,
   sponge, done, colored-man-pages plugins; `gco` and `ns` abbreviations)
   plus fzf, starship, zoxide, carapace, eza, direnv + nix-direnv, and
@@ -207,8 +217,8 @@ Notes on the files that are not self-explanatory:
 - `modules/batman/backup.nix`: assigned to `users.batman.home.pc`, so only
   the NixOS host gets it: a daily borgmatic run (Documents to the NFS
   backup mount; 7 daily / 4 weekly retention) and a daily systemd user timer
-  running `scripts/git-backup.sh`, which commits and pushes the local repo
-  clone only when something changed.
+  running `scripts/git-backup.sh` against the `/etc/nixos` checkout, which
+  commits and pushes only when something changed.
 
 ## The neovim bridge (nvf + dotfiles lua)
 

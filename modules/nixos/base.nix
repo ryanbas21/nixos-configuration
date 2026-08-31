@@ -4,7 +4,7 @@
 # Help is available in the configuration.nix(5) man page and in the NixOS
 # manual (accessible by running ‘nixos-help’).
 
-{mkModuleOption, ...}: {
+{mkModuleOption, unfreeNames, ...}: {
   options.nixos.modules.base = mkModuleOption {key = "base";};
 
   config.nixos.modules.base = {config, lib, pkgs, ...}: {
@@ -12,7 +12,6 @@
     boot.loader.systemd-boot.enable = true;
     boot.loader.efi.canTouchEfiVariables = true;
 
-    networking.hostName = "nixos"; # Define your hostname.
     # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
 
     # Configure network proxy if necessary
@@ -85,19 +84,13 @@
     users.defaultUserShell = pkgs.fish;
 
     nixpkgs.config.allowUnfreePredicate = pkg:
-    builtins.elem (lib.getName pkg) [
-      "1password-gui"
-      "1password"
-    ];
+      builtins.elem (lib.getName pkg) unfreeNames;
 
     # Install firefox.
     programs.firefox.enable = true;
 
     # Fish
     programs.fish.enable = true;
-
-    # Allow unfree packages
-    nixpkgs.config.allowUnfree = true;
 
     # List packages installed in system profile. To search, run:
     # $ nix search wget
@@ -110,40 +103,6 @@
       enableSSHSupport = true;
     };
 
-    # NFS support for the Synology NAS mounts below.
-    boot.supportedFilesystems = [ "nfs" ];
-
-    fileSystems."/mnt/media" = {
-      device = "192.168.1.30:/volume1/jellyfin-data/";
-      fsType = "nfs4";
-      options = [
-        "x-systemd.automount"
-        "noauto"
-        "nofail"
-      ];
-    };
-
-    fileSystems."/home/batman/mnt/notes" = {
-      device = "192.168.1.30:/volume1/Notes";
-      fsType = "nfs4";
-      options = [
-        "x-systemd.automount"
-        "noauto"
-        "nofail"
-      ];
-    };
-
-    fileSystems."/home/batman/mnt/nix-backups" = {
-      device = "192.168.1.30:/volume1/Backups/nix";
-      fsType = "nfs";
-      options = [
-        "x-systemd.automount" # Mounts on demand when accessed
-        "noauto"              # Skips mounting during boot so boot doesn't hang if NAS is off
-        "x-systemd.idle-timeout=600" # Unmounts after 10 minutes of inactivity
-        "rw"                  # Read/write access
-        "user"                # Allows your user to trigger it
-      ];
-    };
     # List services that you want to enable:
 
     # Enable the OpenSSH daemon.

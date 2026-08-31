@@ -7,7 +7,7 @@
           static = {
             users.users.${name} = {
               isNormalUser = true;
-              description = "batman";
+              description = name;
               extraGroups = ["networkmanager" "wheel"];
             };
             home-manager.users.${name} = userArgs.config.home.pc;

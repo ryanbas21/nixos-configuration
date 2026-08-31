@@ -3,7 +3,7 @@
 # them as flake.homeConfigurations for non-NixOS machines. The desktop-only
 # layer (users.<name>.home.pc: backups, NFS mount) is intentionally NOT
 # merged here — it stays NixOS-side via users.<name>.nixos.base.
-{config, lib, inputs, evalModulesModule, ...}: {
+{config, lib, inputs, evalModulesModule, unfreeNames, ...}: {
   options.home.configurations = lib.mkOption {
     type = lib.types.lazyAttrsOf (lib.types.submodule (homeArgs @ {name, ...}: {
       imports = [evalModulesModule];
@@ -33,7 +33,10 @@
         in
           import nixpkgsInput {
             system = homeArgs.config.system;
-            config = {allowUnfree = true;} // extraConfig;
+            # Same unfree policy as modules/nixos/base.nix, applied at
+            # pkgs-import time because standalone entries import their
+            # own package set.
+            config = {allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) unfreeNames;} // extraConfig;
           };
         module = {
           imports = [
