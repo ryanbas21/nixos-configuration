@@ -1,6 +1,9 @@
 # Backups for batman. Ported from ./home.nix (top level).
+# Desktop-only: assigned to home.pc, not home.base, so the standalone
+# home-manager exports (modules/home.nix) never inherit the backup timers
+# or the NFS-mount-dependent borgmatic config.
 {...}: {
-  users.batman.home.base = {config, ...}: {
+  users.batman.home.pc = {config, ...}: {
     systemd.user.services.nixos-config-backup = {
       Unit = {
         Description = "Backup NixOS configuration to Git";

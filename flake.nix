@@ -4,6 +4,11 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
+    # nixpkgs unstable (26.11) dropped x86_64-darwin; the 26.05-darwin
+    # stable branch is nixpkgs' supported substitute for Intel Macs and
+    # feeds only the ryan-intel-mac standalone home-manager export.
+    nixpkgs-intel-mac.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
+
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";

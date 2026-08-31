@@ -10,10 +10,17 @@
               description = "batman";
               extraGroups = ["networkmanager" "wheel"];
             };
-            home-manager.users.${name} = userArgs.config.home.base;
+            home-manager.users.${name} = userArgs.config.home.pc;
           };
         };
         home.base = mkModuleOption {key = "${name}-home-base";};
+        home.pc = mkModuleOption {
+          key = "${name}-home-pc";
+          # The desktop variant: everything in home.base plus the
+          # machine-bound extras (backups, local paths) that must not leak
+          # into standalone home-manager exports.
+          static.imports = [userArgs.config.home.base];
+        };
       };
     }));
   };
