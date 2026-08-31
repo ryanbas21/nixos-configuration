@@ -17,7 +17,7 @@
         rebase.autoStash = true;
         gpg.format = "ssh";
         user.name = "ryan bas";
-        user.email = "git@ryanbas.com";
+        user.email = "ryanbas21@gmail.com";
         init.defaultBranch = "main";
         push = {
           autoSetupRemote = true;
