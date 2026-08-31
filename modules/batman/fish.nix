@@ -9,10 +9,8 @@
     programs.git = {
       enable = true;
       signing = {
-        format = "ssh";
-        key = "~/.ssh/git.pub";
+        format = "gpg";
         signByDefault = true;
-
       };
       settings = {
         pull.rebase = true;
