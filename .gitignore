@@ -7,3 +7,26 @@ result-*
 
 # Ignore NixOS interactive test driver history
 **/.nixos-test-history
+# Secrets / credentials
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+*.secret
+*.secrets
+secrets/
+credentials/
+
+# GPG / SSH private keys
+*.asc
+id_*
+*.gpg
+*.pgp
+
+# Editor / OS junk
+.DS_Store
+*.swp
+*.swo
+*~

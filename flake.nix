@@ -29,6 +29,10 @@
       flake = false;
     };
 
+    psysonic.url = "github:Psysonic/psysonic";
+
+    rigup.url = "github:YPares/rigup.nix";
+
     flake-parts.url = "github:hercules-ci/flake-parts";
 
     import-tree = {

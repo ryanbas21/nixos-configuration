@@ -48,6 +48,13 @@
     services.displayManager.sddm.enable = true;
     services.desktopManager.plasma6.enable = true;
 
+    # Expose the user's nix profile alongside the per-user profile so
+    # nix-env installed apps (desktop entries, icons) are visible.
+    environment.profiles = [
+      "$HOME/.nix-profile"
+      "/etc/profiles/per-user/$USER"
+    ];
+
     # Configure keymap in X11
     services.xserver.xkb = {
       layout = "us";
@@ -102,6 +109,30 @@
       enable = true;
       enableSSHSupport = true;
     };
+
+    # NFS support for the Synology NAS mounts below.
+    boot.supportedFilesystems = [ "nfs" ];
+
+    fileSystems."/mnt/media" = {
+      device = "192.168.1.30:/volume1/jellyfin-data/";
+      fsType = "nfs4";
+      options = [
+        "x-systemd.automount"
+        "noauto"
+        "nofail"
+      ];
+    };
+
+    fileSystems."/home/batman/mnt/notes" = {
+      device = "192.168.1.30:/volume1/Notes";
+      fsType = "nfs4";
+      options = [
+        "x-systemd.automount"
+        "noauto"
+        "nofail"
+      ];
+    };
+
     fileSystems."/home/batman/mnt/nix-backups" = {
       device = "192.168.1.30:/volume1/Backups/nix";
       fsType = "nfs";
@@ -123,6 +154,26 @@
     # networking.firewall.allowedUDPPorts = [ ... ];
     # Or disable the firewall altogether:
     # networking.firewall.enable = false;
-    nix.settings.experimental-features = [ "nix-command" "flakes" ];
+    # Binary caches: self-hosted harmonia first, then psysonic's cachix,
+    # then the canonical cache. Keys must match the substituter order.
+    nix.settings = {
+      substituters = [
+        "http://192.168.1.82:5000"
+        "https://psysonic.cachix.org"
+        "https://cache.nixos.org/"
+      ];
+
+      trusted-substituters = [
+        "http://192.168.1.82:5000"
+      ];
+
+      trusted-public-keys = [
+        "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+        "psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA="
+        "nix-cache-1:8LZd4WztKvAnxaGKaM8L0tqv8x9RhwH6DsWn+xkg13c="
+      ];
+
+      experimental-features = [ "nix-command" "flakes" ];
+    };
   };
 }

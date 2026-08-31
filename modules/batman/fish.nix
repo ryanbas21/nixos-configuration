@@ -30,6 +30,10 @@
     programs.fzf = {
       enable = true;
       enableFishIntegration = true;
+      defaultCommand = "fd --type f --strip-cwd-prefix --hidden --follow --exclude .git";
+      fileWidget = {
+        command = "fd --type f --strip-cwd-prefix --hidden --follow --exclude .git";
+      };
     };
     xdg.configFile = {
       "fish/conf.d/fzf-git.fish".source = "${inputs.fzf-git-sh}/fzf-git.fish";

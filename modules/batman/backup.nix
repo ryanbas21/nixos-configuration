@@ -32,9 +32,7 @@
 
     systemd.user.services.borgmatic = {
       Service = {
-        Environment = [
-          "BORG_PASSPHRASE_FILE=%h/.borg-passphrase"
-        ];
+        EnvironmentFile = "%h/.borg-passphrase.env";
       };
     };
 
@@ -44,7 +42,10 @@
       backups = {
         nix-home = {
           location = {
-            sourceDirectories = [ "${config.home.homeDirectory}/Documents" ];
+            sourceDirectories = [
+              "${config.home.homeDirectory}/"
+              "/var/lib"
+            ];
             repositories = [ "${config.home.homeDirectory}/mnt/nix-backups" ];
           };
           retention = {

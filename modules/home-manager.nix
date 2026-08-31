@@ -7,6 +7,7 @@
       home-manager = {
         useGlobalPkgs = true;
         useUserPackages = true;
+        backupFileExtension = "bak";
         sharedModules = [
           config.homeManager.modules.base
           ({osConfig, ...}: {home.stateVersion = osConfig.system.stateVersion;})
