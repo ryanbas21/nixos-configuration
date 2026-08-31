@@ -14,6 +14,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    pi-flake.url = "github:ChauDucToan/pi-flake";
+
     ryan-nvim = {
       url = "github:ryanbas21/dotfiles";
       flake = false;

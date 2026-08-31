@@ -14,13 +14,13 @@
 # The only edits to existing lua files are the two mason-path fixes in
 # lsp/eslint.lua and lsp/elixirls.lua (bare command names now resolved
 # from PATH).
-{
-  config,
-  pkgs,
-  lib,
-  ryan-nvim,
-  ...
-}: let
+{ config
+, pkgs
+, lib
+, ryan-nvim
+, ...
+}:
+let
   inherit (lib.generators) mkLuaInline;
 
   vp = pkgs.vimPlugins;
@@ -60,18 +60,19 @@
 
   # Plugins missing from nixpkgs vimPlugins, built from the commits pinned
   # in the old lazy-lock.json.
-  pinned = {
-    pname,
-    owner,
-    repo,
-    rev,
-    hash,
-  }:
+  pinned =
+    { pname
+    , owner
+    , repo
+    , rev
+    , hash
+    ,
+    }:
     pkgs.vimUtils.buildVimPlugin {
       inherit pname;
       version = builtins.substring 0 7 rev;
       doCheck = false;
-      src = pkgs.fetchFromGitHub {inherit owner repo rev hash;};
+      src = pkgs.fetchFromGitHub { inherit owner repo rev hash; };
     };
 
   schemastore-nvim = pinned {
@@ -97,7 +98,8 @@
     rev = "558abff11b9e8f4cefc0de09df780c56841c7a4b"; # lazy-lock.json
     hash = "sha256-kjZwfvb0B7GC4dBBSdgC/zRmCUCfCm4H5J+8SFzANJ4=";
   };
-in {
+in
+{
   vim = {
     viAlias = true;
     vimAlias = true;
@@ -185,7 +187,7 @@ in {
             border = "rounded";
             title = "Preview";
             title_pos = "center";
-            position = [0 (-2)];
+            position = [ 0 (-2) ];
             size = {
               width = 0.3;
               height = 0.3;
@@ -217,7 +219,7 @@ in {
 
     utility.diffview-nvim = {
       enable = true;
-      setupOpts.default_args.DiffviewOpen = [];
+      setupOpts.default_args.DiffviewOpen = [ ];
     };
 
     statusline.lualine = {
@@ -235,10 +237,10 @@ in {
             right = "";
           };
           disabled_filetypes = {
-            statusline = [];
-            winbar = [];
+            statusline = [ ];
+            winbar = [ ];
           };
-          ignore_focus = [];
+          ignore_focus = [ ];
           always_divide_middle = true;
           always_show_tabline = true;
           globalstatus = false;
@@ -249,36 +251,36 @@ in {
           };
         };
         sections = {
-          lualine_a = ["mode"];
-          lualine_b = ["branch" "diff"];
-          lualine_c = ["filename"];
-          lualine_x = ["diagnostics" "encoding" "fileformat" "filetype"];
-          lualine_y = ["progress"];
-          lualine_z = ["location"];
+          lualine_a = [ "mode" ];
+          lualine_b = [ "branch" "diff" ];
+          lualine_c = [ "filename" ];
+          lualine_x = [ "diagnostics" "encoding" "fileformat" "filetype" ];
+          lualine_y = [ "progress" ];
+          lualine_z = [ "location" ];
         };
         inactive_sections = {
-          lualine_a = [];
-          lualine_b = [];
-          lualine_c = ["filename"];
-          lualine_x = ["location"];
-          lualine_y = [];
-          lualine_z = [];
+          lualine_a = [ ];
+          lualine_b = [ ];
+          lualine_c = [ "filename" ];
+          lualine_x = [ "location" ];
+          lualine_y = [ ];
+          lualine_z = [ ];
         };
-        tabline = {};
-        winbar = {};
-        inactive_winbar = {};
-        extensions = lib.mkForce []; # exact port of the old spec (nvf wanted to add a snacks picker extension)
+        tabline = { };
+        winbar = { };
+        inactive_winbar = { };
+        extensions = lib.mkForce [ ]; # exact port of the old spec (nvf wanted to add a snacks picker extension)
       };
     };
 
     binds.whichKey = {
       enable = true;
-      setupOpts = {};
+      setupOpts = { };
     };
 
     snippets.luasnip = {
       enable = true;
-      providers = ["friendly-snippets"];
+      providers = [ "friendly-snippets" ];
       # verbatim from the old LuaSnip spec
       loaders = ''
         require('luasnip.loaders.from_snipmate').lazy_load()
@@ -338,24 +340,24 @@ in {
         {
           # verbatim formatters_by_ft from the old conform spec
           formatters_by_ft = {
-            nix = ["nixpkgs-fmt"];
-            lua = ["luaformatter" "stylua"];
-            css = ["prettierd"];
-            elm = ["elm_format"];
-            ocaml = ["ocamlformat"];
-            gleam = ["gleam format"];
-            yaml = ["yamlfix"];
-            markdown = ["mdformat"];
-            haskell = ["ormolu"];
-            html = ["prettierd" "prettier" "biome"];
-            typescript = ["eslint_d" "dprint" "prettierd" "biome"];
-            javascript = ["eslint_d" "dprint" "prettierd" "biome"];
-            typescriptreact = ["prettierd" "biome"];
-            json = ["eslint_d" "prettierd"];
-            javascriptreact = ["prettierd" "biome"];
-            purescript = ["purs-tidy"];
-            luals = ["stylua"];
-            "_" = ["trim_whitespace"];
+            nix = [ "nixpkgs-fmt" ];
+            lua = [ "luaformatter" "stylua" ];
+            css = [ "prettierd" ];
+            elm = [ "elm_format" ];
+            ocaml = [ "ocamlformat" ];
+            gleam = [ "gleam format" ];
+            yaml = [ "yamlfix" ];
+            markdown = [ "mdformat" ];
+            haskell = [ "ormolu" ];
+            html = [ "prettierd" "prettier" "biome" ];
+            typescript = [ "eslint_d" "dprint" "prettierd" "biome" ];
+            javascript = [ "eslint_d" "dprint" "prettierd" "biome" ];
+            typescriptreact = [ "prettierd" "biome" ];
+            json = [ "eslint_d" "prettierd" ];
+            javascriptreact = [ "prettierd" "biome" ];
+            purescript = [ "purs-tidy" ];
+            luals = [ "stylua" ];
+            "_" = [ "trim_whitespace" ];
           };
         }
         // {
@@ -381,20 +383,20 @@ in {
       enable = true;
       # verbatim lintlers_by_ft from the old nvim-lint spec
       linters_by_ft = {
-        javascript = ["eslint_d"];
-        typescript = ["eslint_d"];
-        typescriptreact = ["eslint_d"];
-        javascriptreact = ["eslint_d"];
-        haskell = ["hlint"];
-        angular = ["eslint_d"];
-        bash = ["bash"];
-        git = ["gitlint"];
-        json = ["jsonlint" "eslint_d"];
-        yaml = ["yamllint"];
-        python = ["ruff"];
-        eslint_d = ["eslint_d"];
-        lua = ["luacheck"];
-        css = ["stylelint"];
+        javascript = [ "eslint_d" ];
+        typescript = [ "eslint_d" ];
+        typescriptreact = [ "eslint_d" ];
+        javascriptreact = [ "eslint_d" ];
+        haskell = [ "hlint" ];
+        angular = [ "eslint_d" ];
+        bash = [ "bash" ];
+        git = [ "gitlint" ];
+        json = [ "jsonlint" "eslint_d" ];
+        yaml = [ "yamllint" ];
+        python = [ "ruff" ];
+        eslint_d = [ "eslint_d" ];
+        lua = [ "luacheck" ];
+        css = [ "stylelint" ];
       };
       # the user's autocmds.lua already lints on BufWritePost/InsertLeave/BufEnter
       lint_after_save = false;
@@ -531,7 +533,7 @@ in {
               enabled = false,
             },
             sources = {
-              default = { "lsp", "snippets", "path", "buffer", "codecompanion" },
+              default = { "lsp", "snippets", "path", "buffer"  },
               providers = {
                 lsp = {
                   score_offset = 100,
@@ -546,9 +548,6 @@ in {
                 buffer = {
                   score_offset = -50,
                 },
-              },
-              per_filetype = {
-                codecompanion = { "codecompanion" },
               },
             },
             snippets = {
@@ -594,108 +593,6 @@ in {
           }
         '';
       };
-
-      # ---- codecompanion
-      "${vp.codecompanion-nvim.pname}" = {
-        package = vp.codecompanion-nvim;
-        before = ''
-          require("configs.codecompanion.spinner"):init()
-        '';
-        setupModule = "codecompanion";
-        setupOpts = mkLuaInline ''
-          {
-            extensions = {
-              mcphub = {
-                callback = "mcphub.extensions.codecompanion",
-                opts = {
-                  show_result_in_chat = true,
-                  make_vars = false,
-                  make_slash_commands = true,
-                },
-              },
-            },
-            adapters = {
-              acp = {
-                claude_code = function()
-                  return require("codecompanion.adapters").extend("claude_code", {
-                    env = {
-                      CLAUDE_CODE_OAUTH_TOKEN = "cmd: pass show anthropic/oauth_token",
-                    },
-                  })
-                end,
-              },
-              http = {},
-            },
-            strategies = {
-              chat = {
-                adapter = "claude_code",
-                keymaps = {
-                  hide = {
-                    modes = {
-                      n = "q",
-                    },
-                    callback = function(chat)
-                      chat.ui:hide()
-                    end,
-                    description = "AI: Hide the chat buffer",
-                  },
-                },
-              },
-              inline = {
-                adapter = "claude_code",
-              },
-              agent = {
-                adapter = "claude_code",
-              },
-            },
-          }
-        '';
-        keys = [
-          {
-            key = "<leader>cc;";
-            mode = ["n" "v"];
-            action = "function() require('codecompanion').toggle() end";
-            lua = true;
-            desc = "AI: Toggle chat buffer";
-          }
-          {
-            key = "<leader>al";
-            mode = ["n" "v"];
-            action = "function() require('codecompanion').prompt 'lsp' end";
-            lua = true;
-            desc = "AI: Explain LSP diagnostics";
-          }
-          {
-            key = "<leader>ai";
-            mode = ["n" "v"];
-            action = "function() require('codecompanion').prompt 'inline' end";
-            lua = true;
-            desc = "AI: Inline";
-          }
-          {
-            key = "<leader>ae";
-            mode = "v";
-            action = "function() require('codecompanion').prompt 'expert' end";
-            lua = true;
-            desc = "AI: Explain snippet";
-          }
-          {
-            key = "<leader>af";
-            mode = "v";
-            action = "function() require('codecompanion').prompt 'fix' end";
-            lua = true;
-            desc = "AI: Fix snippet";
-          }
-          {
-            key = "<leader>cct";
-            mode = "n";
-            action = "function() require('codecompanion').prompt 'test' end";
-            lua = true;
-            desc = "Run test AI workflow";
-          }
-        ];
-      };
-
       # ---- haskell-tools (was lazy=false)
       "${vp.haskell-tools-nvim.pname}" = {
         package = vp.haskell-tools-nvim;
@@ -1055,11 +952,6 @@ in {
               },
             },
             highlights = {
-              CodeCompanionChatIcon = { fg = "''${green}" },
-              CodeCompanionChatToolFailure = { fg = "''${gray}", italic = true },
-              CodeCompanionChatToolSuccess = { fg = "''${gray}", bg = "NONE", italic = true },
-              CodeCompanionTokens = { fg = "''${gray}", italic = true },
-              CodeCompanionVirtualText = { fg = "''${gray}", italic = true },
               ["@markup.quote.markdown"] = { italic = true, extend = true },
               EdgyNormal = { bg = "''${bg}" },
               EdgyTitle = { fg = "''${purple}", bold = true },
@@ -1127,7 +1019,7 @@ in {
         package = vp.overseer-nvim;
         setupModule = "overseer";
         setupOpts = {
-          templates = ["builtin" "vscode"];
+          templates = [ "builtin" "vscode" ];
           strategy = {
             "toggleterm" = {
               use_shell = false;
@@ -1282,14 +1174,14 @@ in {
       # ---- ts-error-translator (ft-triggered, no config in the spec)
       "${ts-error-translator-nvim.pname}" = {
         package = ts-error-translator-nvim;
-        ft = ["ts" "typescript" "typescriptreact"];
+        ft = [ "ts" "typescript" "typescriptreact" ];
       };
 
       # ---- ghcid (its nvim plugin lives at <pkg>/plugins/nvim in the repo)
       "${vp.ghcid.pname}" = {
         package = vp.ghcid;
         cmd = "Ghcid";
-        ft = ["haskell"];
+        ft = [ "haskell" ];
         after = ''
           vim.opt.rtp:append("${vp.ghcid}/plugins/nvim")
         '';
@@ -1679,19 +1571,19 @@ in {
       }
       # LuaSnip
       {
-        mode = ["i" "s"];
+        mode = [ "i" "s" ];
         key = "<C-j>";
         action = "function() require('luasnip').jump(1) end";
         lua = true;
       }
       {
-        mode = ["i" "s"];
+        mode = [ "i" "s" ];
         key = "<C-l>";
         action = "function() require('luasnip').jump(-1) end";
         lua = true;
       }
       {
-        mode = ["i" "s"];
+        mode = [ "i" "s" ];
         key = "<C-e>";
         action = ''
           function()
@@ -1706,11 +1598,11 @@ in {
     ];
 
     # toggleterm spec's terminal-mode keymaps (TermOpen autocmd, verbatim)
-    augroups = [{name = "user_toggleterm_keymaps";}];
+    augroups = [{ name = "user_toggleterm_keymaps"; }];
     autocmds = [
       {
-        event = ["TermOpen"];
-        pattern = ["term://*"];
+        event = [ "TermOpen" ];
+        pattern = [ "term://*" ];
         group = "user_toggleterm_keymaps";
         callback = mkLuaInline ''
           function()

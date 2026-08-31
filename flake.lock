@@ -2,7 +2,7 @@
   "nodes": {
     "blueprint": {
       "inputs": {
-        "nixpkgs": "nixpkgs_3",
+        "nixpkgs": "nixpkgs_4",
         "systems": "systems"
       },
       "locked": {
@@ -148,6 +148,27 @@
         "type": "github"
       }
     },
+    "home-manager_2": {
+      "inputs": {
+        "nixpkgs": [
+          "pi-flake",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1783436070,
+        "narHash": "sha256-F80z1JoiJgZyTT5D+3siLOVzqmCEphLR7t0Ym/I2CLI=",
+        "owner": "nix-community",
+        "repo": "home-manager",
+        "rev": "f09af49406ffad37acb6538d3207189a1a1e0b7e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "home-manager",
+        "type": "github"
+      }
+    },
     "import-tree": {
       "flake": false,
       "locked": {
@@ -168,7 +189,7 @@
       "inputs": {
         "bun2nix": "bun2nix",
         "flake-parts": "flake-parts_2",
-        "nixpkgs": "nixpkgs_4",
+        "nixpkgs": "nixpkgs_5",
         "systems": "systems_2",
         "treefmt-nix": "treefmt-nix"
       },
@@ -250,6 +271,22 @@
     },
     "nixpkgs_2": {
       "locked": {
+        "lastModified": 1778443072,
+        "narHash": "sha256-zi7/fsqM/kFdNuED//4WOCUtezGtKKqRNORjMvfwjnA=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_3": {
+      "locked": {
         "lastModified": 1783776592,
         "narHash": "sha256-UgCQzxeWI75XM8G+hPrPh+MKzEPjG3SpAj7dtqSbksA=",
         "owner": "NixOS",
@@ -264,7 +301,7 @@
         "type": "github"
       }
     },
-    "nixpkgs_3": {
+    "nixpkgs_4": {
       "locked": {
         "lastModified": 1741513245,
         "narHash": "sha256-7rTAMNTY1xoBwz0h7ZMtEcd8LELk9R5TzBPoHuhNSCk=",
@@ -280,7 +317,7 @@
         "type": "github"
       }
     },
-    "nixpkgs_4": {
+    "nixpkgs_5": {
       "locked": {
         "lastModified": 1787424095,
         "narHash": "sha256-dWLO5AHhKaw6rdWCtTes8hnntT1r0/J5yhQGm0f0ZgU=",
@@ -296,7 +333,7 @@
         "type": "github"
       }
     },
-    "nixpkgs_5": {
+    "nixpkgs_6": {
       "locked": {
         "lastModified": 1787814960,
         "narHash": "sha256-PYZq1qzCJXC2zGI0mH07vrZBsw6DRBAOX0jN1pPtqOQ=",
@@ -335,9 +372,28 @@
         "type": "github"
       }
     },
+    "pi-flake": {
+      "inputs": {
+        "home-manager": "home-manager_2",
+        "nixpkgs": "nixpkgs_2"
+      },
+      "locked": {
+        "lastModified": 1788060132,
+        "narHash": "sha256-qwjpSU/9S/SWXDRNcA18REkSXcVIIYdzvEAI1JDBdJU=",
+        "owner": "ChauDucToan",
+        "repo": "pi-flake",
+        "rev": "22826910a18489ed65b337d4b57bd54c5be93f09",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ChauDucToan",
+        "repo": "pi-flake",
+        "type": "github"
+      }
+    },
     "psysonic": {
       "inputs": {
-        "nixpkgs": "nixpkgs_2"
+        "nixpkgs": "nixpkgs_3"
       },
       "locked": {
         "lastModified": 1787978795,
@@ -357,7 +413,7 @@
       "inputs": {
         "blueprint": "blueprint",
         "llm-agents": "llm-agents",
-        "nixpkgs": "nixpkgs_5"
+        "nixpkgs": "nixpkgs_6"
       },
       "locked": {
         "lastModified": 1787983899,
@@ -382,6 +438,7 @@
         "nixpkgs": "nixpkgs",
         "nixpkgs-intel-mac": "nixpkgs-intel-mac",
         "nvf": "nvf",
+        "pi-flake": "pi-flake",
         "psysonic": "psysonic",
         "rigup": "rigup",
         "ryan-nvim": "ryan-nvim"
