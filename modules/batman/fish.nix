@@ -9,7 +9,8 @@
     programs.git = {
       enable = true;
       signing = {
-        key = "~/.ssh/manjaro_key.pub";
+        format = "ssh";
+        key = "~/.ssh/git.pub";
         signByDefault = true;
 
       };
