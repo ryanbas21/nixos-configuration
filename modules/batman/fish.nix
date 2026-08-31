@@ -1,11 +1,35 @@
 # Fish + shell UX for batman. Ported from ./fish.nix (top level); the
 # fzf-git-sh input is closed over from the flake inputs.
-{inputs, ...}: {
-  users.batman.home.base = {pkgs, ...}: {
+{ inputs, ... }: {
+  users.batman.home.base = { pkgs, ... }: {
     # The fzf-fish plugin requires fd at runtime; this keeps the module
     # self-contained on machines where fd isn't otherwise installed.
-    home.packages = [pkgs.fd];
+    home.packages = [ pkgs.fd ];
 
+    programs.git = {
+      enable = true;
+      signing = {
+        key = "~/.ssh/manjaro_key.pub";
+        signByDefault = true;
+
+      };
+      settings = {
+        pull.rebase = true;
+        rebase.autoStash = true;
+        gpg.format = "ssh";
+        user.name = "ryan bas";
+        user.email = "git@ryanbas.com";
+        init.defaultBranch = "main";
+        push = {
+          autoSetupRemote = true;
+        };
+        alias = {
+          co = "checkout";
+          st = "status";
+          sync = "!git pull --rebase && git push";
+        };
+      };
+    };
     programs.fish = {
       enable = true;
 
@@ -14,11 +38,11 @@
       '';
 
       plugins = [
-        {name = "fzf-fish"; src = pkgs.fishPlugins.fzf-fish;}
-        {name = "autopair"; src = pkgs.fishPlugins.autopair;}
-        {name = "sponge"; src = pkgs.fishPlugins.sponge;}
-        {name = "done"; src = pkgs.fishPlugins.done;}
-        {name = "colored-man-pages"; src = pkgs.fishPlugins.colored-man-pages;}
+        { name = "fzf-fish"; src = pkgs.fishPlugins.fzf-fish; }
+        { name = "autopair"; src = pkgs.fishPlugins.autopair; }
+        { name = "sponge"; src = pkgs.fishPlugins.sponge; }
+        { name = "done"; src = pkgs.fishPlugins.done; }
+        { name = "colored-man-pages"; src = pkgs.fishPlugins.colored-man-pages; }
       ];
 
       shellAbbrs = {

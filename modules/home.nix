@@ -3,40 +3,41 @@
 # them as flake.homeConfigurations for non-NixOS machines. The desktop-only
 # layer (users.<name>.home.pc: backups, NFS mount) is intentionally NOT
 # merged here — it stays NixOS-side via users.<name>.nixos.base.
-{config, lib, inputs, evalModulesModule, unfreeNames, ...}: {
+{ config, lib, inputs, evalModulesModule, unfreeNames, ... }: {
   options.home.configurations = lib.mkOption {
-    type = lib.types.lazyAttrsOf (lib.types.submodule (homeArgs @ {name, ...}: {
-      imports = [evalModulesModule];
+    type = lib.types.lazyAttrsOf (lib.types.submodule (homeArgs @ { name, ... }: {
+      imports = [ evalModulesModule ];
       options = {
-        username = lib.mkOption {type = lib.types.str;};
-        system = lib.mkOption {type = lib.types.str;};
-        homeDirectory = lib.mkOption {type = lib.types.str;};
+        username = lib.mkOption { type = lib.types.str; };
+        system = lib.mkOption { type = lib.types.str; };
+        homeDirectory = lib.mkOption { type = lib.types.str; };
       };
       config = {
         fn = inputs.home-manager.lib.homeManagerConfiguration;
-        args.pkgs = let
-          # x86_64-darwin was dropped from nixpkgs unstable (26.11); the
-          # Intel Mac entry builds against the 26.05-darwin stable branch.
-          isIntelMac = homeArgs.config.system == "x86_64-darwin";
-          nixpkgsInput =
-            if isIntelMac
-            then inputs.nixpkgs-intel-mac
-            else inputs.nixpkgs;
-          extraConfig =
-            lib.optionalAttrs isIntelMac {
-              # 26.05 ships fzf 0.72; fishPlugins.fzf-fish (fzf.fish 11.0)
-              # is meta-broken there against that fzf. It is source-only,
-              # builds fine, and fzf-fish declares fzf >= 8.2 — warn and
-              # move on.
-              problems.handlers."fzf.fish".broken = "warn";
-            };
-        in
+        args.pkgs =
+          let
+            # x86_64-darwin was dropped from nixpkgs unstable (26.11); the
+            # Intel Mac entry builds against the 26.05-darwin stable branch.
+            isIntelMac = homeArgs.config.system == "x86_64-darwin";
+            nixpkgsInput =
+              if isIntelMac
+              then inputs.nixpkgs-intel-mac
+              else inputs.nixpkgs;
+            extraConfig =
+              lib.optionalAttrs isIntelMac {
+                # 26.05 ships fzf 0.72; fishPlugins.fzf-fish (fzf.fish 11.0)
+                # is meta-broken there against that fzf. It is source-only,
+                # builds fine, and fzf-fish declares fzf >= 8.2 — warn and
+                # move on.
+                problems.handlers."fzf.fish".broken = "warn";
+              };
+          in
           import nixpkgsInput {
             system = homeArgs.config.system;
             # Same unfree policy as modules/nixos/base.nix, applied at
             # pkgs-import time because standalone entries import their
             # own package set.
-            config = {allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) unfreeNames;} // extraConfig;
+            config = { allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) unfreeNames; } // extraConfig;
           };
         module = {
           imports = [
@@ -61,7 +62,7 @@
   };
   config = {
     flake.homeConfigurations =
-      lib.mapAttrs (name: {configuration, ...}: configuration) config.home.configurations;
+      lib.mapAttrs (name: { configuration, ... }: configuration) config.home.configurations;
 
     home.configurations = {
       ryan-linux = {
@@ -72,7 +73,7 @@
       ryan-intel-mac = {
         username = "ryan";
         system = "x86_64-darwin";
-        homeDirectory = "/Users/ryan";
+        homeDirectory = "/Users/ryan.basmajian";
       };
     };
   };

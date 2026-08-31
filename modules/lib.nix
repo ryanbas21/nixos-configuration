@@ -1,9 +1,9 @@
-{lib, ...}: {
-  _module.args.mkModuleOption = args @ {key, static ? {}, ...}:
+{ lib, ... }: {
+  _module.args.mkModuleOption = args @ { key, static ? { }, ... }:
     lib.mkOption {
-      type = lib.types.deferredModuleWith {staticModules = [static];};
-      apply = module: {inherit key; imports = [module];};
-      default = {};
+      type = lib.types.deferredModuleWith { staticModules = [ static ]; };
+      apply = module: { inherit key; imports = [ module ]; };
+      default = { };
     };
 
   # Package names (as lib.getName reports them) permitted despite an
@@ -18,5 +18,7 @@
     "discord"
     "discord-unwrapped"
     "obsidian"
+    "1password"
+    "1password-cli"
   ];
 }
