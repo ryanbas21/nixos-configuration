@@ -199,7 +199,8 @@ Notes on the files that are not self-explanatory:
   option as `deferredModuleWith` (merging optional `static` modules); its
   `apply` wraps the result with a `key` so merge errors point at the right
   slot. It also carries `unfreeNames`, the single allowlist behind every
-  `allowUnfreePredicate` in the repo.
+  `allowUnfreePredicate` in the repo, and `cachixCache`, the single
+  source of the personal binary cache's URL and public key.
 - `modules/eval-modules.nix`: a reusable option set (`fn`, `module`, `args`,
   `configuration`) that calls any eval-config-style function with the
   accumulated module; `modules/nixos.nix` instantiates it with

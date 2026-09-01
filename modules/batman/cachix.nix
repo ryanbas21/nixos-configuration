@@ -20,7 +20,7 @@
 # Recovery story: a fresh machine needs only the agenix identity
 # (~/.ssh/id_borg, private half in 1Password) — the first activation
 # re-provisions the cachix CLI config and the CI secrets.
-{ inputs, ... }:
+{ cachixCache, ... }:
 
 {
   # Desktop: own the credentials, provision CLI + CI from them.
@@ -71,9 +71,8 @@
   users.batman.home.base = { lib, pkgs, ... }: {
     xdg.configFile."nix/nix.conf" = lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {
       text = ''
-        substituters = https://nix-configs.cachix.org https://cache.nixos.org
-        # Keep in sync with modules/nixos/base.nix (trusted-public-keys).
-        trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+        substituters = ${cachixCache.url} https://cache.nixos.org
+        trusted-public-keys = ${cachixCache.publicKey} cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
         experimental-features = nix-command flakes
       '';
     };

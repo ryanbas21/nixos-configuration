@@ -4,7 +4,7 @@
 # Help is available in the configuration.nix(5) man page and in the NixOS
 # manual (accessible by running ‘nixos-help’).
 
-{ mkModuleOption, unfreeNames, ... }: {
+{ mkModuleOption, unfreeNames, cachixCache, ... }: {
   options.nixos.modules.base = mkModuleOption { key = "base"; };
 
   config.nixos.modules.base = { config, lib, pkgs, ... }: {
@@ -128,13 +128,11 @@
     nix.settings = {
       substituters = [
         "http://192.168.1.82:5000"
-        # Personal cachix, self-signed with our own keypair (public half
-        # in the trusted-public-keys list below, secret half in the
-        # repo's CACHIX_SIGNING_KEY secret; the CI build jobs push to
-        # it, so this machine substitutes the repo-specific paths — nvf
-        # wrapper, home-manager generations, llm-agents tools — instead
-        # of building them):
-        "https://nix-configs.cachix.org"
+        # Personal cachix (lib.nix cachixCache): the CI build jobs push
+        # to it, so this machine substitutes the repo-specific paths —
+        # nvf wrapper, home-manager generations, llm-agents tools —
+        # instead of building them.
+        cachixCache.url
         "https://psysonic.cachix.org"
         "https://cache.numtide.com"
         "https://cache.nixos.org/"
@@ -149,9 +147,7 @@
         "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
         "psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA="
         "nix-cache-1:SpVt1hjpAaEgQqnY1cIm5tjTETZbG5dQmGZ3rDbTyJc="
-        # The public half of our self-owned cachix signing keypair —
-        # must match the key registered at cachix.
-        "nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw="
+        cachixCache.publicKey
 
       ];
 
