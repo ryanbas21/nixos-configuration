@@ -151,7 +151,7 @@
         "nix-cache-1:SpVt1hjpAaEgQqnY1cIm5tjTETZbG5dQmGZ3rDbTyJc="
         # The public half of our self-owned cachix signing keypair —
         # must match the key registered at cachix.
-        "nix-configs.cachix.org-1:zjZeheDV3s/8kmmlf4jMTv3TeZ7LoaDT7grxdpFzVb4="
+        "nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw="
 
       ];
 
