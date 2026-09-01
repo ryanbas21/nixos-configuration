@@ -395,6 +395,7 @@ The recipient key declared in secrets.nix is batman — the desktop's ~/.ssh/id_
 
 The repository has this layout:
 
+```
 /etc/nixos/
 ├── secrets.nix
 └── secrets/
@@ -403,6 +404,7 @@ The repository has this layout:
 ├── gpg.age user-level (GPG private-key import)
 ├── cachix-auth-token.age user-level (cachix CLI + CI secret sync)
 └── cachix-signing-key.age user-level (cachix CLI + CI secret sync)
+```
 
 secrets.nix contains only public recipient keys and is safe to commit. The .age files contain the encrypted secret material and are also committed. Never commit a private decryption key (for example ~/.ssh/id_borg).
 
