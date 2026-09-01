@@ -21,9 +21,10 @@
     # Enable networking
     networking.networkmanager.enable = true;
 
-    # Set your time zone.
-    time.timeZone = "America/Denver";
-
+    # No static time.timeZone: it is owned by services.automatic-timezoned
+    # (modules/time.nix), whose nixpkgs module sets time.timeZone = null on
+    # purpose — a static zone would be silently overridden at runtime, so
+    # the module turns the combination into an eval error instead.
     # Select internationalisation properties.
     i18n.defaultLocale = "en_US.UTF-8";
 

@@ -172,6 +172,14 @@ Read the repo in this order. Three terms, one sentence each:
 │   │                            homeConfigurations exports
 │   ├── home-manager.nix         homeManager.modules.base; wires HM into NixOS
 │   ├── users.nix                users.<name>.* slots; declares batman
+│   ├── time.nix                 ntpd-rs + automatic-timezoned (owns time.timeZone)
+│   ├── security.nix             paretosecurity posture checks (system service)
+│   ├── sudo.nix                 sudo-rs replaces classic sudo
+│   ├── virtualization.nix       docker (rootless + socket-activated system daemon)
+│   │                            + VirtualBox host
+│   ├── networking/
+│   │   └── dns.nix              systemd-resolved: pihole first, then mullvad/
+│   │                            quad9/cloudflare; opportunistic DoT
 │   ├── computers/
 │   │   ├── nixos.nix            the host, as data (hostname, NFS mounts)
 │   │   └── nixos/
@@ -186,6 +194,9 @@ Read the repo in this order. Three terms, one sentence each:
 │       ├── backup.nix           borgmatic + git backup timer (home.pc; desktop)
 │       ├── cachix.nix           nix-configs cache: agenix creds + CI secret
 │       │                        sync + Mac's declarative nix.conf
+│       ├── screen-capture.nix   kooha screen recorder (home.pc; desktop)
+│       ├── time-of-day-gamma.nix gammastep + its geoclue2 whitelist
+│       │                        (home.pc + nixos.modules.base halves)
 │       └── _nvf/
 │           └── default.nix      nvf settings module (manual import)
 └── scripts/
