@@ -7,6 +7,8 @@ organized as one feature per file: dropping a `.nix` file into `modules/` is
 the only step needed to enable it. Neovim is built by nvf, with its lua
 sourced from the dotfiles repo through the `ryan-nvim` flake input.
 
+[![CI](https://github.com/ryanbas21/nixos-configuration/actions/workflows/ci.yml/badge.svg)](https://github.com/ryanbas21/nixos-configuration/actions/workflows/ci.yml)
+
 The structure follows the [dendritic pattern](https://github.com/mightyiam/dendritic);
 [mightyiam/infra](https://github.com/mightyiam/infra) is the canonical
 implementation.
@@ -160,6 +162,7 @@ Read the repo in this order. Three terms, one sentence each:
 ├── flake.lock                   locked input revisions
 ├── LICENSE                      public domain
 ├── .gitignore                   result/, .direnv, test-driver history
+├── .github/workflows/ci.yml     CI: eval-only flake check on every push
 ├── modules/
 │   ├── lib.nix                  mkModuleOption helper; shared unfree allowlist
 │   ├── eval-modules.nix         generic "wrap any eval-config" machinery
@@ -282,12 +285,52 @@ original dotfiles nvf configuration:
 |---|---|
 | `nixpkgs` | `github:NixOS/nixpkgs/nixos-unstable`; the package set for the system, the desktop's home, and `ryan-linux` |
 | `nixpkgs-intel-mac` | `github:NixOS/nixpkgs/nixpkgs-26.05-darwin`; feeds only the `ryan-intel-mac` export, since unstable dropped `x86_64-darwin` |
+| `agenix` | secrets: the home-manager module + `agenix` CLI; follows `nixpkgs` |
 | `home-manager` | user environments; follows `nixpkgs` |
 | `nvf` | the neovim distribution, `github:NotAShelf/nvf/v26.07`; follows `nixpkgs` |
 | `ryan-nvim` | `github:ryanbas21/dotfiles`, `flake = false`; the pinned lua tree nvf sources |
 | `fzf-git-sh` | `github:junegunn/fzf-git.sh`, `flake = false`; fish keybindings |
+| `psysonic` | the psysonic tool (`packages.nix`); own nixpkgs pin |
+| `llm-agents` | pi, openskills, plannotator, herdr, rtk (`agents.nix`); own nixpkgs pin |
+| `rigup` | the rigup tool (`packages.nix`); own nixpkgs pin |
 | `flake-parts` | `mkFlake`, the module system everything runs on |
 | `import-tree` | `github:vic/import-tree`, `flake = false`; the auto-importer |
+
+## Updating inputs
+
+The lockfile is the source of truth: no machine moves until a new one is
+committed here. The ritual, run on the desktop:
+
+1. `nix flake update` moves every input; `nix flake update <input>` moves
+   one. Move `nixpkgs` and `home-manager` together — home-manager master
+   tracks nixpkgs-unstable, and a lock where the two diverge is the classic
+   source of "option does not exist" eval failures.
+2. `nix flake check --no-build` evaluates the NixOS host, both standalone
+   homes, and every other output in about a minute. This is exactly what
+   CI runs on every push, so this step just moves any failure from a red
+   badge on GitHub to before you committed.
+3. `sudo nixos-rebuild test --flake .#nixos` builds and activates without
+   touching the boot entries; run `switch` once the machine has been
+   through a session you care about. CI is eval-only by design, so build
+   failures (an upstream package breaking) still surface here.
+4. Commit the lock and push. The laptop and Mac need nothing: their
+   one-liners read this repository's `flake.lock` straight from GitHub.
+
+Notes on individual inputs:
+
+- `agenix` regularly looks months stale and usually isn't: upstream
+  releases rarely, and the locked rev has more than once been HEAD when
+  checked. Verify with `nix flake metadata github:ryantm/agenix` before
+  treating it as stale (checked 2026-09-01: `b027ee2` is HEAD).
+- `nixpkgs-intel-mac` tracks the last x86_64-darwin branch
+  (`nixpkgs-26.05-darwin`) and moves only when that branch does.
+- The git-backup timer (see `modules/batman/backup.nix`) commits and
+  pushes any dirty tree — including a half-finished lock update. That is
+  safe (CI checks those pushes too), but if the update commit should
+  carry a real message, commit before the timer fires.
+
+Cadence is demand-driven, not calendared: update when a package is needed
+newer, or for security fixes — not on a schedule.
 
 ## Hardware & deployment
 
@@ -315,7 +358,11 @@ The laptop and Mac deploy with the one-liners in
 `modules/computers/nixos/_hardware.nix`, and commit it.
 
 **Validation from anywhere, no hardware needed:** `nix flake check` builds
-the host toplevel against the real tracked hardware file.
+the host toplevel against the real tracked hardware file. CI
+(`.github/workflows/ci.yml`) runs the eval-only half of that — `nix flake
+check --no-build`, evaluating the host and both standalone homes — on every
+push to main (including the backup timer's automated commits) and on every
+pull request.
 
 Secrets & agenix
 

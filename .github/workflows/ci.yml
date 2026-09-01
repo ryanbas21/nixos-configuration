@@ -1,0 +1,42 @@
+# CI: evaluate the whole flake on every push and pull request.
+#
+# `nix flake check --no-build` evaluates every output the flake exports —
+# the NixOS host against its tracked hardware file, both standalone
+# homeConfigurations (ryan-linux, ryan-intel-mac), and the rest — without
+# building anything. That catches the common failure mode (module/option
+# breakage after a `nix flake update`) in about a minute, instead of the
+# hours a full toplevel build would need on an unpersisted runner. Build
+# failures still surface where they always have: the desktop's
+# `nixos-rebuild`.
+#
+# This also covers the git-backup timer's automated commits to main
+# (modules/batman/backup.nix): no push, human or timer, may carry a config
+# that fails to evaluate.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flake-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          # Authenticate GitHub API requests: the flake fetches ~13 locked
+          # inputs, and unauthenticated runner IPs regularly exhaust the
+          # 60 req/hr shared rate limit.
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+
+      - name: Evaluate all flake outputs
+        run: nix flake check --no-build
