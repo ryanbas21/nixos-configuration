@@ -105,6 +105,12 @@ jobs:
           # registered at cachix and in modules/nixos/base.nix.
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
+          # Daemon mode (the default) pushes via a nix post-build-hook
+          # process that does not inherit signingKey — every path went up
+          # unsigned and the server rejected the whole batch with
+          # 400 "Signature verification failed". The post-step push runs
+          # in-process, where the key env reliably applies.
+          useDaemon: false
 
       - name: Build the ${{ matrix.home }} activation package
         run: nix build .#homeConfigurations.${{ matrix.home }}.activationPackage
