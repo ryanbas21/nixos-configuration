@@ -13,9 +13,20 @@ if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --other
     exit 0
 fi
 
+# The timer is Persistent=true, so it fires the moment the machine boots
+# — possibly before DNS is up. Wait (up to 5 min) instead of failing.
+for _ in $(seq 1 30); do
+    getent hosts github.com >/dev/null 2>&1 && break
+    sleep 10
+done
+
 git add -A
 
 git commit -m "Automated NixOS config backup"
+
+# Another machine may have pushed in the meantime; rebase our automated
+# commit on top instead of letting the push fail on a diverged remote.
+git pull --rebase --autostash
 
 git push
 

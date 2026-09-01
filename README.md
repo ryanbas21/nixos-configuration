@@ -63,17 +63,17 @@ desktop's backup timers).
 
 **New NixOS host:**
 
-1. On the box, run `nixos-generate-config`; copy the generated
+2. On the box, run `nixos-generate-config`; copy the generated
    `hardware-configuration.nix` content into
    `modules/computers/<name>/_hardware.nix` (the `_` prefix is required —
    see [Hardware & deployment](#hardware--deployment)).
-1. Create `modules/computers/<name>.nix` assigning
+3. Create `modules/computers/<name>.nix` assigning
    `nixos.configurations.<name>.module`: `system.stateVersion`,
    `nixpkgs.hostPlatform`, the machine's `networking.hostName` and any
    NFS mounts it needs (with `boot.supportedFilesystems = [ "nfs" ]` —
    host-specific data lives here, not in the shared base), and
    `imports = [ ./<name>/_hardware.nix config.nixos.modules.base config.users.<user>.nixos.base ]`.
-1. Commit, then `sudo nixos-rebuild switch --flake .#<name>`.
+3. Commit, then `sudo nixos-rebuild switch --flake .#<name>`.
    `nixosConfigurations.<name>` and a flake check appear automatically.
 
 **New standalone machine (any non-NixOS box):** add an entry to
@@ -98,12 +98,12 @@ Read the repo in this order. Three terms, one sentence each:
 1. `flake.nix` declares the inputs and nothing else, then hands off with
    `outputs = inputs: import ./outputs.nix inputs`.
 
-1. `outputs.nix` runs `flake-parts.lib.mkFlake { inherit inputs; }`, imports
+2. `outputs.nix` runs `flake-parts.lib.mkFlake { inherit inputs; }`, imports
    the whole `modules/` tree via import-tree, and sets
    `systems = ["x86_64-linux"]`. From here on, "a file under `modules/`" and
    "an imported module" mean the same thing.
 
-1. Feature files never import each other; they only assign to option
+3. Feature files never import each other; they only assign to option
    namespaces:
 
    | Namespace | Holds |
@@ -116,26 +116,26 @@ Read the repo in this order. Three terms, one sentence each:
    | `users.<name>.home.base` | the home-manager-side module for a user, all machines |
    | `users.<name>.home.pc` | home.base plus desktop-only extras (backups); NixOS hosts only |
 
-1. `modules/nixos.nix` is machinery: each `nixos.configurations.<name>`
+4. `modules/nixos.nix` is machinery: each `nixos.configurations.<name>`
    wraps nixpkgs' `eval-config.nix` and exports, per host:
 
    - `flake.nixosConfigurations.<name>` — the full evaluation result;
    - `flake.checks."x86_64-linux"."configurations:nixos:nixos"` — the host
      toplevel, so `nix flake check` builds the whole system.
 
-1. `modules/users.nix` wires a user together: the static part of
+5. `modules/users.nix` wires a user together: the static part of
    `users.batman.nixos.base` declares the batman account (normal user,
    `wheel` + `networkmanager`) and sets
    `home-manager.users.batman = users.batman.home.pc`, so everything the
    batman feature files assign to `users.batman.home.base` (plus the
    desktop-only `home.pc` extras) lands inside home-manager.
 
-1. `modules/home-manager.nix` adds home-manager's NixOS module to
+6. `modules/home-manager.nix` adds home-manager's NixOS module to
    `nixos.modules.base` (with `useGlobalPkgs` and `useUserPackages`) and sets
    `sharedModules` to `homeManager.modules.base` plus a small module syncing
    `home.stateVersion` from `osConfig.system.stateVersion`.
 
-1. `modules/home.nix` is the standalone counterpart: each
+7. `modules/home.nix` is the standalone counterpart: each
    `home.configurations.<name>` wraps home-manager's
    `homeManagerConfiguration` over `homeManager.modules.base` +
    `users.batman.home.base` (never `home.pc`, and never the osConfig
@@ -143,7 +143,7 @@ Read the repo in this order. Three terms, one sentence each:
    `flake.homeConfigurations.<name>`. The Intel Mac entry builds against
    the `nixpkgs-intel-mac` input because unstable dropped `x86_64-darwin`.
 
-1. `modules/computers/nixos.nix` is the host itself, as data:
+8. `modules/computers/nixos.nix` is the host itself, as data:
    `system.stateVersion = "26.05"`, plain
    `nixpkgs.hostPlatform = "x86_64-linux"`, the hostname, the NFS
    automounts (media, notes, nix-backups) with
@@ -319,38 +319,38 @@ the host toplevel against the real tracked hardware file.
 
 Secrets & agenix
 
-Secrets are encrypted with agenix
-and committed to this repository. The encrypted .age files are safe to store in Git; the private SSH keys used to decrypt them are never stored in the repository.
+Secrets are encrypted with agenix and committed to this repository. The encrypted .age files are safe to store in Git; the private keys used to decrypt them are never stored in the repository.
 
-The desktop uses ~/.ssh/id_borg as its agenix identity. Its corresponding public key is listed in secrets.nix.
+The recipient key declared in secrets.nix is batman — the desktop's ~/.ssh/id_borg: the user-level agenix identity, it decrypts every secret. Its private half is backed up in 1Password, so a machine-plus-NAS disaster still leaves a recovery path. GitHub pushes use a separate dedicated key, ~/.ssh/git (declared in modules/batman/ssh.nix).
 
 The repository has this layout:
 
 /etc/nixos/
 ├── secrets.nix
 └── secrets/
-└── borg-passphrase.age
+    ├── borg-passphrase.age   user-level (borgmatic)
+    ├── zai-api-key.age       user-level (fish, agents)
+    └── gpg.age               user-level (GPG private-key import)
 
-secrets.nix contains only public recipient keys and is safe to commit. The .age files contain the encrypted secret material and are also committed. Never commit the private key used for decryption (for example ~/.ssh/id_borg).
+secrets.nix contains only public recipient keys and is safe to commit. The .age files contain the encrypted secret material and are also committed. Never commit a private decryption key (for example ~/.ssh/id_borg).
 
 Adding a secret
 
 Make sure the recipient's public SSH key is present in secrets.nix. For example:
 
 let
-batman =
-"ssh-ed25519 AAAA... batman@nixos";
+batman = "ssh-ed25519 AAAA... batman@nixos";
 in
 {
-"secrets/borg-passphrase.age".publicKeys = [ batman ];
+"secrets/example.age".publicKeys = [ batman ];
 }
 
-Create or edit the encrypted secret from the repository root:
+Create or edit the encrypted secret from the repository root (agenix is on the desktop's package list, pinned by the flake input):
 
 cd /etc/nixos
-nix run github:ryantm/agenix -- -e secrets/<name>.age
+agenix -e secrets/<name>.age
 
-Enter the plaintext secret in the editor. Agenix encrypts it when the editor is closed.
+Enter the plaintext secret in the editor. Agenix encrypts it when the editor is closed, using the recipients from secrets.nix.
 
 Add the encrypted file to Git so Nix flakes can see it:
 

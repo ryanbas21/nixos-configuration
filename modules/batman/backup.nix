@@ -5,14 +5,12 @@
 { ... }:
 
 {
-  users.batman.home.pc = { config, ... }: {
+  users.batman.home.pc = { config, lib, ... }: {
     age.identityPaths = [
       "${config.home.homeDirectory}/.ssh/id_borg"
     ];
 
-    age.secrets.borg-passphrase = {
-      file = ../../secrets/borg-passphrase.age;
-    };
+    # borg-passphrase itself is declared once, in agenix.nix.
 
     systemd.user.services.nixos-config-backup = {
       Unit.Description = "Backup NixOS configuration to Git";
@@ -20,6 +18,11 @@
       Service = {
         Type = "oneshot";
         ExecStart = "/etc/nixos/scripts/git-backup.sh";
+        # Boot-race guard: the timer is Persistent=true and fires the
+        # moment the machine boots; retry instead of silently losing
+        # the day's push (systemd >= 254 allows Restart on Type=oneshot).
+        Restart = "on-failure";
+        RestartSec = "5min";
       };
     };
 
@@ -62,8 +65,15 @@
     };
 
     systemd.user.services.borgmatic = {
-      Service.EnvironmentFile = "/run/user/1000/agenix/borg-passphrase";
-      # config.age.secrets.borg-passphrase.path;
+      Service = {
+        EnvironmentFile = config.age.secrets.borg-passphrase.path;
+        # The Persistent timer can fire during early boot, before the
+        # NFS automount for /mnt/nix-backups is reachable; retry instead
+        # of failing the whole day's backup. mkForce overrides HM's
+        # stock Restart = "no".
+        Restart = lib.mkForce "on-failure";
+        RestartSec = "5min";
+      };
     };
 
 

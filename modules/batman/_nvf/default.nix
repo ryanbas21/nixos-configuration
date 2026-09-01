@@ -1204,16 +1204,34 @@ in
       FixCursorHold-nvim.package = vp.FixCursorHold-nvim;
       # lspkind: only a blink.cmp dependency in the old spec (never set up)
       lspkind-nvim.package = vp.lspkind-nvim;
-      haskell-snippets-nvim.package = vp.haskell-snippets-nvim;
-      # blink sources available for opt-in (deps of the old blink spec)
-      blink-emoji-nvim.package = vp.blink-emoji-nvim;
+      # nixpkgs declares haskell-snippets-nvim as depending on luasnip,
+      # which mnw would force-load into /start on top of nvf's lazy /opt
+      # registration (the duplicate-install warning). The library sits
+      # eagerly on the runtime path either way and luasnip's snipmate
+      # loader picks it up on demand, so the edge is redundant — strip it.
+      haskell-snippets-nvim.package =
+        vp.haskell-snippets-nvim.overrideAttrs (_: {dependencies = [];});
+      # blink sources available for opt-in (deps of the old blink spec).
+      # blink-emoji-nvim is gone: no blink source enables it, and its
+      # nixpkgs dependency on blink.cmp forced the same /opt + /start
+      # duplication against the InsertEnter-gated lazy spec.
       blink-cmp-dictionary.package = vp.blink-cmp-dictionary;
-      # neotest adapters (deps of the old neotest spec)
-      neotest-elixir.package = vp.neotest-elixir;
-      neotest-haskell.package = vp.neotest-haskell;
-      neotest-jest.package = vp.neotest-jest;
-      neotest-playwright.package = vp.neotest-playwright;
-      neotest-vitest.package = vp.neotest-vitest;
+      # neotest adapters (deps of the old neotest spec). Every adapter's
+      # nixpkgs metadata declares a dependency on neotest, which mnw would
+      # resolve into a forced /start install duplicating the cmd-gated
+      # lazy spec (the /opt + /start warning). neotest's own dependency
+      # chain still installs nio/plenary, so stripping the edges is safe
+      # and leaves load order to the lazy specs.
+      neotest-elixir.package =
+        vp.neotest-elixir.overrideAttrs (_: {dependencies = [];});
+      neotest-haskell.package =
+        vp.neotest-haskell.overrideAttrs (_: {dependencies = [];});
+      neotest-jest.package =
+        vp.neotest-jest.overrideAttrs (_: {dependencies = [];});
+      neotest-playwright.package =
+        vp.neotest-playwright.overrideAttrs (_: {dependencies = [];});
+      neotest-vitest.package =
+        vp.neotest-vitest.overrideAttrs (_: {dependencies = [];});
       # eager on purpose: lsp/*.lua resolve require("schemastore") when a
       # server config loads (jsonls/yamlls), which can precede any LspAttach
       schemastore-nvim.package = schemastore-nvim;

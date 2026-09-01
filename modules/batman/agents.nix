@@ -78,12 +78,12 @@
     in
     {
       home.packages = [
-        inputs.llm-agents.packages.${pkgs.system}.pi
+        inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.pi
         pkgs.bun
-        inputs.llm-agents.packages.${pkgs.system}.openskills
-        inputs.llm-agents.packages.${pkgs.system}.plannotator
-        inputs.llm-agents.packages.${pkgs.system}.herdr
-        inputs.llm-agents.packages.${pkgs.system}.rtk
+        inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.openskills
+        inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.plannotator
+        inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.herdr
+        inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.rtk
       ];
 
       home.file.".pi/agent/settings.json".text =

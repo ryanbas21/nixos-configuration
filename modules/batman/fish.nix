@@ -5,7 +5,6 @@
     # The fzf-fish plugin requires fd at runtime; this keeps the module
     # self-contained on machines where fd isn't otherwise installed.
     home.packages = [ pkgs.fd ];
-    home.sessionVariables = { };
 
     programs.fish = {
       enable = true;
@@ -14,7 +13,11 @@
         set fish_greeting
         set -gx OP_BIOMETRIC_UNLOCK true
         set -gx DEFAULT_USER $(whoami)
-        set -gx ZAI_API_KEY (cat /run/user/1000/agenix/zai-api-key)
+        # The zai secret only exists on NixOS hosts (home.pc agenix);
+        # standalone home-manager exports must not error on every shell.
+        if test -r "/run/user/"(id -u)"/agenix/zai-api-key"
+            set -gx ZAI_API_KEY (cat "/run/user/"(id -u)"/agenix/zai-api-key")
+        end
       '';
 
       plugins = [

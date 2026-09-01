@@ -108,6 +108,15 @@
     # Enable the OpenSSH daemon.
     services.openssh.enable = true;
 
+    # Pre-trust GitHub's host key in the system-wide known_hosts
+    # (/etc/ssh/ssh_known_hosts — which user ssh reads as
+    # GlobalKnownHostsFile), so unattended pushes (the daily
+    # config-backup timer) never block on a host-key prompt. Key
+    # verified against https://api.github.com/meta.
+    programs.ssh.knownHosts = {
+      "github.com".publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl";
+    };
+
     # Open ports in the firewall.
     # networking.firewall.allowedTCPPorts = [ ... ];
     # networking.firewall.allowedUDPPorts = [ ... ];
