@@ -105,20 +105,22 @@ jobs:
           # registered at cachix and in modules/nixos/base.nix.
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
-          # Two hard-won deviations from the defaults, both verified the
-          # painful way on 2026-09-01:
-          # 1. useDaemon: false — the daemon's post-build-hook process
-          #    does not inherit signingKey; its uploads go unsigned and
-          #    every batch 400s while the step still reports success.
-          # 2. installCommand — the action's own cachix (1.11.1) signs
-          #    wrongly against the current cachix API; nixpkgs' 1.12
-          #    (verified from the desktop) speaks it correctly.
-          # CACHIX_SIGNING_KEY holds the BARE secret, exactly as
-          # `cachix generate-keypair` stores it in cachix.dhall — no
-          # `name:` prefix; a prefixed value also fails signature
-          # verification server-side.
+          # useDaemon: false — the daemon's post-build-hook push path
+          # does not inherit the signing key; uploads go unsigned and
+          # every batch 400s server-side while the step still reports
+          # success. The post-step push applies the key correctly.
+          #
+          # CACHIX_SIGNING_KEY holds the BARE secret — exactly as
+          # `cachix generate-keypair` stores it in cachix.dhall, with NO
+          # `name:` prefix. A prefixed value fails server-side signature
+          # verification on every pushed path (verified twice, the
+          # painful way). Do not "fix" it back to name:secret format.
+          #
+          # installCommand is left at the action default on purpose:
+          # `nix profile install nixpkgs#cachix` evaluates unstable
+          # nixpkgs, which throws "dropped support for x86_64-darwin"
+          # on the Intel macOS runner.
           useDaemon: false
-          installCommand: nix profile install nixpkgs#cachix
 
       - name: Build the ${{ matrix.home }} activation package
         run: nix build .#homeConfigurations.${{ matrix.home }}.activationPackage
