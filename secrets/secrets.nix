@@ -5,4 +5,7 @@ in
   "borg-passphrase.age".publicKeys = [
     batman
   ];
+  "zai-api-key.age".publicKeys = [
+    batman
+  ];
 }

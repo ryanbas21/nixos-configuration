@@ -5,7 +5,7 @@
     # The chunks preserve the desktop's historical package order exactly:
     # fd bat kate discord ripgrep gnumake gcc git ghostty sshfs.
     home.packages = lib.mkMerge [
-      (with pkgs; [ fd bat xclip _1password-cli _1password-gui ])
+      (with pkgs; [ fd bat xclip _1password-cli _1password-gui inputs.agenix.packages.${pkgs.system}.default ])
       # Linux-only: kate, ghostty, and sshfs do not exist for
       # x86_64-darwin in nixpkgs, so they are kept off the Intel Mac
       # standalone export. Gated on the home-manager-side stdenv
@@ -20,7 +20,6 @@
         inputs.psysonic.packages.${pkgs.system}.psysonic
         inputs.rigup.packages.${pkgs.system}.rigup
       ])
-
     ];
   };
 }

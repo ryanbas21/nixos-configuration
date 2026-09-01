@@ -4,4 +4,6 @@ let
 in
 {
   "secrets/borg-passphrase.age".publicKeys = [ batman ];
+  "secrets/zai-api-key.age".publicKeys = [ batman ];
+  "secrets/gpg.age".publicKeys = [ batman ];
 }
