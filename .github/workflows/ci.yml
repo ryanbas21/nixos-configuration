@@ -18,7 +18,7 @@
 # cache.numtide.com likely carries the llm-agents tools built against
 # their own nixpkgs pin, psysonic.cachix.org the psysonic tool.
 #
-# cachix-action adds the personal binary cache (name "ryanbas21", auth
+# cachix-action adds the personal binary cache (name "nix-configs", auth
 # token in CACHIX_AUTH_TOKEN, self-owned signing key in
 # CACHIX_SIGNING_KEY): paths a job builds are pushed once it finishes,
 # and later runs substitute them instead of rebuilding. The step is
@@ -99,7 +99,7 @@ jobs:
         if: env.have_cachix_keys == 'true'
         uses: cachix/cachix-action@v17
         with:
-          name: ryanbas21
+          name: nix-configs
           # Self-signing mode: the keypair is ours, not cachix's — the
           # secret half lives in CACHIX_SIGNING_KEY, the public half is
           # registered at cachix and in modules/nixos/base.nix.

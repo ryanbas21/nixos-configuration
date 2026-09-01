@@ -134,7 +134,7 @@
         # it, so this machine substitutes the repo-specific paths — nvf
         # wrapper, home-manager generations, llm-agents tools — instead
         # of building them):
-        "https://ryanbas21.cachix.org"
+        "https://nix-configs.cachix.org"
         "https://psysonic.cachix.org"
         "https://cache.numtide.com"
         "https://cache.nixos.org/"
@@ -151,7 +151,7 @@
         "nix-cache-1:SpVt1hjpAaEgQqnY1cIm5tjTETZbG5dQmGZ3rDbTyJc="
         # The public half of our self-owned cachix signing keypair —
         # must match the key registered at cachix.
-        "ryanbas21.cachix.org-1:91AYPEWkN1YO+HxoyiOPvK5tCdBLKTRsTxbbzb+hMrM="
+        "nix-configs.cachix.org-1:zjZeheDV3s/8kmmlf4jMTv3TeZ7LoaDT7grxdpFzVb4="
 
       ];
 
