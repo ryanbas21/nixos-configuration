@@ -156,11 +156,15 @@
       # the remote daemon ("lacks a signature by a trusted key"), while
       # ssh:// imports via nix-store --import as root. The hook runs as
       # root and uses /root/.ssh/id_ed25519 (authorized on the server as
-      # "desktop-nix-cache-push"). If the server is unreachable the hook
-      # logs an error and the build itself is unaffected (|| true).
-      post-build-hook = ''
-        NIX_SSHOPTS="-o StrictHostKeyChecking=accept-new -o BatchMode=yes" nix copy --to ssh://root@192.168.1.82 $OUT_PATHS || true
-      '';
+      # "desktop-nix-cache-push"). Wrapped in a writeShellScript because
+      # nix spawns the hook as a single command line — inline quoting and
+      # shell operators like || don't survive that — and best-effort
+      # (|| true inside the script) so a down cache server can never
+      # fail a build.
+      post-build-hook = "${pkgs.writeShellScript "push-to-harmonia" ''
+        export NIX_SSHOPTS="-o StrictHostKeyChecking=accept-new -o BatchMode=yes"
+        nix copy --to ssh://root@192.168.1.82 $OUT_PATHS || true
+      ''}";
     };
   };
 }
