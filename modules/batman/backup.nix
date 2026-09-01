@@ -62,9 +62,11 @@
     };
 
     systemd.user.services.borgmatic = {
-      Service.EnvironmentFile =
-        config.age.secrets.borg-passphrase.path;
+      Service.EnvironmentFile = "/run/user/1000/agenix/borg-passphrase";
+      # config.age.secrets.borg-passphrase.path;
     };
+
+
   };
 }
 
