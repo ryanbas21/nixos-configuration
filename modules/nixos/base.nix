@@ -128,12 +128,13 @@
     nix.settings = {
       substituters = [
         "http://192.168.1.82:5000"
-        # Personal cachix (the CI build jobs push to it once the
-        # CACHIX_AUTH_TOKEN secret exists). Uncomment both this and the
-        # key below when the cache is live, so this machine substitutes
-        # the repo-specific paths (nvf wrapper, home-manager generations,
-        # llm-agents tools) instead of building them:
-        # "https://ryanbas21.cachix.org"
+        # Personal cachix, self-signed with our own keypair (public half
+        # in the trusted-public-keys list below, secret half in the
+        # repo's CACHIX_SIGNING_KEY secret; the CI build jobs push to
+        # it, so this machine substitutes the repo-specific paths — nvf
+        # wrapper, home-manager generations, llm-agents tools — instead
+        # of building them):
+        "https://ryanbas21.cachix.org"
         "https://psysonic.cachix.org"
         "https://cache.numtide.com"
         "https://cache.nixos.org/"
@@ -148,10 +149,9 @@
         "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
         "psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA="
         "nix-cache-1:SpVt1hjpAaEgQqnY1cIm5tjTETZbG5dQmGZ3rDbTyJc="
-        # ryanbas21.cachix.org's public key — copy it from
-        # https://app.cachix.org/caches/ryanbas21 (keep in sync with the
-        # commented substituter above):
-        # "ryanbas21.cachix.org-1:PASTE-THE-CACHE-PUBLIC-KEY-HERE"
+        # The public half of our self-owned cachix signing keypair —
+        # must match the key registered at cachix.
+        "ryanbas21.cachix.org-1:91AYPEWkN1YO+HxoyiOPvK5tCdBLKTRsTxbbzb+hMrM="
 
       ];
 
