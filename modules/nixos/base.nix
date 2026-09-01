@@ -148,12 +148,18 @@
       experimental-features = [ "nix-command" "flakes" ];
 
       # Warm the home-lab harmonia cache: every path this machine BUILDS
-      # (as opposed to substitutes) is pushed to it after the build.
-      # That is what actually populates the cache — harmonia serves only
-      # what is pushed to it. If the server is unreachable the hook logs
-      # an error and the build itself is unaffected.
+      # (as opposed to substitutes) is pushed to the cache server's nix
+      # store after the build. Harmonia 3.x serves that store over HTTP
+      # (signing on the fly) but its HTTP upload route is gone, so pushes
+      # go over ssh. The legacy ssh:// store is used deliberately:
+      # locally-built paths are unsigned, and ssh-ng:// rejects them at
+      # the remote daemon ("lacks a signature by a trusted key"), while
+      # ssh:// imports via nix-store --import as root. The hook runs as
+      # root and uses /root/.ssh/id_ed25519 (authorized on the server as
+      # "desktop-nix-cache-push"). If the server is unreachable the hook
+      # logs an error and the build itself is unaffected (|| true).
       post-build-hook = ''
-        nix copy --to http://192.168.1.82:5000 $OUT_PATHS
+        NIX_SSHOPTS="-o StrictHostKeyChecking=accept-new -o BatchMode=yes" nix copy --to ssh://root@192.168.1.82 $OUT_PATHS || true
       '';
     };
   };
