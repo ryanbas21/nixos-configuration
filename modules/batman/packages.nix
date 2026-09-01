@@ -1,6 +1,7 @@
 # Packages and CLI tools for batman. Ported from ./home.nix (top level).
 { inputs, ... }: {
   users.batman.home.base = { lib, pkgs, ... }: {
+
     # The chunks preserve the desktop's historical package order exactly:
     # fd bat kate discord ripgrep gnumake gcc git ghostty sshfs.
     home.packages = lib.mkMerge [
@@ -19,20 +20,7 @@
         inputs.psysonic.packages.${pkgs.system}.psysonic
         inputs.rigup.packages.${pkgs.system}.rigup
       ])
+
     ];
-
-    programs.ghostty = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
-      enable = true;
-
-      settings = {
-        theme = "Catppuccin Frappe";
-        font-size = 12;
-      };
-    };
-
-    programs.gh = {
-      enable = true;
-      settings.git_protocol = "ssh";
-    };
   };
 }

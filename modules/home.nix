@@ -43,6 +43,7 @@
           imports = [
             config.homeManager.modules.base
             config.users.batman.home.base
+
           ];
           home = {
             username = homeArgs.config.username;

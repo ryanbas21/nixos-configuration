@@ -8,7 +8,10 @@
     # stable branch is nixpkgs' supported substitute for Intel Macs and
     # feeds only the ryan-intel-mac standalone home-manager export.
     nixpkgs-intel-mac.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
-
+    agenix = {
+      url = "github:ryantm/agenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -32,6 +35,8 @@
     };
 
     psysonic.url = "github:Psysonic/psysonic";
+
+    llm-agents.url = "github:numtide/llm-agents.nix";
 
     rigup.url = "github:YPares/rigup.nix";
 

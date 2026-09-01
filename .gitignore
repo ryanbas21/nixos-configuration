@@ -16,7 +16,6 @@ result-*
 *.pfx
 *.secret
 *.secrets
-secrets/
 credentials/
 
 # GPG / SSH private keys

@@ -4,10 +4,10 @@
 # Help is available in the configuration.nix(5) man page and in the NixOS
 # manual (accessible by running ‘nixos-help’).
 
-{mkModuleOption, unfreeNames, ...}: {
-  options.nixos.modules.base = mkModuleOption {key = "base";};
+{ mkModuleOption, unfreeNames, ... }: {
+  options.nixos.modules.base = mkModuleOption { key = "base"; };
 
-  config.nixos.modules.base = {config, lib, pkgs, ...}: {
+  config.nixos.modules.base = { config, lib, pkgs, ... }: {
     # Bootloader.
     boot.loader.systemd-boot.enable = true;
     boot.loader.efi.canTouchEfiVariables = true;
@@ -119,6 +119,7 @@
       substituters = [
         "http://192.168.1.82:5000"
         "https://psysonic.cachix.org"
+        "https://cache.numtide.com"
         "https://cache.nixos.org/"
       ];
 
@@ -128,8 +129,10 @@
 
       trusted-public-keys = [
         "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+        "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
         "psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA="
-        "nix-cache-1:8LZd4WztKvAnxaGKaM8L0tqv8x9RhwH6DsWn+xkg13c="
+        "nix-cache-1:SpVt1hjpAaEgQqnY1cIm5tjTETZbG5dQmGZ3rDbTyJc="
+
       ];
 
       experimental-features = [ "nix-command" "flakes" ];

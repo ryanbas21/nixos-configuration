@@ -6,27 +6,6 @@
     # self-contained on machines where fd isn't otherwise installed.
     home.packages = [ pkgs.fd ];
 
-    programs.git = {
-      enable = true;
-      signing = {
-        signByDefault = true;
-      };
-      settings = {
-        pull.rebase = true;
-        rebase.autoStash = true;
-        user.name = "ryan bas";
-        user.email = "ryanbas21@gmail.com";
-        init.defaultBranch = "main";
-        push = {
-          autoSetupRemote = true;
-        };
-        alias = {
-          co = "checkout";
-          st = "status";
-          sync = "!git pull --rebase && git push";
-        };
-      };
-    };
     programs.fish = {
       enable = true;
 
@@ -48,14 +27,6 @@
       };
     };
 
-    programs.fzf = {
-      enable = true;
-      enableFishIntegration = true;
-      defaultCommand = "fd --type f --strip-cwd-prefix --hidden --follow --exclude .git";
-      fileWidget = {
-        command = "fd --type f --strip-cwd-prefix --hidden --follow --exclude .git";
-      };
-    };
     xdg.configFile = {
       "fish/conf.d/fzf-git.fish".source = "${inputs.fzf-git-sh}/fzf-git.fish";
       "fish/conf.d/fzf-git.sh".source = "${inputs.fzf-git-sh}/fzf-git.sh";
