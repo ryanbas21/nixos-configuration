@@ -1,17 +1,26 @@
-# CI: evaluate the whole flake on every push and pull request.
+# CI: evaluate the whole flake and build both standalone homes.
 #
-# `nix flake check --no-build` evaluates every output the flake exports —
-# the NixOS host against its tracked hardware file, both standalone
-# homeConfigurations (ryan-linux, ryan-intel-mac), and the rest — without
-# building anything. That catches the common failure mode (module/option
-# breakage after a `nix flake update`) in about a minute, instead of the
-# hours a full toplevel build would need on an unpersisted runner. Build
-# failures still surface where they always have: the desktop's
-# `nixos-rebuild`.
+# flake-check evaluates every output the flake exports — the NixOS host
+# against its tracked hardware file, both standalone homeConfigurations,
+# and the rest — without building anything (~1 min). It catches the common
+# failure mode (module/option breakage after a `nix flake update`) fast.
+#
+# build-homes goes one step further: it builds the exact activationPackage
+# each non-NixOS machine pulls — ryan-linux on an x86_64-linux runner,
+# ryan-intel-mac on GitHub's Intel macOS runners (the last x86_64 images
+# Actions offers) — catching build failures that evaluation cannot see.
+# The NixOS toplevel itself stays unbuilt in CI: a full system build on an
+# unpersisted runner costs hours for little signal, and build failures
+# there surface at the desktop's `nixos-rebuild` anyway.
+#
+# The build job's substituters are the repo's set (modules/nixos/base.nix)
+# minus the LAN harmonia server, which GitHub runners cannot reach;
+# cache.numtide.com likely carries the llm-agents tools built against
+# their own nixpkgs pin, psysonic.cachix.org the psysonic tool.
 #
 # This also covers the git-backup timer's automated commits to main
 # (modules/batman/backup.nix): no push, human or timer, may carry a config
-# that fails to evaluate.
+# that fails to evaluate or build.
 name: CI
 
 on:
@@ -40,3 +49,37 @@ jobs:
 
       - name: Evaluate all flake outputs
         run: nix flake check --no-build
+
+  build-homes:
+    strategy:
+      # A darwin failure should not cancel the linux build (or vice versa).
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            home: ryan-linux
+          - os: macos-26-intel
+            home: ryan-intel-mac
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      # The ryan-linux closure (nvf, ghostty, discord, obsidian, ...) plus
+      # toolchains can outgrow the ~14GB free on stock ubuntu runners.
+      - name: Free disk space
+        if: runner.os == 'Linux'
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+            substituters = https://cache.nixos.org https://cache.numtide.com https://psysonic.cachix.org
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA=
+
+      - name: Build the ${{ matrix.home }} activation package
+        run: nix build .#homeConfigurations.${{ matrix.home }}.activationPackage

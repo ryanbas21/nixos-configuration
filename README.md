@@ -162,7 +162,7 @@ Read the repo in this order. Three terms, one sentence each:
 ├── flake.lock                   locked input revisions
 ├── LICENSE                      public domain
 ├── .gitignore                   result/, .direnv, test-driver history
-├── .github/workflows/ci.yml     CI: eval-only flake check on every push
+├── .github/workflows/ci.yml     CI: eval-only flake check + standalone home builds
 ├── modules/
 │   ├── lib.nix                  mkModuleOption helper; shared unfree allowlist
 │   ├── eval-modules.nix         generic "wrap any eval-config" machinery
@@ -311,7 +311,8 @@ committed here. The ritual, run on the desktop:
    badge on GitHub to before you committed.
 3. `sudo nixos-rebuild test --flake .#nixos` builds and activates without
    touching the boot entries; run `switch` once the machine has been
-   through a session you care about. CI is eval-only by design, so build
+   through a session you care about. CI builds the two standalone homes,
+   but the NixOS host itself is only eval-checked there — host build
    failures (an upstream package breaking) still surface here.
 4. Commit the lock and push. The laptop and Mac need nothing: their
    one-liners read this repository's `flake.lock` straight from GitHub.
@@ -359,10 +360,14 @@ The laptop and Mac deploy with the one-liners in
 
 **Validation from anywhere, no hardware needed:** `nix flake check` builds
 the host toplevel against the real tracked hardware file. CI
-(`.github/workflows/ci.yml`) runs the eval-only half of that — `nix flake
-check --no-build`, evaluating the host and both standalone homes — on every
-push to main (including the backup timer's automated commits) and on every
-pull request.
+(`.github/workflows/ci.yml`) does both halves of that on every push to
+main (including the backup timer's automated commits) and on every pull
+request: a fast eval-only job (`nix flake check --no-build`) covering
+every output, plus a matrix job that builds the exact `activationPackage`
+each standalone machine pulls — `ryan-linux` on an x86_64-linux runner,
+`ryan-intel-mac` on GitHub's Intel macOS runners. Only the NixOS toplevel
+itself stays unbuilt in CI; its build failures surface at the desktop's
+`nixos-rebuild`.
 
 Secrets & agenix
 
