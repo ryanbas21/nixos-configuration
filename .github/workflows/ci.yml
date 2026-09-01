@@ -105,12 +105,20 @@ jobs:
           # registered at cachix and in modules/nixos/base.nix.
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
-          # Daemon mode (the default) pushes via a nix post-build-hook
-          # process that does not inherit signingKey — every path went up
-          # unsigned and the server rejected the whole batch with
-          # 400 "Signature verification failed". The post-step push runs
-          # in-process, where the key env reliably applies.
+          # Two hard-won deviations from the defaults, both verified the
+          # painful way on 2026-09-01:
+          # 1. useDaemon: false — the daemon's post-build-hook process
+          #    does not inherit signingKey; its uploads go unsigned and
+          #    every batch 400s while the step still reports success.
+          # 2. installCommand — the action's own cachix (1.11.1) signs
+          #    wrongly against the current cachix API; nixpkgs' 1.12
+          #    (verified from the desktop) speaks it correctly.
+          # CACHIX_SIGNING_KEY holds the BARE secret, exactly as
+          # `cachix generate-keypair` stores it in cachix.dhall — no
+          # `name:` prefix; a prefixed value also fails signature
+          # verification server-side.
           useDaemon: false
+          installCommand: nix profile install nixpkgs#cachix
 
       - name: Build the ${{ matrix.home }} activation package
         run: nix build .#homeConfigurations.${{ matrix.home }}.activationPackage
