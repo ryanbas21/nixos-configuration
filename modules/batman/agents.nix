@@ -2,7 +2,7 @@
 { inputs, ... }:
 
 {
-  users.batman.home.base = { pkgs, ... }:
+  users.batman.home.base = { lib, pkgs, ... }:
     let
       piMcp = { };
       piModelRouter = {
@@ -77,7 +77,10 @@
 
     in
     {
-      home.packages = [
+      # Linux-only: llm-agents exports no x86_64-darwin packages (its
+      # per-system set stops at aarch64/x86_64-linux), so forcing these
+      # on the Intel Mac export throws "attribute 'x86_64-darwin' missing".
+      home.packages = lib.mkIf pkgs.stdenv.hostPlatform.isLinux [
         inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.pi
         pkgs.bun
         inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.openskills
