@@ -123,7 +123,8 @@
     # Or disable the firewall altogether:
     # networking.firewall.enable = false;
     # Binary caches: self-hosted harmonia first, then psysonic's cachix,
-    # then the canonical cache. Keys must match the substituter order.
+    # then the canonical caches. (Nix tries every trusted key against
+    # every substituter — the two lists do not need to match order.)
     nix.settings = {
       substituters = [
         "http://192.168.1.82:5000"
@@ -145,6 +146,15 @@
       ];
 
       experimental-features = [ "nix-command" "flakes" ];
+
+      # Warm the home-lab harmonia cache: every path this machine BUILDS
+      # (as opposed to substitutes) is pushed to it after the build.
+      # That is what actually populates the cache — harmonia serves only
+      # what is pushed to it. If the server is unreachable the hook logs
+      # an error and the build itself is unaffected.
+      post-build-hook = ''
+        nix copy --to http://192.168.1.82:5000 $OUT_PATHS
+      '';
     };
   };
 }

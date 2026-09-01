@@ -1208,9 +1208,13 @@ in
       # which mnw would force-load into /start on top of nvf's lazy /opt
       # registration (the duplicate-install warning). The library sits
       # eagerly on the runtime path either way and luasnip's snipmate
-      # loader picks it up on demand, so the edge is redundant — strip it.
+      # loader picks it up on demand, so the edge is redundant — strip
+      # it. doCheck = false skips the require-check, which would run
+      # without luasnip on the test runtime path and fail the build;
+      # luasnip is always loaded before snippets are expanded at actual
+      # runtime.
       haskell-snippets-nvim.package =
-        vp.haskell-snippets-nvim.overrideAttrs (_: {dependencies = [];});
+        vp.haskell-snippets-nvim.overrideAttrs (_: {dependencies = []; doCheck = false;});
       # blink sources available for opt-in (deps of the old blink spec).
       # blink-emoji-nvim is gone: no blink source enables it, and its
       # nixpkgs dependency on blink.cmp forced the same /opt + /start
@@ -1221,17 +1225,21 @@ in
       # resolve into a forced /start install duplicating the cmd-gated
       # lazy spec (the /opt + /start warning). neotest's own dependency
       # chain still installs nio/plenary, so stripping the edges is safe
-      # and leaves load order to the lazy specs.
+      # and leaves load order to the lazy specs. doCheck = false skips
+      # nixpkgs' require-check, which would otherwise run WITHOUT neotest
+      # on the test runtime path and fail the build; at actual runtime
+      # the neotest lazy spec guarantees neotest is loaded before any
+      # adapter is required.
       neotest-elixir.package =
-        vp.neotest-elixir.overrideAttrs (_: {dependencies = [];});
+        vp.neotest-elixir.overrideAttrs (_: {dependencies = []; doCheck = false;});
       neotest-haskell.package =
-        vp.neotest-haskell.overrideAttrs (_: {dependencies = [];});
+        vp.neotest-haskell.overrideAttrs (_: {dependencies = []; doCheck = false;});
       neotest-jest.package =
-        vp.neotest-jest.overrideAttrs (_: {dependencies = [];});
+        vp.neotest-jest.overrideAttrs (_: {dependencies = []; doCheck = false;});
       neotest-playwright.package =
-        vp.neotest-playwright.overrideAttrs (_: {dependencies = [];});
+        vp.neotest-playwright.overrideAttrs (_: {dependencies = []; doCheck = false;});
       neotest-vitest.package =
-        vp.neotest-vitest.overrideAttrs (_: {dependencies = [];});
+        vp.neotest-vitest.overrideAttrs (_: {dependencies = []; doCheck = false;});
       # eager on purpose: lsp/*.lua resolve require("schemastore") when a
       # server config loads (jsonls/yamlls), which can precede any LspAttach
       schemastore-nvim.package = schemastore-nvim;
