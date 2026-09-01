@@ -367,7 +367,10 @@ every output, plus a matrix job that builds the exact `activationPackage`
 each standalone machine pulls — `ryan-linux` on an x86_64-linux runner,
 `ryan-intel-mac` on GitHub's Intel macOS runners. Only the NixOS toplevel
 itself stays unbuilt in CI; its build failures surface at the desktop's
-`nixos-rebuild`.
+`nixos-rebuild`. The build jobs also push everything they build to the
+personal cachix cache (`ryanbas21`, active once the `CACHIX_AUTH_TOKEN`
+repo secret exists), so later runs substitute instead of rebuilding, and
+the laptop/Mac pull the same paths after a one-time `nix.conf` entry.
 
 Secrets & agenix
 
