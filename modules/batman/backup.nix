@@ -34,23 +34,18 @@
       Install.WantedBy = [ "timers.target" ];
     };
 
-    systemd.user.services.borgmatic = {
-      Service.EnvironmentFile =
-        config.age.secrets.borg-passphrase.path;
-    };
-
     programs.borgmatic = {
       enable = true;
 
       backups.nix-home = {
         location = {
           sourceDirectories = [
-            "${config.home.homeDirectory}/"
-            "/var/lib"
+            "${config.home.homeDirectory}"
+            "/etc/nixos"
           ];
 
           repositories = [
-            "${config.home.homeDirectory}/mnt/nix-backups"
+            "/mnt/nix-backups"
           ];
         };
 
@@ -64,6 +59,11 @@
     services.borgmatic = {
       enable = true;
       frequency = "daily";
+    };
+
+    systemd.user.services.borgmatic = {
+      Service.EnvironmentFile =
+        config.age.secrets.borg-passphrase.path;
     };
   };
 }

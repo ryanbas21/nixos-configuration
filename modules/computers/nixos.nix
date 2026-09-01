@@ -1,4 +1,4 @@
-{config, ...}: {
+{ config, ... }: {
   nixos.configurations.nixos = {
     # The underscore in ./nixos/_hardware.nix keeps import-tree from
     # auto-importing it as a flake-parts module; it is a NixOS module
@@ -37,15 +37,15 @@
         ];
       };
 
-      fileSystems."/home/batman/mnt/nix-backups" = {
+      fileSystems."/mnt/nix-backups" = {
         device = "192.168.1.30:/volume1/Backups/nix";
         fsType = "nfs";
         options = [
           "x-systemd.automount" # Mounts on demand when accessed
-          "noauto"              # Skips mounting during boot so boot doesn't hang if NAS is off
+          "noauto" # Skips mounting during boot so boot doesn't hang if NAS is off
           "x-systemd.idle-timeout=600" # Unmounts after 10 minutes of inactivity
-          "rw"                  # Read/write access
-          "user"                # Allows your user to trigger it
+          "rw" # Read/write access
+          "user" # Allows your user to trigger it
         ];
       };
 
