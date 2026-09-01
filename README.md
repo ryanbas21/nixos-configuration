@@ -69,13 +69,13 @@ desktop's backup timers).
    `hardware-configuration.nix` content into
    `modules/computers/<name>/_hardware.nix` (the `_` prefix is required —
    see [Hardware & deployment](#hardware--deployment)).
-3. Create `modules/computers/<name>.nix` assigning
+1. Create `modules/computers/<name>.nix` assigning
    `nixos.configurations.<name>.module`: `system.stateVersion`,
    `nixpkgs.hostPlatform`, the machine's `networking.hostName` and any
    NFS mounts it needs (with `boot.supportedFilesystems = [ "nfs" ]` —
    host-specific data lives here, not in the shared base), and
    `imports = [ ./<name>/_hardware.nix config.nixos.modules.base config.users.<user>.nixos.base ]`.
-3. Commit, then `sudo nixos-rebuild switch --flake .#<name>`.
+1. Commit, then `sudo nixos-rebuild switch --flake .#<name>`.
    `nixosConfigurations.<name>` and a flake check appear automatically.
 
 **New standalone machine (any non-NixOS box):** add an entry to
@@ -100,12 +100,12 @@ Read the repo in this order. Three terms, one sentence each:
 1. `flake.nix` declares the inputs and nothing else, then hands off with
    `outputs = inputs: import ./outputs.nix inputs`.
 
-2. `outputs.nix` runs `flake-parts.lib.mkFlake { inherit inputs; }`, imports
+1. `outputs.nix` runs `flake-parts.lib.mkFlake { inherit inputs; }`, imports
    the whole `modules/` tree via import-tree, and sets
    `systems = ["x86_64-linux"]`. From here on, "a file under `modules/`" and
    "an imported module" mean the same thing.
 
-3. Feature files never import each other; they only assign to option
+1. Feature files never import each other; they only assign to option
    namespaces:
 
    | Namespace | Holds |
@@ -118,26 +118,26 @@ Read the repo in this order. Three terms, one sentence each:
    | `users.<name>.home.base` | the home-manager-side module for a user, all machines |
    | `users.<name>.home.pc` | home.base plus desktop-only extras (backups); NixOS hosts only |
 
-4. `modules/nixos.nix` is machinery: each `nixos.configurations.<name>`
+1. `modules/nixos.nix` is machinery: each `nixos.configurations.<name>`
    wraps nixpkgs' `eval-config.nix` and exports, per host:
 
    - `flake.nixosConfigurations.<name>` — the full evaluation result;
    - `flake.checks."x86_64-linux"."configurations:nixos:nixos"` — the host
      toplevel, so `nix flake check` builds the whole system.
 
-5. `modules/users.nix` wires a user together: the static part of
+1. `modules/users.nix` wires a user together: the static part of
    `users.batman.nixos.base` declares the batman account (normal user,
    `wheel` + `networkmanager`) and sets
    `home-manager.users.batman = users.batman.home.pc`, so everything the
    batman feature files assign to `users.batman.home.base` (plus the
    desktop-only `home.pc` extras) lands inside home-manager.
 
-6. `modules/home-manager.nix` adds home-manager's NixOS module to
+1. `modules/home-manager.nix` adds home-manager's NixOS module to
    `nixos.modules.base` (with `useGlobalPkgs` and `useUserPackages`) and sets
    `sharedModules` to `homeManager.modules.base` plus a small module syncing
    `home.stateVersion` from `osConfig.system.stateVersion`.
 
-7. `modules/home.nix` is the standalone counterpart: each
+1. `modules/home.nix` is the standalone counterpart: each
    `home.configurations.<name>` wraps home-manager's
    `homeManagerConfiguration` over `homeManager.modules.base` +
    `users.batman.home.base` (never `home.pc`, and never the osConfig
@@ -145,7 +145,7 @@ Read the repo in this order. Three terms, one sentence each:
    `flake.homeConfigurations.<name>`. The Intel Mac entry builds against
    the `nixpkgs-intel-mac` input because unstable dropped `x86_64-darwin`.
 
-8. `modules/computers/nixos.nix` is the host itself, as data:
+1. `modules/computers/nixos.nix` is the host itself, as data:
    `system.stateVersion = "26.05"`, plain
    `nixpkgs.hostPlatform = "x86_64-linux"`, the hostname, the NFS
    automounts (media, notes, nix-backups) with
@@ -307,16 +307,16 @@ committed here. The ritual, run on the desktop:
    one. Move `nixpkgs` and `home-manager` together — home-manager master
    tracks nixpkgs-unstable, and a lock where the two diverge is the classic
    source of "option does not exist" eval failures.
-2. `nix flake check --no-build` evaluates the NixOS host, both standalone
+1. `nix flake check --no-build` evaluates the NixOS host, both standalone
    homes, and every other output in about a minute. This is exactly what
    CI runs on every push, so this step just moves any failure from a red
    badge on GitHub to before you committed.
-3. `sudo nixos-rebuild test --flake .#nixos` builds and activates without
+1. `sudo nixos-rebuild test --flake .#nixos` builds and activates without
    touching the boot entries; run `switch` once the machine has been
    through a session you care about. CI builds the two standalone homes,
    but the NixOS host itself is only eval-checked there — host build
    failures (an upstream package breaking) still surface here.
-4. Commit the lock and push. The laptop and Mac need nothing: their
+1. Commit the lock and push. The laptop and Mac need nothing: their
    one-liners read this repository's `flake.lock` straight from GitHub.
 
 Notes on individual inputs:
@@ -387,7 +387,7 @@ substituters = https://nix-configs.cachix.org https://cache.nixos.org
 trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
 ```
 
-Secrets & agenix
+## Secrets & agenix
 
 Secrets are encrypted with agenix and committed to this repository. The encrypted .age files are safe to store in Git; the private keys used to decrypt them are never stored in the repository.
 
@@ -398,11 +398,11 @@ The repository has this layout:
 /etc/nixos/
 ├── secrets.nix
 └── secrets/
-    ├── borg-passphrase.age   user-level (borgmatic)
-    ├── zai-api-key.age       user-level (fish, agents)
-    ├── gpg.age               user-level (GPG private-key import)
-    ├── cachix-auth-token.age user-level (cachix CLI + CI secret sync)
-    └── cachix-signing-key.age user-level (cachix CLI + CI secret sync)
+├── borg-passphrase.age user-level (borgmatic)
+├── zai-api-key.age user-level (fish, agents)
+├── gpg.age user-level (GPG private-key import)
+├── cachix-auth-token.age user-level (cachix CLI + CI secret sync)
+└── cachix-signing-key.age user-level (cachix CLI + CI secret sync)
 
 secrets.nix contains only public recipient keys and is safe to commit. The .age files contain the encrypted secret material and are also committed. Never commit a private decryption key (for example ~/.ssh/id_borg).
 
@@ -410,6 +410,7 @@ Adding a secret
 
 Make sure the recipient's public SSH key is present in secrets.nix. For example:
 
+```nix
 let
 batman = "ssh-ed25519 AAAA... batman@nixos";
 in
@@ -417,41 +418,55 @@ in
 "secrets/example.age".publicKeys = [ batman ];
 }
 
+```
+
 Create or edit the encrypted secret from the repository root (agenix is on the desktop's package list, pinned by the flake input):
 
+```bash
 cd /etc/nixos
 agenix -e secrets/<name>.age
+```
 
 Enter the plaintext secret in the editor. Agenix encrypts it when the editor is closed, using the recipients from secrets.nix.
 
 Add the encrypted file to Git so Nix flakes can see it:
 
+```bash
 git add secrets/<name>.age
+```
 
 Declare the secret in the Home Manager feature that consumes it:
 
+```nix
 age.identityPaths = \[
 "${config.home.homeDirectory}/.ssh/id_borg"
 \];
+```
 
+```nix
 age.secrets.<name> = {
 file = ../../secrets/<name>.age;
 };
+```
 
-Consume the decrypted secret through config.age.secrets.<name>.path. For example, a systemd service can use it as an EnvironmentFile:
+Consume the decrypted secret through `config.age.secrets.<name>.path`. For example, a systemd service can use it as an EnvironmentFile:
 
+```nix
 systemd.user.services.example = {
 Service.EnvironmentFile =
 config.age.secrets.<name>.path;
 };
+```
 
-Important Git rule
+### Important Git rule
 
 The encrypted .age file must be Git-tracked because this repository is a flake. Nix evaluates the flake from its Git source and will reject an untracked secret file.
 
 It is therefore expected to see:
 
+```bash
 git add secrets/<name>.age
+```
 
 before rebuilding.
 

@@ -5,7 +5,7 @@
     # The chunks preserve the desktop's historical package order exactly:
     # fd bat kate discord ripgrep gnumake gcc git ghostty sshfs.
     home.packages = lib.mkMerge [
-      (with pkgs; [ fd bat xclip _1password-cli _1password-gui ])
+      (with pkgs; [ fd bat xclip _1password-cli _1password-gui cachix ])
       # Linux-only: the agenix CLI is built by the agenix flake input,
       # which follows the root nixpkgs (unstable) — and unstable 26.11
       # dropped x86_64-darwin, so forcing this package on the Intel Mac
