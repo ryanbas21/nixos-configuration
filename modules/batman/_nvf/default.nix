@@ -1115,7 +1115,9 @@ in
         lazy = false;
       };
 
-      # ---- canola (oil fork; was lazy=false, loads require("oil"))
+      # ---- canola (oil fork; the fork renamed the lua module
+      # oil -> canola, so every require() targets "canola" — calling
+      # require("oil") throws "module 'oil' not found" at startup)
       "${vp.canola-nvim.pname}" = {
         package = vp.canola-nvim;
         lazy = false;
@@ -1123,13 +1125,13 @@ in
           {
             key = "-";
             mode = "n";
-            action = "function() require('oil').open_float() end";
+            action = "function() require('canola').open_float() end";
             lua = true;
             desc = "Open Oil Directory";
           }
         ];
         after = ''
-          require("oil").setup({
+          require("canola").setup({
             default_file_explorer = false,
             keymaps = {
               ["g?"] = { "actions.show_help", mode = "n" },
