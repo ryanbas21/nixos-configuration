@@ -12,4 +12,11 @@ in
   "secrets/borg-passphrase.age".publicKeys = [ batman ];
   "secrets/zai-api-key.age".publicKeys = [ batman ];
   "secrets/gpg.age".publicKeys = [ batman ];
+
+  # nix-configs cachix credentials. The signing key is the BARE secret
+  # exactly as `cachix generate-keypair nix-configs` stores it in
+  # cachix.dhall — NO `name:` prefix (a prefixed key fails server-side
+  # signature verification; see modules/batman/cachix.nix).
+  "secrets/cachix-auth-token.age".publicKeys = [ batman ];
+  "secrets/cachix-signing-key.age".publicKeys = [ batman ];
 }

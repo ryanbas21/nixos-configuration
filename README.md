@@ -184,6 +184,8 @@ Read the repo in this order. Three terms, one sentence each:
 │       ├── nvf.nix              nvf wiring (+ ryan-nvim injection); Linux-only
 │       ├── packages.nix         home.packages, ghostty, gh
 │       ├── backup.nix           borgmatic + git backup timer (home.pc; desktop)
+│       ├── cachix.nix           nix-configs cache: agenix creds + CI secret
+│       │                        sync + Mac's declarative nix.conf
 │       └── _nvf/
 │           └── default.nix      nvf settings module (manual import)
 └── scripts/
@@ -368,10 +370,22 @@ each standalone machine pulls — `ryan-linux` on an x86_64-linux runner,
 `ryan-intel-mac` on GitHub's Intel macOS runners. Only the NixOS toplevel
 itself stays unbuilt in CI; its build failures surface at the desktop's
 `nixos-rebuild`. The build jobs also push everything they build to the
-personal cachix cache (`nix-configs`, self-signed with our own keypair;
-active while its `CACHIX_AUTH_TOKEN` and `CACHIX_SIGNING_KEY` repo
-secrets exist), so later runs substitute instead of rebuilding, and the
-laptop/Mac pull the same paths after a one-time `nix.conf` entry.
+personal cachix cache (`nix-configs`, self-signed with our own keypair),
+so later runs substitute instead of rebuilding. The cache's credentials
+live in this repo as agenix secrets: `modules/batman/cachix.nix`
+provisions `~/.config/cachix/cachix.dhall` and syncs the
+`CACHIX_AUTH_TOKEN` / `CACHIX_SIGNING_KEY` GitHub secrets from them on
+every desktop activation, and the Mac's `~/.config/nix/nix.conf`
+(substituters + keys) is owned by the same module — declarative.
+
+The one manual remnant is the CachyOS laptop: its root-owned nix daemon
+only reads `/etc/nix/nix.conf`, which home-manager cannot touch. One
+time, with sudo:
+
+```
+substituters = https://nix-configs.cachix.org https://cache.nixos.org
+trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+```
 
 Secrets & agenix
 
@@ -386,7 +400,9 @@ The repository has this layout:
 └── secrets/
     ├── borg-passphrase.age   user-level (borgmatic)
     ├── zai-api-key.age       user-level (fish, agents)
-    └── gpg.age               user-level (GPG private-key import)
+    ├── gpg.age               user-level (GPG private-key import)
+    ├── cachix-auth-token.age user-level (cachix CLI + CI secret sync)
+    └── cachix-signing-key.age user-level (cachix CLI + CI secret sync)
 
 secrets.nix contains only public recipient keys and is safe to commit. The .age files contain the encrypted secret material and are also committed. Never commit a private decryption key (for example ~/.ssh/id_borg).
 
