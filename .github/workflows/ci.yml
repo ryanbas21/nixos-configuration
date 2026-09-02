@@ -48,11 +48,26 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v31
         with:
+          # Pin the evaluator — nix itself is otherwise an unpinned input.
+          # 2.35 changed flake check's eval-context realization: on a fresh
+          # store it no longer builds fixed-output fetches that evaluation
+          # reads (the raycast monorepo vicinae's mkRayCastExtension
+          # importJSONs), failing with "path ... is not valid". 2.34.8 is
+          # the desktop's version — evaluator parity keeps local
+          # `nix flake check` and CI identical.
+          install_url: https://releases.nixos.org/nix/nix_2.34.8/install
           # Authenticate GitHub API requests: the flake fetches ~13 locked
           # inputs, and unauthenticated runner IPs regularly exhaust the
           # 60 req/hr shared rate limit.
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+            # nix-configs (same cache the build jobs push to): evaluation
+            # reads files from fixed-output fetches (the raycast monorepo),
+            # so the eval-context FODs must be substitutable — otherwise
+            # every run re-downloads the monorepo from GitHub (2.34) or
+            # fails outright (2.35).
+            substituters = https://nix-configs.cachix.org https://cache.nixos.org
+            trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
 
       - name: Evaluate all flake outputs
         run: nix flake check --no-build
@@ -83,10 +98,13 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v31
         with:
+          # Same pin as flake-check (see comment there): evaluator parity
+          # with the desktop and freedom from 2.35's eval-context change.
+          install_url: https://releases.nixos.org/nix/nix_2.34.8/install
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-            substituters = https://cache.nixos.org https://cache.numtide.com https://psysonic.cachix.org
-            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA=
+            substituters = https://nix-configs.cachix.org https://cache.nixos.org https://cache.numtide.com https://psysonic.cachix.org
+            trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA=
 
       - name: Configure cachix
         # Skipped until both cachix secrets exist (auth token + the
