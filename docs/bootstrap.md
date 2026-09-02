@@ -69,11 +69,25 @@ partitioning or installer-menu steps:
 
 3. **Restore the keys onto the target**, so first-boot activation can
    decrypt (the rebuild creates batman/UID 1000 itself — no manual user
-   creation):
+   creation). Either manually from 1Password:
 
    ```sh
    install -D -m 600 <id_borg material> /mnt/home/batman/.ssh/id_borg
    install -D -m 600 <git material>   /mnt/home/batman/.ssh/git
+   ```
+
+   or automated via the provisioning vault — a 1Password service
+   account whose read-only vault holds the identity keys as Documents
+   (`scripts/fetch-bootstrap-keys.sh`; setup notes in its header). One
+   carried `ops_` token replaces three key files, no key material ever
+   touches a terminal, and the token is revocable from the 1Password
+   console. The token never goes in the repo or CI — it *is* the
+   carried bootstrap secret:
+
+   ```sh
+   export OP_SERVICE_ACCOUNT_TOKEN=ops_...
+   nix shell nixpkgs#_1password-cli -c \
+     bash scripts/fetch-bootstrap-keys.sh /mnt
    ```
 
 4. **Install and fix ownership**:
