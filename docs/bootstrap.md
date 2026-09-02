@@ -43,6 +43,36 @@ Everything else secret-shaped is already in the repo as `.age` files
 ZAI key, both cachix credentials, and (since the harmonia server was
 brought under management) the cache's signing key.
 
+### The provisioning vault (automated key fetch)
+
+The 1Password side of `scripts/fetch-bootstrap-keys.sh` needs exactly
+four objects:
+
+1. a vault — `Provisioning` by convention — holding **only**
+   provisioning material (the script looks documents up by name; the
+   vault name matters for scoping the service account);
+2. three **Documents** — not native SSH Key items, which export lossily
+   through the CLI — named exactly as the script looks them up, each
+   containing the private key file and nothing else:
+
+   | Document | Content |
+   |---|---|
+   | `bootstrap id_borg` | the agenix identity (required) |
+   | `bootstrap git` | the GitHub push key (required) |
+   | `bootstrap harmonia` | the desktop `/root` cache-push key (optional) |
+
+3. a **service account** with **read-only** access to exactly that
+   vault — its `ops_…` token is the headless credential the ISO flow
+   uses;
+4. the token stored **outside** the vault it unlocks (personal vault
+   or break-glass) — never in the repo or CI, and revocable from the
+   console in one click.
+
+Each fetch is validated with `ssh-keygen` before install; without the
+token, the script also runs against a normal signed-in `op` session
+(desktop validation — biometric prompts). The `op` CLI itself comes
+from `nix shell nixpkgs#_1password-cli` on the ISO.
+
 ## Fresh desktop runbook (same hardware)
 
 Partitioning is declarative (disko layout at
