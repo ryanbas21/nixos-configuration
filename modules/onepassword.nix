@@ -13,16 +13,25 @@
 # (scripts/fetch-bootstrap-keys.sh) never involves the app at all.
 { ... }: {
   nixos.modules.base = {
+    # The CLI module: system op + a setgid onepassword-cli wrapper
+    # (/run/wrappers/bin/op). The app verifies the CLIENT BINARY carries
+    # the onepassword-cli group — official installs ship op exactly this
+    # way — and rejects bare binaries with "unsupportedClientType" even
+    # once the socket peer-check passes. The wiki's canonical NixOS setup
+    # enables BOTH this and the GUI module.
+    programs._1password.enable = true;
+
     programs._1password-gui = {
       enable = true;
       polkitPolicyOwners = [ "batman" ];
     };
 
     # The app's socket-credential check (SO_PEERCRED) requires connecting
-    # clients — the op CLI included — to carry the onepassword group the
-    # module creates; without it every handshake dies with "invalid group
-    # attempted to connect" (the app log's exact words) and op reports
-    # "connection reset". Group membership takes a fresh login session.
+    # clients to carry a 1Password group; user membership in onepassword
+    # covers connections made outside the setgid wrapper. Without it every
+    # handshake dies with "invalid group attempted to connect" (the app
+    # log's exact words) and op reports "connection reset". Takes a fresh
+    # login session.
     users.users.batman.extraGroups = [ "onepassword" ];
   };
 }

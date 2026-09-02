@@ -4,10 +4,12 @@
 
     # The chunks preserve the desktop's historical package order exactly:
     # fd bat kate discord ripgrep gnumake gcc git ghostty sshfs.
-    # (_1password-gui moved to the system level: modules/onepassword.nix —
-    # the CLI-integration polkit policy must be visible to polkitd.)
+    # (_1password-gui AND _1password-cli moved to the system level:
+    # modules/onepassword.nix — the CLI needs the setgid onepassword-cli
+    # wrapper for the app's client verification, and the GUI needs its
+    # polkit policy visible to polkitd.)
     home.packages = lib.mkMerge [
-      (with pkgs; [ fd bat xclip _1password-cli cachix ])
+      (with pkgs; [ fd bat xclip cachix ])
       # Linux-only: the agenix CLI is built by the agenix flake input,
       # which follows the root nixpkgs (unstable) — and unstable 26.11
       # dropped x86_64-darwin, so forcing this package on the Intel Mac
