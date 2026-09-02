@@ -35,7 +35,17 @@ command -v op >/dev/null || { echo "op not found — run via: nix shell nixpkgs#
 fetch() { # <document name> <output path>
   local name="$1" out="$2"
   mkdir -p -- "$(dirname "$out")"
-  op document get "$name" --out-file "$out"
+  local err=""
+  if ! err=$(op document get "$name" --out-file "$out" 2>&1); then
+    echo "  ERROR fetching '$name': $err"
+    if echo "$err" | grep -q 'is not a document'; then
+      echo "  -> the item '$name' exists but is NOT a Document item."
+      echo "     Recreate it: New Item -> Document, uploading the key FILE itself"
+      echo "     (native SSH Key / Login items export lossily or not at all)."
+    fi
+    rm -f "$out"
+    exit 1
+  fi
   chmod 600 "$out"
   # Validate the material is a real OpenSSH key before trusting it.
   if ssh-keygen -l -f "$out" >/dev/null 2>&1; then

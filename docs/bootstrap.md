@@ -53,7 +53,10 @@ four objects:
    vault name matters for scoping the service account);
 2. three **Documents** — not native SSH Key items, which export lossily
    through the CLI — named exactly as the script looks them up, each
-   containing the private key file and nothing else:
+   containing the private key file and nothing else (create via
+   New Item → **Document**, uploading the key file itself:
+   `~/.ssh/id_borg`, `~/.ssh/git`; for harmonia,
+   `sudo cat /root/.ssh/id_ed25519 > /tmp/key` first):
 
    | Document | Content |
    |---|---|
