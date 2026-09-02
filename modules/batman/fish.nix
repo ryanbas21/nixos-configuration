@@ -11,7 +11,9 @@
 
       interactiveShellInit = ''
         set fish_greeting
-        set -gx OP_BIOMETRIC_UNLOCK true
+        # 1Password CLI app-integration toggle (current documented name;
+        # OP_BIOMETRIC_UNLOCK is the legacy variable and is ignored).
+        set -gx OP_BIOMETRIC_UNLOCK_ENABLED true
         set -gx DEFAULT_USER $(whoami)
         # The zai secret only exists on NixOS hosts (home.pc agenix);
         # standalone home-manager exports must not error on every shell.
