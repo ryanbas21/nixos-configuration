@@ -2,7 +2,7 @@
 
 [← README](../README.md) · [Architecture](architecture.md) · [Machines](machines.md)
 
-Day-to-day ritual: updating inputs, deploying, and what CI checks.
+Day-to-day ritual: updating inputs, deploying, rollback, and what CI checks.
 
 ## Updating inputs
 
@@ -56,6 +56,49 @@ sudo nixos-rebuild switch --flake .#nixos
 
 The laptop and Mac deploy with the one-liners in
 [Machines](machines.md) — no clone required.
+
+## Rollback & failure recovery
+
+Three tiers, depending on how broken things are:
+
+**Rebuild broke something, system still usable.**
+`sudo nixos-rebuild switch --rollback` activates the previous generation
+immediately and moves the boot default back. Home-manager rolls back
+**with** it — batman's home is activated as part of system activation
+(the NixOS-module integration), so there is no separate
+`home-manager rollback` step to remember.
+
+**System won't boot.** The systemd-boot menu lists every retained
+generation ("NixOS - Generation N" entries). Boot the previous one, then
+run `sudo nixos-rebuild switch --rollback` from inside it to make the
+choice sticky — otherwise the newest (broken) generation stays the
+default. To see what exists:
+
+```sh
+sudo nix-env -p /nix/var/nix/profiles/system --list-generations
+```
+
+**Data.** A rollback reverts configuration, not data — the borg
+repository is the recovery path for files
+([backups](programs/backup.md)).
+
+Caveats worth knowing:
+
+- Rollback vs. repo drift: the [git-backup timer](programs/backup.md)
+  keeps pushing repo HEAD regardless. A rolled-back system simply
+  disagrees with repo HEAD until the next rebuild from HEAD re-applies
+  it. Harmless — don't be surprised by it.
+- Secrets re-decrypt fine after rollback: the agenix identity
+  (`~/.ssh/id_borg`) is user-level state that predates and outlives any
+  generation.
+- `sudo nixos-rebuild test --flake .#nixos` before `switch` (step 3 of
+  the [update ritual](#updating-inputs)) is the cheap way to never need
+  this section: it activates without touching boot entries, so a bad
+  activation never costs you the boot menu.
+- Rollback reach is bounded by [maintenance](programs/maintenance.md):
+  the weekly GC keeps 30 days of generations, and
+  `boot.loader.systemd-boot.configurationLimit = 10` caps the boot menu —
+  the two guardrails are one policy.
 
 ## CI (.github/workflows/ci.yml)
 

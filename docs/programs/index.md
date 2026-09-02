@@ -13,7 +13,8 @@ layer).
 | [Neovim (nvf)](neovim.md) | `batman/nvf.nix`, `batman/_nvf/` | the nvf + dotfiles-lua bridge, the `_module.args` dance, known gaps |
 | [Shell & CLI](shell-and-cli.md) | `batman/fish.nix`, `batman/fzf.nix`, `batman/packages.nix` | fish + plugins, fzf/fd, starship/zoxide/carapace/eza, direnv, package inventory |
 | [Backups](backup.md) | `batman/backup.nix`, `scripts/git-backup.sh` | borgmatic, the daily git timer, boot-race retries |
-| [Nix caches](nix-caches.md) | `batman/cachix.nix`, `nixos/base.nix` (settings), `lib.nix` | cachix + harmonia, substituter order, CI pushes, laptop's manual step |
+| [Nix caches](nix-caches.md) | `batman/cachix.nix`, `computers/harmonia.nix`, `nixos/base.nix` (settings), `lib.nix` | cachix + harmonia server (now a tracked host), substituter order, CI pushes, adoption runbook |
+| [Maintenance](maintenance.md) | `maintenance.nix` | weekly GC, store optimisation, boot-entry caps — and why rollback reach is bounded |
 | [DNS & time](dns-and-time.md) | `networking/dns.nix`, `time.nix`, `nixos/base.nix` (tz) | resolved + DoT spelling gotcha, ntpd-rs, the Singapore timezone saga |
 | [Security](security.md) | `sudo.nix`, `security.nix`, `nixos/base.nix` (sshd/known_hosts) | sudo-rs, paretosecurity, sshd, the pre-trusted GitHub host key |
 | [Virtualization](virtualization.md) | `virtualization.nix` | rootless + socket-activated docker, VirtualBox |

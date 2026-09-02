@@ -1,6 +1,6 @@
 # Nix caches
 
-[← program notes](index.md) · modules: `batman/cachix.nix`, `modules/nixos/base.nix` (nix.settings), `modules/lib.nix` (cachixCache)
+[← program notes](index.md) · modules: `batman/cachix.nix`, `modules/nixos/base.nix` (nix.settings), `modules/computers/harmonia.nix`, `modules/lib.nix` (cachixCache)
 
 Four caches in play: the canonical `cache.nixos.org`, the personal
 cachix cache **nix-configs**, a LAN harmonia server, and upstream caches
@@ -48,6 +48,88 @@ and is best-effort (`|| true` inside the script) so a down cache server
 can never fail a build. **Which also means a missing key or down server
 fails silently** — if the cache seems cold, check
 `journalctl -u nix-daemon` after a build.
+
+## The server (.82) — tracked in this repo
+
+`modules/computers/harmonia.nix` manages the cache server itself:
+`services.harmonia.cache` (defaults match what .82 has served all
+along: `[::]:5000`, priority 50), the signing key as an agenix secret
+(`secrets/harmonia-signing-key.age` — the secret half of the
+`nix-cache-1:...` pair, no longer single-point-of-failure state on a
+lab box), root's `authorized_keys` holding the desktop push key, the
+firewall (22 + 5000), and sshd. It is deliberately a **slim host**: no
+`nixos.modules.base` (no Plasma/home-manager), no user slot — root is
+the only account. Deployed from the desktop, never rebuilt on the box:
+
+```sh
+sudo nixos-rebuild switch --flake .#harmonia --target-host root@192.168.1.82
+```
+
+nixos-rebuild builds locally (substituting from this repo's caches,
+including this very cache) and copies the closure over ssh, riding the
+same root key the push hook uses. `nix flake check --no-build`
+(= CI) eval-checks the host like any other.
+
+Recovery story once adopted: any fresh NixOS box + this repo + the
+host-key recipient in `secrets.nix` re-creates the server; cache
+*contents* are derived data that re-accumulates as clients rebuild.
+
+### Bringing .82 under management (one-time)
+
+The host file ships with three deliberate placeholders that must be
+filled before the first deploy (each is marked `TODO(first deploy)`
+inline):
+
+**On the box** (`ssh root@192.168.1.82`):
+
+1. `uname -m` — confirm `x86_64` (the host file assumes x86_64-linux).
+2. `nixos-version` and the `stateVersion` in its current
+   `/etc/nixos/configuration.nix` — align
+   `system.stateVersion` in `modules/computers/harmonia.nix` if it
+   isn't 26.05.
+3. `nixos-generate-config`, then replace the placeholder content in
+   `modules/computers/harmonia/_hardware.nix` with the generated
+   `hardware-configuration.nix` (the placeholder's root device is
+   intentionally nonexistent — a deploy against it fails loudly).
+4. Locate the current signing key: `systemctl cat harmonia` (look at
+   `SIGN_KEY_PATHS` / `LoadCredential`), then `cat` that file — its
+   content is needed in step 7.
+5. `cat /etc/ssh/ssh_host_ed25519_key.pub` — the host's agenix
+   identity.
+6. `cat ~/.ssh/authorized_keys` — note every key present, not just the
+   desktop's.
+
+**On the desktop** (in `/etc/nixos`):
+
+7. `agenix -e secrets/harmonia-signing-key.age` — paste the real
+   signing secret from step 4 (the placeholder is batman-encrypted
+   exactly so this edit is possible). Optionally also store it in
+   1Password as belt-and-braces.
+8. `sudo cat /root/.ssh/id_ed25519.pub` — paste into
+   `users.users.root.openssh.authorizedKeys.keys` in
+   `modules/computers/harmonia.nix`, together with any other keys from
+   step 6. **This assignment replaces the file on switch** — dropping
+   the deploy key means console-only recovery, so diff first.
+9. In `secrets.nix`: uncomment the `harmonia` recipient, paste the host
+   pubkey from step 5, and add `harmonia` to the signing key's
+   `publicKeys`.
+10. Commit and push (CI eval-checks the completed host), then deploy:
+
+    ```sh
+    sudo nixos-rebuild switch --flake .#harmonia --target-host root@192.168.1.82
+    ```
+
+**Verify** after the switch:
+
+```sh
+curl -s http://192.168.1.82:5000/nix-cache-info   # StoreDir/Priority back
+sudo nix copy --to ssh://root@192.168.1.82 /nix/store/<any locally-built path>
+curl -sf http://192.168.1.82:5000/<that path's basename>.narinfo && echo PUSH WORKS
+```
+
+(The manual `nix copy` surfaces errors the hook's `|| true` swallows —
+it doubles as the definitive check that the push path, unverified
+since the hook landed, actually works.)
 
 ## nix-configs cachix: the cache as repo state
 

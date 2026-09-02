@@ -7,7 +7,7 @@ namespaces every feature file assigns to, and a complete file tour.
 
 ## The big picture
 
-Two repos, three machines:
+Two repos, four machines:
 
 - **github:ryanbas21/dotfiles** — home of the nvim lua tree, pinned here as
   the `ryan-nvim` flake input and consumed by nvf (plus a few pi agent
@@ -23,10 +23,11 @@ github:ryanbas21/dotfiles        (data only; the nvim lua tree)
         |
         | pinned as flake input `ryan-nvim`
         v
-github:ryanbas21/nixos-configuration   (this repo; all three machines)
+github:ryanbas21/nixos-configuration   (this repo; all four machines)
         ├── nixos desktop: system config + batman's home-manager
         ├── ryan-linux:     standalone home-manager for the CachyOS laptop
-        └── ryan-intel-mac: standalone home-manager for the Intel Mac
+        ├── ryan-intel-mac: standalone home-manager for the Intel Mac
+        └── harmonia:       NixOS cache server (192.168.1.82), headless
 ```
 
 The model in three sentences: NixOS machines are hosts under
@@ -110,6 +111,13 @@ Read the repo in this order:
    `boot.supportedFilesystems = [ "nfs" ]`, and
    `imports = [ ./nixos/_hardware.nix config.nixos.modules.base config.users.batman.nixos.base ]`.
 
+1. `modules/computers/harmonia.nix` is the counter-example: a headless,
+   single-purpose host (the cache server) that imports neither the
+   desktop base nor a user slot — its minimal base, the harmonia service,
+   the signing-key secret, and root's authorized_keys all live inline in
+   the host file. Deployed remotely from the desktop via
+   `--target-host`, never rebuilt on the box.
+
 ## Rules of the pattern
 
 - **Drop a file to enable it.** Any `.nix` file anywhere under `modules/` is
@@ -184,15 +192,22 @@ Read the repo in this order:
 │   ├── time.nix                 ntpd-rs time sync (timeZone static in base.nix)
 │   ├── security.nix             paretosecurity posture checks (system service)
 │   ├── sudo.nix                 sudo-rs replaces classic sudo
+│   ├── maintenance.nix          GC + store optimisation + boot-entry caps
+│   │                            (both NixOS hosts; see programs/maintenance)
 │   ├── virtualization.nix       docker (rootless + socket-activated system daemon)
 │   │                            + VirtualBox host
 │   ├── networking/
 │   │   └── dns.nix              systemd-resolved: pihole first, then mullvad/
 │   │                            quad9/cloudflare; opportunistic DoT
 │   ├── computers/
-│   │   ├── nixos.nix            the host, as data (hostname, NFS mounts)
-│   │   └── nixos/
-│   │       └── _hardware.nix    the desktop's hardware scan (manual import)
+│   │   ├── nixos.nix            the desktop host, as data (hostname, NFS mounts)
+│   │   ├── harmonia.nix         the cache-server host: headless, own minimal
+│   │   │                        base, harmonia service + signing-key secret
+│   │   ├── nixos/
+│   │   │   └── _hardware.nix    the desktop's hardware scan (manual import)
+│   │   └── harmonia/
+│   │       └── _hardware.nix    the server's hardware scan (manual import;
+│   │                            placeholder until adoption — see nix-caches)
 │   ├── nixos/
 │   │   ├── base.nix             host-agnostic system base (ex-configuration.nix)
 │   │   └── flake-source.nix     nixpkgs.flake.source + version metadata

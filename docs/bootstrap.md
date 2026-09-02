@@ -40,7 +40,8 @@ Restore with correct permissions: `chmod 600`.
 
 Everything else secret-shaped is already in the repo as `.age` files
 (see [secrets.md](secrets.md)) — the GPG key, the borg passphrase, the
-ZAI key, and both cachix credentials.
+ZAI key, both cachix credentials, and (since the harmonia server was
+brought under management) the cache's signing key.
 
 ## Fresh desktop runbook (same hardware)
 
@@ -164,3 +165,23 @@ Data and account state — restore or re-authenticate, don't expect Nix:
 - The harmonia push hook fails silently when its key or the server is
   missing (by design, so a down NAS can't fail builds) — check
   `journalctl -u nix-daemon` after a big build if the cache seems cold.
+  The server itself is now a tracked host (see
+  [nix caches](programs/nix-caches.md#the-server-82--tracked-in-this-repo));
+  until the [adoption runbook](programs/nix-caches.md#bringing-82-under-management-one-time)
+  is completed, its placeholders make deploys fail loudly rather than
+  half-apply.
+
+### Deliberate: no impermanence
+
+Opt-in state ("erase your darlings" — wipe `/` every boot, persist-list
+everything that must survive) was considered and **rejected** for this
+fleet. A Plasma desktop with 1Password, docker volumes, kodi, obsidian,
+NetworkManager, and fish history is the pattern's worst case: weeks of
+discovering the persist list by breakage, and every new app a potential
+silent reset. The risk it would structurally eliminate — configuration
+drift — is already covered by convention here (declarative config +
+lockfile), by borg (data), and by this runbook (fresh-machine recovery).
+The residual class it would uniquely catch — "works only because of an
+untracked file" — is the target of the planned fresh-boot VM smoke
+[CI test](operations.md#ci-githubworkflowsciyml) backlog item. Revisit
+only if that test proves insufficient.

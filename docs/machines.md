@@ -9,6 +9,7 @@ The fleet and how to extend it.
 | Desktop (host `nixos`, user batman) | NixOS | `nixosConfigurations.nixos` | `cd /etc/nixos && git pull && sudo nixos-rebuild switch --flake .#nixos` |
 | CachyOS laptop (user ryan) | Arch-based Linux | `homeConfigurations.ryan-linux` | `nix run home-manager -- switch --flake github:ryanbas21/nixos-configuration#ryan-linux` |
 | Intel Mac (user ryan) | macOS + nix | `homeConfigurations.ryan-intel-mac` | `nix run home-manager -- switch --flake github:ryanbas21/nixos-configuration#ryan-intel-mac` |
+| Harmonia cache server (192.168.1.82) | NixOS, headless | `nixosConfigurations.harmonia` | from the desktop: `sudo nixos-rebuild switch --flake .#harmonia --target-host root@192.168.1.82` |
 
 On the desktop the repo lives at `/etc/nixos` — a symlink to
 `~/programming/nixos`, the actual checkout — so the steady state is
@@ -17,6 +18,19 @@ nothing but nix installed. The desktop's git-backup timer operates on
 that checkout (the path is bound once, as `repoPath`, in
 `modules/batman/backup.nix`), so moving the checkout means changing
 that binding.
+
+### The harmonia host — the slim variant
+
+`modules/computers/harmonia.nix` (the cache server) demonstrates the
+departure from the standard host recipe: being headless and
+single-purpose, it imports **neither** `nixos.modules.base` (no Plasma,
+no home-manager, no backups) **nor** a user slot — root is the only
+account, its base is a few lines inline (sshd, firewall 22+5000,
+flakes), and its only secret is system-level agenix decrypted with the
+ssh **host** key. It is never rebuilt on the box: deploys come from the
+desktop via `--target-host` (builds locally, copies the closure over
+ssh). The one-time adoption runbook and the server-side story live in
+[nix caches](programs/nix-caches.md#the-server-82--tracked-in-this-repo).
 
 Setting a machine up from bare metal (including which SSH keys must be
 restored first) is covered in [bootstrap.md](bootstrap.md).
@@ -37,6 +51,11 @@ restored first) is covered in [bootstrap.md](bootstrap.md).
    see [hardware](#hardware)).
 3. Commit, then `sudo nixos-rebuild switch --flake .#<name>`.
    `nixosConfigurations.<name>` and a flake check appear automatically.
+
+A desktop-style host is the common case, but not the only shape: a
+headless box can skip `nixos.modules.base` and the user slot entirely
+and carry a minimal base inline — the harmonia host
+([above](#the-harmonia-host--the-slim-variant)) is the worked example.
 
 ## Adding a standalone machine (any non-NixOS box)
 

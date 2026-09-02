@@ -22,7 +22,9 @@ secrets/
 ├── zai-api-key.age             user-level (fish exports ZAI_API_KEY from it)
 ├── gpg.age                     user-level (GPG private-key import at activation)
 ├── cachix-auth-token.age       user-level (cachix CLI + CI secret sync)
-└── cachix-signing-key.age      user-level (cachix CLI + CI secret sync)
+├── cachix-signing-key.age      user-level (cachix CLI + CI secret sync)
+└── harmonia-signing-key.age    system-level (the cache server's signing key,
+                                modules/computers/harmonia.nix)
 ```
 
 `secrets.nix` contains only public recipient keys and is safe to commit.
@@ -110,3 +112,12 @@ If `~/.ssh/id_borg` is ever replaced, every secret must be re-encrypted
 to the new public key: update `secrets.nix`, then
 `agenix -r` (re-encrypt all files in place) from the desktop holding the
 old + new keys, and commit.
+
+## System-level secrets
+
+The harmonia host is the one consumer of system-level agenix (the
+NixOS module, not home-manager): its signing key decrypts with the
+**host** ssh key (`age.identityPaths = [ "/etc/ssh/ssh_host_ed25519_key" ]`),
+so the server needs no user identity. The host's public key becomes a
+recipient in `secrets.nix` at adoption — see
+[nix caches](programs/nix-caches.md#the-server-82--tracked-in-this-repo).

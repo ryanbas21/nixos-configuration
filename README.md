@@ -2,7 +2,8 @@
 
 Clone-and-run configuration for every machine in the fleet: a NixOS desktop
 (host `nixos`, user batman), a CachyOS laptop (standalone home-manager as
-ryan), and an Intel Mac (standalone home-manager as ryan). The repo is
+ryan), an Intel Mac (standalone home-manager as ryan), and the harmonia
+cache server on the LAN (NixOS, headless). The repo is
 organized as one feature per file: dropping a `.nix` file into `modules/` is
 the only step needed to enable it. Neovim is built by nvf, with its lua
 sourced from the dotfiles repo through the `ryan-nvim` flake input.
@@ -20,6 +21,7 @@ implementation.
 | Desktop (host `nixos`, user batman) | NixOS | `nixosConfigurations.nixos` | `cd /etc/nixos && git pull && sudo nixos-rebuild switch --flake .#nixos` |
 | CachyOS laptop (user ryan) | Arch-based Linux | `homeConfigurations.ryan-linux` | `nix run home-manager -- switch --flake github:ryanbas21/nixos-configuration#ryan-linux` |
 | Intel Mac (user ryan) | macOS + nix | `homeConfigurations.ryan-intel-mac` | `nix run home-manager -- switch --flake github:ryanbas21/nixos-configuration#ryan-intel-mac` |
+| Harmonia cache server (192.168.1.82) | NixOS, headless | `nixosConfigurations.harmonia` | from the desktop: `sudo nixos-rebuild switch --flake .#harmonia --target-host root@192.168.1.82` |
 
 On the desktop the repo lives at `/etc/nixos`; the laptop and Mac need
 nothing but nix installed. **Bringing up a machine from bare metal?** Start
@@ -58,7 +60,10 @@ program does, why it is there, and the war stories:
 - [Backups](docs/programs/backup.md) — borgmatic + the daily git-backup
   timer.
 - [Nix caches](docs/programs/nix-caches.md) — the personal cachix cache,
-  the LAN harmonia server, substituter order, and CI cache pushes.
+  the LAN harmonia server (now a tracked host), substituter order, and
+  CI cache pushes.
+- [Maintenance](docs/programs/maintenance.md) — weekly GC, store
+  optimisation, boot-entry caps.
 - [DNS & time](docs/programs/dns-and-time.md) — systemd-resolved, ntpd-rs,
   and why the timezone is static (the Singapore saga).
 - [Security](docs/programs/security.md) — sudo-rs, paretosecurity, sshd,
