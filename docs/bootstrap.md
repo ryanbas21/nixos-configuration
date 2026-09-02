@@ -90,12 +90,20 @@ partitioning or installer-menu steps:
 
 3. **Restore the keys onto the target**, so first-boot activation can
    decrypt (the rebuild creates batman/UID 1000 itself — no manual user
-   creation). Save each private key from 1Password to a file on the ISO
-   machine (USB stick, downloads dir — wherever), then:
+   creation). First get each private key onto the ISO machine as a
+   plain file — staged anywhere (/tmp, a mounted stick); the `install`
+   below moves it to its final home on /mnt. Practical routes:
+
+   - **USB stick**: save the two private keys as files from 1Password
+     on another device, then on the ISO `mount /dev/sdX1 /tmp/stick`;
+   - **graphical ISO**: 1Password web vault in the browser → download
+     the keys;
+   - **paste**: `nano /tmp/id_borg` and type/paste from another device
+     showing the key.
 
    ```sh
-   install -D -m 600 <id_borg material> /mnt/home/batman/.ssh/id_borg
-   install -D -m 600 <git material>   /mnt/home/batman/.ssh/git
+   install -D -m 600 /tmp/<id_borg> /mnt/home/batman/.ssh/id_borg
+   install -D -m 600 /tmp/<git>     /mnt/home/batman/.ssh/git
    ```
 
 4. **Install and fix ownership**:

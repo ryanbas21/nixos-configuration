@@ -45,6 +45,11 @@
 
       # --- minimal headless base (instead of nixos.modules.base) ---
       services.openssh.enable = true;
+      # Compressed RAM swap as an OOM cushion — same rationale as
+      # hardware.nix for the desktop, restated here because this host
+      # skips nixos.modules.base (would move with it if a server tier
+      # ever gets promoted, per the header comment).
+      zramSwap.enable = true;
       # harmonia itself; sshd opens port 22 via its own module default.
       networking.firewall.allowedTCPPorts = [ 5000 ];
       # Flakes for local nix ops on the box; remote rebuilds arrive as
