@@ -30,7 +30,7 @@
       categories = [ "Utility" ];
       settings = {
         StartupWMClass = "vicinae";
-        StartupNotify = false;
+        StartupNotify = "false";
       };
     };
 

@@ -1,30 +1,22 @@
-# Day/night screen gamma via gammastep, driven by geoclue2 location.
+# Day/night screen gamma via gammastep with a fixed location.
 # home.pc (not home.base): GUI/Wayland-only, must stay off the standalone
-# Mac export. gammastep's geoclue2 provider registers with the geoclue
-# daemon under DesktopId "gammastep", which geoclue denies unless it is
-# whitelisted — hence the appConfig half below.
+# Mac export.
+#
+# Manual coordinates, not geoclue2: the geolocation chain (geoclue ->
+# beacondb) has no WiFi coverage for this location and its IP fallback
+# misattributes this ISP's address to Singapore, which put the sun
+# schedule 14 hours off. The machine is a stationary desktop, so these
+# coordinates only need updating if it ever moves.
 { ... }:
 
 {
   users.batman.home.pc = {
     services.gammastep = {
       enable = true;
-      provider = "geoclue2";
+      provider = "manual";
+      latitude = "39.7392";
+      longitude = "-104.9903";
       tray = true;
-    };
-  };
-
-  # NixOS half: allow gammastep to query geoclue2. The daemon itself is
-  # enabled by services.automatic-timezoned (modules/time.nix); mkDefault
-  # keeps this module self-sufficient without fighting that assignment.
-  nixos.modules.base = { lib, ... }: {
-    services.geoclue2 = {
-      enable = lib.mkDefault true;
-      appConfig.gammastep = {
-        isAllowed = true;
-        isSystem = false;
-        users = [ "batman" ];
-      };
     };
   };
 }

@@ -20,6 +20,7 @@
           co = "checkout";
           st = "status";
           sync = "!git pull --rebase && git push";
+          po = "push origin";
         };
       };
     };

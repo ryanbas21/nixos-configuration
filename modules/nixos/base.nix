@@ -21,10 +21,12 @@
     # Enable networking
     networking.networkmanager.enable = true;
 
-    # No static time.timeZone: it is owned by services.automatic-timezoned
-    # (modules/time.nix), whose nixpkgs module sets time.timeZone = null on
-    # purpose — a static zone would be silently overridden at runtime, so
-    # the module turns the combination into an eval error instead.
+    # Static timezone. automatic-timezoned was removed: beacondb (the
+    # geoclue backend) has zero WiFi coverage for this location, so every
+    # geolocate query falls back to IP and DB-IP misattributes this ISP's
+    # address to Singapore, putting the clock 14h off at every boot.
+    time.timeZone = "America/Denver";
+
     # Select internationalisation properties.
     i18n.defaultLocale = "en_US.UTF-8";
 

@@ -27,7 +27,12 @@
       (lib.mkIf pkgs.stdenv.hostPlatform.isLinux [
         inputs.psysonic.packages.${pkgs.stdenv.hostPlatform.system}.psysonic
         inputs.rigup.packages.${pkgs.stdenv.hostPlatform.system}.rigup
+        # Add temperature monitoring
+        pkgs.lm_sensors
+        pkgs.btop
       ])
+
+
     ];
   };
 }

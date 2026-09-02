@@ -5,7 +5,13 @@
 { ... }:
 
 {
-  users.batman.home.pc = { config, lib, ... }: {
+  # The desktop's checkout location: the git-backup timer's ExecStart and
+  # the borgmatic source list both operate on this path, bound once here
+  # so moving the checkout means changing exactly one line.
+  users.batman.home.pc = { config, lib, ... }:
+    let repoPath = "/etc/nixos";
+    in
+  {
     age.identityPaths = [
       "${config.home.homeDirectory}/.ssh/id_borg"
     ];
@@ -17,7 +23,7 @@
 
       Service = {
         Type = "oneshot";
-        ExecStart = "/etc/nixos/scripts/git-backup.sh";
+        ExecStart = "${repoPath}/scripts/git-backup.sh";
         # Boot-race guard: the timer is Persistent=true and fires the
         # moment the machine boots; retry instead of silently losing
         # the day's push (systemd >= 254 allows Restart on Type=oneshot).
@@ -44,7 +50,7 @@
         location = {
           sourceDirectories = [
             "${config.home.homeDirectory}"
-            "/etc/nixos"
+            repoPath
           ];
 
           repositories = [
