@@ -89,6 +89,31 @@ Three `ok:` lines with fingerprints = vault names, document names,
 fetch, key validation and permissions all check out against the real
 vault.
 
+### Validation tiers
+
+| Tier | Where | Proves |
+|---|---|---|
+| Vault chain | desktop, `/tmp/keytest` (above) | service-account scope, document names, export fidelity, key validity — the part that rots, and the only tier CI can never cover (VM tests use fixture secrets by design) |
+| Dress rehearsal (optional, before a reinstall) | the real ISO in a VM with a scratch disk | the whole runbook in sequence: disko layout on a real device name, `op` from `nix shell` on the ISO, the `/mnt` shape, install, first boot |
+| Automated smoke (backlog) | CI, fixture secrets | boot + activation, every push |
+
+The rehearsal recipe — the `-device nvme` trick makes the guest see
+`/dev/nvme0n1`, the exact device the tracked layout pins, so no repo
+edits are needed:
+
+```fish
+nix shell nixpkgs#qemu -c qemu-img create -f qcow2 /tmp/rehearsal.qcow2 40G
+nix shell nixpkgs#qemu -c qemu-system-x86_64 -enable-kvm -m 6G -smp 3 \
+  -cdrom ~/Downloads/nixos-minimal*.iso \
+  -drive file=/tmp/rehearsal.qcow2,if=none,id=d0 \
+  -device nvme,drive=d0,serial=nixos \
+  -nic user
+```
+
+Then walk this runbook top to bottom inside the VM (user-mode NAT gives
+network; connect per the ISO's method). The install pulls the closure
+from cache.nixos.org over NAT — expect it slower than bare metal.
+
 ## Fresh desktop runbook (same hardware)
 
 Partitioning is declarative (disko layout at
