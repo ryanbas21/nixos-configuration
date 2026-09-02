@@ -109,7 +109,11 @@ inline):
    `users.users.root.openssh.authorizedKeys.keys` in
    `modules/computers/harmonia.nix`, together with any other keys from
    step 6. **This assignment replaces the file on switch** — dropping
-   the deploy key means console-only recovery, so diff first.
+   the deploy key means console-only recovery, so diff first. It also
+   cannot quietly outlive the rest of adoption: once step 3's real
+   hardware file has landed, an eval-time assertion in the host module
+   requires a non-empty key list — `nix flake check` (and CI) fail
+   until the key is pasted.
 9. In `secrets.nix`: uncomment the `harmonia` recipient, paste the host
    pubkey from step 5, and add `harmonia` to the signing key's
    `publicKeys`.

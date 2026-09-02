@@ -169,7 +169,9 @@ Data and account state — restore or re-authenticate, don't expect Nix:
   [nix caches](programs/nix-caches.md#the-server-82--tracked-in-this-repo));
   until the [adoption runbook](programs/nix-caches.md#bringing-82-under-management-one-time)
   is completed, its placeholders make deploys fail loudly rather than
-  half-apply.
+  half-apply — and an eval-time assertion cross-locks the empty
+  authorized_keys placeholder against the hardware placeholder, so CI
+  flags a still-empty key list the moment the host becomes deployable.
 
 ### Deliberate: no impermanence
 

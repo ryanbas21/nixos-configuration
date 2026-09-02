@@ -27,7 +27,7 @@
     # The underscore in ./harmonia/_hardware.nix keeps import-tree from
     # auto-importing it as a flake-parts module; it is a NixOS module
     # imported manually here, as the host's data.
-    module = { config, ... }: {
+    module = { config, lib, ... }: {
       # Host-specific data.
       networking.hostName = "harmonia";
       nixpkgs.hostPlatform = "x86_64-linux";
@@ -79,6 +79,26 @@
         # assignment REPLACES the file on switch, and dropping the
         # deploy key would lock out remote rebuilds (console-only
         # recovery).
+        #
+        # This placeholder cannot silently outlive adoption: the
+        # assertion below ties it to the hardware placeholder.
+      ];
+
+      # Adoption tripwire: an empty authorized_keys is not an eval error
+      # by itself, so it is cross-locked against the hardware placeholder
+      # — while _hardware.nix still carries the REPLACE-ME device,
+      # deploys fail at activation anyway and the empty list is
+      # harmless; once real hardware lands, this assertion turns a
+      # still-empty list into an eval error, so `nix flake check`
+      # (and CI, on every push including the timer's) catches it before
+      # any deploy can lock out remote access.
+      assertions = [
+        {
+          assertion =
+            lib.hasInfix "REPLACE-ME" config.fileSystems."/".device
+            || config.users.users.root.openssh.authorizedKeys.keys != [ ];
+          message = "harmonia: root authorized_keys is empty — a switch would replace the server's key file and lock out remote access. Paste the desktop push key (docs/programs/nix-caches.md, adoption runbook).";
+        }
       ];
     };
   };
