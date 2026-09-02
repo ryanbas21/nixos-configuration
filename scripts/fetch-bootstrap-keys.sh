@@ -41,11 +41,14 @@ VAULT="Provisioning"
 # op <= 2.13 — the ssh-keygen validation below catches any mangling
 # from newer CLIs loudly instead of trusting it).
 try_fetch() { # <item name> <output path>; rc 0 on success
-  local name="$1" out="$2"
+  local name="$1" out="$2" err=""
   mkdir -p -- "$(dirname "$out")"
   rm -f -- "$out"
-  op read "op://${VAULT}/${name}/private key" --out-file "$out" 2>/dev/null && return 0
-  op document get "$name" --out-file "$out" 2>/dev/null && return 0
+  LAST_ERR=""
+  if err=$(op read "op://${VAULT}/${name}/private key" --out-file "$out" 2>&1); then return 0; fi
+  LAST_ERR="$err"
+  if err=$(op document get "$name" --out-file "$out" 2>&1); then return 0; fi
+  LAST_ERR="$err"
   rm -f -- "$out"
   return 1
 }
@@ -67,9 +70,18 @@ validate_key() { # <item name> <output path>
 fetch() { # <item name> <output path> — required
   local name="$1" out="$2"
   if ! try_fetch "$name" "$out"; then
-    echo "  ERROR: couldn't fetch '$name' as either a Document or an SSH Key"
-    echo "  item (shapes: Document holding the key file, or SSH Key item read"
-    echo "  via its 'private key' field; vault is expected to be '$VAULT')"
+    printf '  ERROR fetching %s: %s\n' "$name" "$(printf '%s' "$LAST_ERR" | head -2)"
+    case "$LAST_ERR" in
+      *"initializing client"*|*"connecting to desktop app"*|*"not currently signed in"*|*"service account"*)
+        echo "  -> AUTH failure, not item shape: no service-account token set and"
+        echo "     no usable desktop-app session. Export the token and retry:"
+        echo "       set -x OP_SERVICE_ACCOUNT_TOKEN \"ops_...\""
+        ;;
+      *)
+        echo "  -> item shape or name mismatch: expected an SSH Key item named"
+        echo "     '$name' in vault '$VAULT' (or a Document of the same name)."
+        ;;
+    esac
     exit 1
   fi
   validate_key "$name" "$out"
