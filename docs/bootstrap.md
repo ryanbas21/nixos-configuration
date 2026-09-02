@@ -76,6 +76,19 @@ token, the script also runs against a normal signed-in `op` session
 (desktop validation — biometric prompts). The `op` CLI itself comes
 from `nix shell nixpkgs#_1password-cli` on the ISO.
 
+**Validate the whole chain once**, from the desktop, before trusting
+it at reinstall time:
+
+```fish
+set -x OP_SERVICE_ACCOUNT_TOKEN (op read 'op://Personal/<token-item>/<field>')
+bash scripts/fetch-bootstrap-keys.sh /tmp/keytest
+rm -rf /tmp/keytest; set -e OP_SERVICE_ACCOUNT_TOKEN
+```
+
+Three `ok:` lines with fingerprints = vault names, document names,
+fetch, key validation and permissions all check out against the real
+vault.
+
 ## Fresh desktop runbook (same hardware)
 
 Partitioning is declarative (disko layout at
