@@ -100,15 +100,20 @@ echo "== fetching identity keys from the Provisioning vault =="
 fetch "bootstrap id_borg" "$TARGET/home/batman/.ssh/id_borg"
 fetch "bootstrap git"     "$TARGET/home/batman/.ssh/git"
 
-# The /root harmonia push key only matters on the desktop flow; fetched
-# to the target's /root for completeness when TARGET is /mnt.
+# The /root harmonia push key: installed when TARGET is /mnt; fetched
+# (and validated, then discarded) otherwise, so a validation run always
+# exercises all three vault items.
 if [ "$TARGET" = "/mnt" ]; then
   mkdir -p "$TARGET/root/.ssh"
-  if try_fetch "bootstrap harmonia" "$TARGET/root/.ssh/id_ed25519"; then
-    validate_key "bootstrap harmonia" "$TARGET/root/.ssh/id_ed25519"
-  else
-    echo "  note: no usable 'bootstrap harmonia' item — skipping the /root push key (optional)"
-  fi
+  HARMONIA_OUT="$TARGET/root/.ssh/id_ed25519"
+else
+  HARMONIA_OUT="$(mktemp -d)/id_ed25519"
+fi
+if try_fetch "bootstrap harmonia" "$HARMONIA_OUT"; then
+  validate_key "bootstrap harmonia" "$HARMONIA_OUT"
+  [ "$TARGET" = "/mnt" ] || rm -f -- "$HARMONIA_OUT"
+else
+  echo "  note: no usable 'bootstrap harmonia' item — skipping the /root push key (optional)"
 fi
 
 echo
