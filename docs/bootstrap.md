@@ -80,9 +80,13 @@ from `nix shell nixpkgs#_1password-cli` on the ISO.
 it at reinstall time:
 
 ```fish
+# Either read it (needs the desktop app's CLI integration enabled:
+# Settings -> Developer), or simply paste the token from the UI:
 set -x OP_SERVICE_ACCOUNT_TOKEN (op read 'op://Personal/<token-item>/<field>')
+# set -x OP_SERVICE_ACCOUNT_TOKEN "ops_...pasted..."
 bash scripts/fetch-bootstrap-keys.sh /tmp/keytest
 rm -rf /tmp/keytest; set -e OP_SERVICE_ACCOUNT_TOKEN
+history delete --contains ops_   # if pasted
 ```
 
 Three `ok:` lines with fingerprints = vault names, document names,
