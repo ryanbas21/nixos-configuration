@@ -29,6 +29,31 @@ with [docs/bootstrap.md](docs/bootstrap.md) — it lists the handful of
 identity keys that must be restored from 1Password before the first
 rebuild (everything else is in this repo).
 
+### Fresh metal — the whole install
+
+Boot the NixOS ISO, get online (`nmtui`), then (details, the mental
+model, and the post-boot layer in [bootstrap](docs/bootstrap.md)):
+
+```sh
+# disk: partition + format + label + mount /mnt — declaratively, no manual steps
+nix run github:nix-community/disko -- -m destroy,format,mount \
+  -f github:ryanbas21/nixos-configuration#nixos
+
+# identity: the two keys from 1Password, onto the target
+install -D -m 600 <id_borg> /mnt/home/batman/.ssh/id_borg
+install -D -m 600 <git>     /mnt/home/batman/.ssh/git
+
+# system: builds from the flake, installs, creates batman, bootloader
+sudo nixos-install --flake github:ryanbas21/nixos-configuration#nixos
+sudo nixos-enter -- chown -R batman: /home/batman/.ssh
+sudo reboot
+```
+
+The partition layout is repo state
+(`modules/computers/nixos/_disko.nix`, exposed as
+`diskoConfigurations.nixos`) — there are no manual partitioning steps,
+ever.
+
 ## Documentation
 
 All documentation lives in [`docs/`](docs/). Start with the
