@@ -69,6 +69,17 @@ jobs:
             substituters = https://nix-configs.cachix.org https://cache.nixos.org
             trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
 
+      - name: Warm eval-context sources
+        # flake check --no-build cannot realize eval-context sources on a
+        # cold store: vicinae's mkRayCastExtension filters the raycast
+        # monorepo at eval time, and those context drvs cannot be
+        # substituted — flake check dies with "path ... is not valid"
+        # (reproduced in a fresh local store; green locally only because
+        # the desktop's store is warm). A plain build realizes them, and
+        # everything else substitutes from nix-configs. Same caveat for
+        # any fresh machine: build before the first flake check.
+        run: nix build --no-link .#homeConfigurations.ryan-linux.activationPackage
+
       - name: Evaluate all flake outputs
         run: nix flake check --no-build
 
