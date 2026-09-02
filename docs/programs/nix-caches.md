@@ -101,10 +101,27 @@ inline):
 
 **On the desktop** (in `/etc/nixos`):
 
-7. `agenix -e secrets/harmonia-signing-key.age` — paste the real
-   signing secret from step 4 (the placeholder is batman-encrypted
-   exactly so this edit is possible). Optionally also store it in
-   1Password as belt-and-braces.
+7. Put the real signing secret into
+   `secrets/harmonia-signing-key.age`. Either the interactive way
+   (`agenix -e secrets/harmonia-signing-key.age`, paste the secret from
+   step 4), or the no-paste way — read straight off the box into age,
+   never touching disk unencrypted (both recipients come from
+   `secrets.nix`):
+
+   ```sh
+   cd /etc/nixos
+   printf '%s\n' \
+     'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIELiz8KiOJ2x7L1J2yx3X8RZkZ3bd/uHcsUH5rzVw8Cl batman@nixos' \
+     'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINtxzFwIX6e97M/y8aeL0qdI1lM7IykhxS49fe99c0b0 root@192.168.1.82' \
+     > /tmp/harmonia-recipients
+   sudo ssh root@192.168.1.82 'cat <signing-key-path-from-step-4>' \
+     | nix shell nixpkgs#age -c age -R /tmp/harmonia-recipients \
+       -o secrets/harmonia-signing-key.age
+   rm /tmp/harmonia-recipients
+   grep -c ssh-ed25519 secrets/harmonia-signing-key.age   # expect 2 stanzas
+   ```
+
+   Optionally also store the secret in 1Password as belt-and-braces.
 8. `sudo cat /root/.ssh/id_ed25519.pub` — paste into
    `users.users.root.openssh.authorizedKeys.keys` in
    `modules/computers/harmonia.nix`, together with any other keys from
@@ -114,9 +131,10 @@ inline):
    hardware file has landed, an eval-time assertion in the host module
    requires a non-empty key list — `nix flake check` (and CI) fail
    until the key is pasted.
-9. In `secrets.nix`: uncomment the `harmonia` recipient, paste the host
-   pubkey from step 5, and add `harmonia` to the signing key's
-   `publicKeys`.
+9. Recipients are already wired: `secrets.nix` carries the `harmonia`
+   host key (keyscan'd from the LAN, trust-on-first-use). At adoption,
+   verify it matches the box —
+   `ssh root@192.168.1.82 'cat /etc/ssh/ssh_host_ed25519_key.pub'`.
 10. Commit and push (CI eval-checks the completed host), then deploy:
 
     ```sh

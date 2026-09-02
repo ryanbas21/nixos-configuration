@@ -8,12 +8,12 @@ let
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIELiz8KiOJ2x7L1J2yx3X8RZkZ3bd/uHcsUH5rzVw8Cl batman@nixos";
 
   # The harmonia cache server (192.168.1.82). Its agenix identity is
-  # the ssh HOST key, so the server needs no user identity. At adoption
-  # (docs/programs/nix-caches.md, "Bringing .82 under management"):
+  # the ssh HOST key, so the server needs no user identity. Fetched via
+  # `ssh-keyscan` from the LAN (trust-on-first-use, same posture as the
+  # post-build-hook's accept-new); at adoption, verify it matches
   #   ssh root@192.168.1.82 'cat /etc/ssh/ssh_host_ed25519_key.pub'
-  # uncomment and paste, then add `harmonia` to the signing key's
-  # publicKeys below and re-encrypt with `agenix -e`.
-  # harmonia = "ssh-ed25519 AAAA...REPLACE-AT-ADOPTION";
+  harmonia =
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINtxzFwIX6e97M/y8aeL0qdI1lM7IykhxS49fe99c0b0 root@192.168.1.82";
 in
 {
   # User-level secrets (home-manager agenix, identity ~/.ssh/id_borg).
@@ -31,7 +31,9 @@ in
   # The harmonia cache server's signing key: the secret half of the
   # nix-cache-1:... pair (modules/nixos/base.nix pins the public half).
   # System-level secret (modules/computers/harmonia.nix); batman is a
-  # recipient only so the desktop can edit it — at adoption, add the
-  # `harmonia` host key above to this list too.
-  "secrets/harmonia-signing-key.age".publicKeys = [ batman ];
+  # recipient only so the desktop can edit it. NOTE: the placeholder
+  # shipped encrypted to batman alone — until the real secret is
+  # encrypted in (runbook step 7), the harmonia recipient here is
+  # aspirational: `agenix -e` re-encrypts to both on first edit.
+  "secrets/harmonia-signing-key.age".publicKeys = [ batman harmonia ];
 }
