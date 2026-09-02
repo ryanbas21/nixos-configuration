@@ -56,6 +56,15 @@ try_fetch() { # <item name> <output path>; rc 0 on success
 validate_key() { # <item name> <output path>
   local name="$1" out="$2"
   chmod 600 "$out"
+  # Repair a known paste artifact: some 1Password input paths store
+  # literal U+23CE (⏎ return symbol) instead of real newlines — the key
+  # arrives as one unparsable line. U+23CE never appears in legitimate
+  # key material, so the substitution is unambiguous.
+  if grep -q $'\xe2\x8f\x8e' "$out" 2>/dev/null; then
+    sed -i 's/\xe2\x8f\x8e/\n/g' "$out"
+    echo "  note: repaired literal ⏎ paste artifacts in '$name' (consider"
+    echo "        re-pasting the key into the item with real newlines)"
+  fi
   if ssh-keygen -l -f "$out" >/dev/null 2>&1; then
     echo "  ok: $name -> $out ($(ssh-keygen -l -f "$out" | cut -d' ' -f1-3))"
   else
