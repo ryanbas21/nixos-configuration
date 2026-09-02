@@ -17,5 +17,12 @@
       enable = true;
       polkitPolicyOwners = [ "batman" ];
     };
+
+    # The app's socket-credential check (SO_PEERCRED) requires connecting
+    # clients — the op CLI included — to carry the onepassword group the
+    # module creates; without it every handshake dies with "invalid group
+    # attempted to connect" (the app log's exact words) and op reports
+    # "connection reset". Group membership takes a fresh login session.
+    users.users.batman.extraGroups = [ "onepassword" ];
   };
 }
