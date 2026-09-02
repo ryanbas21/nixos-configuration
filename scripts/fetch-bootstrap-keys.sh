@@ -22,11 +22,16 @@
 set -euo pipefail
 
 TARGET="${1:-/mnt}"
-: "${OP_SERVICE_ACCOUNT_TOKEN:?export OP_SERVICE_ACCOUNT_TOKEN first (it is never read from argv — keep it out of shell history)}"
+if [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]; then
+  echo "note: OP_SERVICE_ACCOUNT_TOKEN not set — using the current op session."
+  echo "      Fine for validation on a signed-in desktop (biometric will prompt);"
+  echo "      the headless ISO flow needs the service-account token."
+fi
 command -v op >/dev/null || { echo "op not found — run via: nix shell nixpkgs#_1password-cli -c bash $0 $TARGET"; exit 1; }
 
 fetch() { # <document name> <output path>
   local name="$1" out="$2"
+  mkdir -p -- "$(dirname "$out")"
   op document get "$name" --out-file "$out"
   chmod 600 "$out"
   # Validate the material is a real OpenSSH key before trusting it.
@@ -46,6 +51,7 @@ fetch "bootstrap git"     "$TARGET/home/batman/.ssh/git"
 # The /root harmonia push key only matters on the desktop flow; fetched
 # to the target's /root for completeness when TARGET is /mnt.
 if [ "$TARGET" = "/mnt" ]; then
+  mkdir -p "$TARGET/root/.ssh"
   if op document get "bootstrap harmonia" --out-file "$TARGET/root/.ssh/id_ed25519" 2>/dev/null; then
     chmod 600 "$TARGET/root/.ssh/id_ed25519"
     echo "  ok: harmonia /root push key -> $TARGET/root/.ssh/id_ed25519"
