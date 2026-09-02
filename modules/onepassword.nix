@@ -8,9 +8,9 @@
 # polkitPolicyOwners in via override. The module additionally provides
 # the onepassword group and the setgid browser-support wrapper.
 #
-# The CLI stays in home.packages (packages.nix): same binary family the
-# integration handshake accepts, and the headless service-account path
-# (scripts/fetch-bootstrap-keys.sh) never involves the app at all.
+# stays in home.packages (packages.nix): the same binary family the
+# integration handshake accepts, for standalone exports and scripting
+# that never involves the app (service-account tokens, CI, etc.).
 { ... }: {
   nixos.modules.base = {
     # The CLI module: system op + a setgid onepassword-cli wrapper

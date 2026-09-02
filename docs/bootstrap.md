@@ -43,73 +43,12 @@ Everything else secret-shaped is already in the repo as `.age` files
 ZAI key, both cachix credentials, and (since the harmonia server was
 brought under management) the cache's signing key.
 
-### The provisioning vault (automated key fetch)
+### Rehearsing the runbook in a VM (optional, before a reinstall)
 
-The 1Password side of `scripts/fetch-bootstrap-keys.sh` needs exactly
-four objects:
-
-1. a vault — `Provisioning` by convention — holding **only**
-   provisioning material (the script looks documents up by name; the
-   vault name matters for scoping the service account);
-2. three **SSH Key items** — the natural shape — named exactly as the
-   script looks them up, each holding the private key (the public half
-   is optional; every public key already lives in the repo). The script
-   reads each item's `private key` field and validates the material
-   with `ssh-keygen`:
-
-   | Item | Content |
-   |---|---|
-   | `bootstrap id_borg` | the agenix identity (required) |
-   | `bootstrap git` | the GitHub push key (required) |
-   | `bootstrap harmonia` | the desktop `/root` cache-push key (optional) |
-
-   A **Document** holding the raw key file is the byte-exact fallback
-   if an older CLI ever mangles the field export (the pre-2.13 quirk)
-   — the script tries both shapes automatically.
-
-3. a **service account** with **read-only** access to exactly that
-   vault — its `ops_…` token is the headless credential the ISO flow
-   uses;
-4. the token stored **outside** the vault it unlocks (personal vault
-   or break-glass) — never in the repo or CI, and revocable from the
-   console in one click. Storing it inside the vault it unlocks
-   defeats rotation (a compromised token can read its own replacement)
-   and silently extends the token's reach to every item later added to
-   the vault.
-
-Each fetch is validated with `ssh-keygen` before install; without the
-token, the script also runs against a normal signed-in `op` session
-(desktop validation — biometric prompts). The `op` CLI itself comes
-from `nix shell nixpkgs#_1password-cli` on the ISO.
-
-**Validate the whole chain once**, from the desktop, before trusting
-it at reinstall time:
-
-```fish
-# Either read it (needs the desktop app's CLI integration enabled:
-# Settings -> Developer), or simply paste the token from the UI:
-set -x OP_SERVICE_ACCOUNT_TOKEN (op read 'op://Personal/<token-item>/<field>')
-# set -x OP_SERVICE_ACCOUNT_TOKEN "ops_...pasted..."
-bash scripts/fetch-bootstrap-keys.sh /tmp/keytest
-rm -rf /tmp/keytest; set -e OP_SERVICE_ACCOUNT_TOKEN
-history delete --contains ops_   # if pasted
-```
-
-Three `ok:` lines with fingerprints = vault names, document names,
-fetch, key validation and permissions all check out against the real
-vault.
-
-### Validation tiers
-
-| Tier | Where | Proves |
-|---|---|---|
-| Vault chain | desktop, `/tmp/keytest` (above) | service-account scope, document names, export fidelity, key validity — the part that rots, and the only tier CI can never cover (VM tests use fixture secrets by design) |
-| Dress rehearsal (optional, before a reinstall) | the real ISO in a VM with a scratch disk | the whole runbook in sequence: disko layout on a real device name, `op` from `nix shell` on the ISO, the `/mnt` shape, install, first boot |
-| Automated smoke (backlog) | CI, fixture secrets | boot + activation, every push |
-
-The rehearsal recipe — the `-device nvme` trick makes the guest see
-`/dev/nvme0n1`, the exact device the tracked layout pins, so no repo
-edits are needed:
+The whole runbook can be walked end-to-end against a scratch disk
+before a real reinstall ever depends on it. The `-device nvme` trick
+makes the guest see `/dev/nvme0n1`, the exact device the tracked
+layout pins, so no repo edits are needed:
 
 ```fish
 nix shell nixpkgs#qemu -c qemu-img create -f qcow2 /tmp/rehearsal.qcow2 40G
@@ -120,9 +59,10 @@ nix shell nixpkgs#qemu -c qemu-system-x86_64 -enable-kvm -m 6G -smp 3 \
   -nic user
 ```
 
-Then walk this runbook top to bottom inside the VM (user-mode NAT gives
-network; connect per the ISO's method). The install pulls the closure
-from cache.nixos.org over NAT — expect it slower than bare metal.
+Then walk the fresh-desktop runbook top to bottom inside the VM
+(user-mode NAT gives network; connect per the ISO's method). The
+install pulls the closure from cache.nixos.org over NAT — expect it
+slower than bare metal.
 
 ## Fresh desktop runbook (same hardware)
 
@@ -150,25 +90,12 @@ partitioning or installer-menu steps:
 
 3. **Restore the keys onto the target**, so first-boot activation can
    decrypt (the rebuild creates batman/UID 1000 itself — no manual user
-   creation). Either manually from 1Password:
+   creation). Save each private key from 1Password to a file on the ISO
+   machine (USB stick, downloads dir — wherever), then:
 
    ```sh
    install -D -m 600 <id_borg material> /mnt/home/batman/.ssh/id_borg
    install -D -m 600 <git material>   /mnt/home/batman/.ssh/git
-   ```
-
-   or automated via the provisioning vault — a 1Password service
-   account whose read-only vault holds the identity keys as Documents
-   (`scripts/fetch-bootstrap-keys.sh`; setup notes in its header). One
-   carried `ops_` token replaces three key files, no key material ever
-   touches a terminal, and the token is revocable from the 1Password
-   console. The token never goes in the repo or CI — it *is* the
-   carried bootstrap secret:
-
-   ```sh
-   export OP_SERVICE_ACCOUNT_TOKEN=ops_...
-   nix shell nixpkgs#_1password-cli -c \
-     bash scripts/fetch-bootstrap-keys.sh /mnt
    ```
 
 4. **Install and fix ownership**:

@@ -60,18 +60,25 @@ Screen recorder, one line: `home.packages = [ pkgs.kooha ]`. Desktop-only
 
 ### 1Password
 
-Both halves installed everywhere (home.base): `_1password-cli` + the
-GUI. The GUI itself is **system-level** (`modules/onepassword.nix`, via
-`programs._1password-gui` with `polkitPolicyOwners = [ "batman" ]`):
-the CLI↔app integration needs the app's polkit action in a path polkitd
-scans, and the package only generates that policy when owners are
-non-empty — a home-manager-installed GUI can provide neither, which is
-exactly how the "error initializing client" trap happens (fixed
-2026-09-02 after a connection-reset debug session). Account sign-in is
-interactive state. Fish sets `OP_BIOMETRIC_UNLOCK=true` for the SSH
-agent biometric flow; the CLI (`op`) is used for scripting and the
-[provisioning vault](../bootstrap.md#the-provisioning-vault-automated-key-fetch).
-See [bootstrap](../bootstrap.md#fresh-desktop-runbook-same-hardware), step 5.
+The desktop runs BOTH halves at the **system level**
+(`modules/onepassword.nix`) because the CLI↔app integration is a
+five-layer chain — each layer with its own failure signature, all
+derived the hard way on 2026-09-02:
+
+| # | Layer | Lives in | Failure signature without it |
+|---|---|---|---|
+| 1 | polkit policy with batman as owner | `programs._1password-gui` + `polkitPolicyOwners` | `PolicyKit daemon is not available` / handshake can't authenticate |
+| 2 | the agent socket (`/run/user/<uid>/1Password/agent.sock`) | app toggle: Settings → Developer → **Use the SSH agent** | `connecting to desktop app: cannot connect` |
+| 3 | the integration env var (current name) | fish: `OP_BIOMETRIC_UNLOCK_ENABLED` (the old `OP_BIOMETRIC_UNLOCK` is ignored) | integration silently off |
+| 4 | socket peer-credential check | batman ∈ `onepassword` group | app log: `invalid group attempted to connect` → CLI sees `connection reset` |
+| 5 | client-binary verification | `programs._1password` → setgid `onepassword-cli` wrapper at `/run/wrappers/bin/op` | `response: unsupportedClientType` |
+
+Two field notes: `op whoami` *reports* sessions rather than initiating
+them (a real command triggers the first authorization), and a stale
+`~/.config/op/config` from any pre-integration `op account add` shadows
+the app — `op account forget --all` clears it. The CLI package stays in
+home.packages for the standalone exports; on the desktop the wrapper
+wins via PATH order. Account sign-in is interactive state.
 
 ### xclip
 
