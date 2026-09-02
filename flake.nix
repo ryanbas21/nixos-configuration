@@ -49,6 +49,8 @@
       flake = false;
     };
 
+    vicinae.url = "github:vicinaehq/vicinae";
+
   };
 
   outputs = inputs: import ./outputs.nix inputs;

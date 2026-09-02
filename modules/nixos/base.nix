@@ -126,6 +126,11 @@
     # Binary caches: self-hosted harmonia first, then psysonic's cachix,
     # then the canonical caches. (Nix tries every trusted key against
     # every substituter — the two lists do not need to match order.)
+    # vicinae.cachix.org: the vicinae flake input builds its own package
+    # with gcc15Stdenv against its own nixpkgs (deliberately no
+    # inputs.vicinae.follows — a follows makes this cache miss) and is
+    # not on cache.nixos.org, so without this entry every vicinae bump
+    # compiles from source.
     nix.settings = {
       substituters = [
         "http://192.168.1.82:5000"
@@ -135,6 +140,7 @@
         # instead of building them.
         cachixCache.url
         "https://psysonic.cachix.org"
+        "https://vicinae.cachix.org"
         "https://cache.numtide.com"
         "https://cache.nixos.org/"
       ];
@@ -148,6 +154,7 @@
         "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
         "psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA="
         "nix-cache-1:SpVt1hjpAaEgQqnY1cIm5tjTETZbG5dQmGZ3rDbTyJc="
+        "vicinae.cachix.org-1:1kDrfienkGHPYbkpNj1mWTr7Fm1+zcenzgTizIcI3oc="
         cachixCache.publicKey
 
       ];
