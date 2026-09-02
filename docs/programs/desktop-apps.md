@@ -60,11 +60,18 @@ Screen recorder, one line: `home.packages = [ pkgs.kooha ]`. Desktop-only
 
 ### 1Password
 
-Both halves installed everywhere (home.base): `_1password-gui` +
-`_1password-cli` (both unfree-allowlisted). Account sign-in is
+Both halves installed everywhere (home.base): `_1password-cli` + the
+GUI. The GUI itself is **system-level** (`modules/onepassword.nix`, via
+`programs._1password-gui` with `polkitPolicyOwners = [ "batman" ]`):
+the CLI↔app integration needs the app's polkit action in a path polkitd
+scans, and the package only generates that policy when owners are
+non-empty — a home-manager-installed GUI can provide neither, which is
+exactly how the "error initializing client" trap happens (fixed
+2026-09-02 after a connection-reset debug session). Account sign-in is
 interactive state. Fish sets `OP_BIOMETRIC_UNLOCK=true` for the SSH
-agent biometric flow; the CLI (`op`) is used for scripting. See
-[bootstrap](../bootstrap.md#fresh-desktop-runbook-same-hardware), step 6.
+agent biometric flow; the CLI (`op`) is used for scripting and the
+[provisioning vault](../bootstrap.md#the-provisioning-vault-automated-key-fetch).
+See [bootstrap](../bootstrap.md#fresh-desktop-runbook-same-hardware), step 5.
 
 ### xclip
 
