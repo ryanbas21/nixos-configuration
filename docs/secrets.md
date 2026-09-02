@@ -118,6 +118,8 @@ old + new keys, and commit.
 The harmonia host is the one consumer of system-level agenix (the
 NixOS module, not home-manager): its signing key decrypts with the
 **host** ssh key (`age.identityPaths = [ "/etc/ssh/ssh_host_ed25519_key" ]`),
-so the server needs no user identity. The host's public key becomes a
-recipient in `secrets.nix` at adoption — see
+so the server needs no user identity. The host's public key is a
+recipient in `secrets.nix` (keyscan'd from the LAN), and the real
+signing secret is encrypted to it — verified at extraction to derive
+exactly the public half pinned in `modules/nixos/base.nix`. See
 [nix caches](programs/nix-caches.md#the-server-82--tracked-in-this-repo).
