@@ -88,7 +88,7 @@ NixOS host carries two files next to its host file:
   **labels are the contract**: the layout sets them, and the host's
   mounts reference `/dev/disk/by-partlabel/...`, so a disko-formatted
   disk and the original hand-partitioned disk (labeled once in place —
-  see [bootstrap](bootstrap.md#adopting-the-existing-disk-one-time))
+  see [bootstrap](bootstrap.md#adopting-the-existing-disk-one-time--completed-2026-09-02))
   satisfy the identical config.
 - `modules/computers/<name>/_hardware.nix` — the mount table (by
   partlabel) plus kernel facts (modules, microcode), maintained by
