@@ -113,13 +113,18 @@ partitioning or installer-menu steps:
    needed — the next `git pull && sudo nixos-rebuild switch` is just
    the steady state.
 
-## Adopting the existing disk (one-time)
+## Adopting the existing disk (one-time) — completed 2026-09-02
+
+**Status: done.** Labels set, the rebuild landed (fstab by partlabel,
+boot menu pruned to 10); the live disk and a fresh disko-formatted
+ disk are interchangeable. Retained as reference for adopting any
+future hand-partitioned disk.
 
 The live (hand-partitioned) disk predates disko. Its mounts moved from
 UUID to PARTLABEL — the same labels `_disko.nix` sets on fresh installs
-— so both disks satisfy the identical `_hardware.nix`. Before the next
-rebuild on the existing machine, set the labels once (metadata-only,
-safe on a mounted disk, reversible the same way):
+— so both disks satisfy the identical `_hardware.nix`. The labels get
+set once (metadata-only, safe on a mounted disk, reversible the same
+way):
 
 ```sh
 SGDISK=$(nix build --no-link --print-out-paths 'nixpkgs#gptfdisk^out')/bin/sgdisk

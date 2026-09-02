@@ -14,6 +14,7 @@ layer).
 | [Shell & CLI](shell-and-cli.md) | `batman/fish.nix`, `batman/fzf.nix`, `batman/packages.nix` | fish + plugins, fzf/fd, starship/zoxide/carapace/eza, direnv, package inventory |
 | [Backups](backup.md) | `batman/backup.nix`, `scripts/git-backup.sh` | borgmatic, the daily git timer, boot-race retries |
 | [Nix caches](nix-caches.md) | `batman/cachix.nix`, `computers/harmonia.nix`, `nixos/base.nix` (settings), `lib.nix` | cachix + harmonia server (now a tracked host), substituter order, CI pushes, adoption runbook |
+| [Disk layout (disko)](disko.md) | `disko.nix`, `computers/nixos/_disko.nix` | declarative partitioning, the labels contract, fresh-metal flow |
 | [Maintenance](maintenance.md) | `maintenance.nix` | weekly GC, store optimisation, boot-entry caps — and why rollback reach is bounded |
 | [DNS & time](dns-and-time.md) | `networking/dns.nix`, `time.nix`, `nixos/base.nix` (tz) | resolved + DoT spelling gotcha, ntpd-rs, the Singapore timezone saga |
 | [Security](security.md) | `sudo.nix`, `security.nix`, `nixos/base.nix` (sshd/known_hosts) | sudo-rs, paretosecurity, sshd, the pre-trusted GitHub host key |

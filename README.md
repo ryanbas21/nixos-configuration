@@ -64,6 +64,8 @@ program does, why it is there, and the war stories:
   CI cache pushes.
 - [Maintenance](docs/programs/maintenance.md) — weekly GC, store
   optimisation, boot-entry caps.
+- [Disk layout (disko)](docs/programs/disko.md) — declarative
+  partitioning and the labels contract.
 - [DNS & time](docs/programs/dns-and-time.md) — systemd-resolved, ntpd-rs,
   and why the timezone is static (the Singapore saga).
 - [Security](docs/programs/security.md) — sudo-rs, paretosecurity, sshd,
