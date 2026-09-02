@@ -113,6 +113,52 @@ partitioning or installer-menu steps:
    needed — the next `git pull && sudo nixos-rebuild switch` is just
    the steady state.
 
+## What the ISO install actually does
+
+There is no installer. The ISO is a live NixOS — nix, flakes, a recent
+kernel with drivers, network — and "installing" is building the system
+closure and copying it onto the target disk:
+
+1. **disko** evaluates `diskoConfigurations.nixos` and runs the
+generated `sgdisk`/`mkfs`/`mount` scripts. Result: a partitioned,
+labeled, formatted disk with `/` and `/boot` mounted under `/mnt`.
+Nothing about the system itself — the repo's `_hardware.nix` already
+knows how to mount this layout; that's the labels contract.
+2. **the two `install` calls** drop the identity keys into
+   `/mnt/home/batman/.ssh` (plain coreutils: `mkdir -p` + `cp` +
+   `chmod` in one step, so the key is never briefly world-readable).
+   They must exist before first boot: activation — home-manager
+   included, agenix decryption included — runs at boot, as batman.
+3. **`nixos-install`** evaluates the flake (in the ISO's store),
+   substitutes/builds the entire closure, copies it into the target's
+   store, creates system profile generation 1, and runs activation in
+   the target chroot — which creates the batman user and installs
+   systemd-boot plus its first menu entry onto the ESP. It also prompts
+   once to set the **root password** (interactive on purpose — console
+   recovery only; every real access is via batman + sudo).
+4. **`nixos-enter`** is chroot-into-`/mnt`: the `chown` resolves
+   `batman` through the *target's* user database, where the account now
+   exists (uid 1000) — the ISO's own `/etc/passwd` has no batman.
+5. **reboot** — systemd boots generation 1 and activates everything:
+   NetworkManager, the backup timers, gammastep, the agenix secrets,
+   the whole home. There is no setup phase; the first boot IS your
+   machine.
+
+Two nuances worth knowing:
+
+- **The ISO's nix uses the ISO's substituters** (`cache.nixos.org`),
+  not the repo's `nix.settings` — those belong to the *installed*
+  system. On the LAN, the install can be sped up by exporting the
+  repo's substituter set first (`NIX_CONFIG=... sudo -E nixos-install
+  ...`, keys from `modules/nixos/base.nix`).
+- **No checkout survives the install**: `--flake github:...` leaves no
+  `/etc/nixos` — hence the post-boot clone + symlink step in the
+  runbook.
+
+Because the store is content-addressed, the closure that lands on the
+new disk is bit-for-bit what its hash says — the ISO was only ever the
+vehicle that built it.
+
 ## Adopting the existing disk (one-time) — completed 2026-09-02
 
 **Status: done.** Labels set, the rebuild landed (fstab by partlabel,
