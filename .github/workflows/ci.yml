@@ -55,7 +55,7 @@ jobs:
           # importJSONs), failing with "path ... is not valid". 2.34.8 is
           # the desktop's version — evaluator parity keeps local
           # `nix flake check` and CI identical.
-          install_url: https://releases.nixos.org/nix/nix_2.34.8/install
+          install_url: https://releases.nixos.org/nix/nix-2.34.8/install
           # Authenticate GitHub API requests: the flake fetches ~13 locked
           # inputs, and unauthenticated runner IPs regularly exhaust the
           # 60 req/hr shared rate limit.
@@ -100,7 +100,7 @@ jobs:
         with:
           # Same pin as flake-check (see comment there): evaluator parity
           # with the desktop and freedom from 2.35's eval-context change.
-          install_url: https://releases.nixos.org/nix/nix_2.34.8/install
+          install_url: https://releases.nixos.org/nix/nix-2.34.8/install
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
             substituters = https://nix-configs.cachix.org https://cache.nixos.org https://cache.numtide.com https://psysonic.cachix.org
