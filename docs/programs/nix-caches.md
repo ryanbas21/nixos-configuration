@@ -76,6 +76,12 @@ host-key recipient in `secrets.nix` re-creates the server; cache
 
 ### Bringing .82 under management (one-time)
 
+**Status:** the secrets side is done — the signing key is aged in
+(encrypted to batman + the server's host key, verified against the
+public pin) and the recipients are wired. Remaining: the hardware scan
+(step 3), the stateVersion check (step 2), the push-key paste (step 8),
+and the deploy (step 10).
+
 The host file ships with three deliberate placeholders that must be
 filled before the first deploy (each is marked `TODO(first deploy)`
 inline):

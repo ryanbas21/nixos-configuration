@@ -30,10 +30,9 @@ in
 
   # The harmonia cache server's signing key: the secret half of the
   # nix-cache-1:... pair (modules/nixos/base.nix pins the public half).
-  # System-level secret (modules/computers/harmonia.nix); batman is a
-  # recipient only so the desktop can edit it. NOTE: the placeholder
-  # shipped encrypted to batman alone — until the real secret is
-  # encrypted in (runbook step 7), the harmonia recipient here is
-  # aspirational: `agenix -e` re-encrypts to both on first edit.
+  # System-level secret (modules/computers/harmonia.nix), encrypted to
+  # both recipients: batman (so the desktop can edit it) and the
+  # server's host key (so the box decrypts it at boot). Verified at
+  # extraction — the derived public half matches the base.nix pin.
   "secrets/harmonia-signing-key.age".publicKeys = [ batman harmonia ];
 }
