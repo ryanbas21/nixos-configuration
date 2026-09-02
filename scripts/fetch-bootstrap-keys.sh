@@ -4,9 +4,11 @@
 # token — no interactive sign-in, no key material in a terminal.
 #
 # 1Password side (one-time setup):
-#   - a vault named "Provisioning" containing ONLY these three items,
-#     each stored as a DOCUMENT (native SSH Key items don't export
-#     faithfully through the CLI):
+#   - a vault named "Provisioning" containing ONLY the three identity
+#     keys as SSH Key items — the natural shape. The script reads each
+#     item's 'private key' field and validates every fetch with
+#     ssh-keygen. A Document holding the raw key file is the byte-exact
+#     fallback if an older CLI ever mangles the field export:
 #       "bootstrap id_borg"  — the agenix identity (~/.ssh/id_borg)
 #       "bootstrap git"      — the GitHub push key (~/.ssh/git)
 #       "bootstrap harmonia" — the desktop /root push key (optional here)
@@ -32,29 +34,45 @@ if [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]; then
 fi
 command -v op >/dev/null || { echo "op not found — run via: nix shell nixpkgs#_1password-cli -c bash $0 $TARGET"; exit 1; }
 
-fetch() { # <document name> <output path>
+VAULT="Provisioning"
+
+# SSH Key items first (the canonical shape — private key field);
+# Documents as the byte-exact fallback (field export was lossy in
+# op <= 2.13 — the ssh-keygen validation below catches any mangling
+# from newer CLIs loudly instead of trusting it).
+try_fetch() { # <item name> <output path>; rc 0 on success
   local name="$1" out="$2"
   mkdir -p -- "$(dirname "$out")"
-  local err=""
-  if ! err=$(op document get "$name" --out-file "$out" 2>&1); then
-    echo "  ERROR fetching '$name': $err"
-    if echo "$err" | grep -q 'is not a document'; then
-      echo "  -> the item '$name' exists but is NOT a Document item."
-      echo "     Recreate it: New Item -> Document, uploading the key FILE itself"
-      echo "     (native SSH Key / Login items export lossily or not at all)."
-    fi
-    rm -f "$out"
-    exit 1
-  fi
+  rm -f -- "$out"
+  op read "op://${VAULT}/${name}/private key" --out-file "$out" 2>/dev/null && return 0
+  op document get "$name" --out-file "$out" 2>/dev/null && return 0
+  rm -f -- "$out"
+  return 1
+}
+
+validate_key() { # <item name> <output path>
+  local name="$1" out="$2"
   chmod 600 "$out"
-  # Validate the material is a real OpenSSH key before trusting it.
   if ssh-keygen -l -f "$out" >/dev/null 2>&1; then
     echo "  ok: $name -> $out ($(ssh-keygen -l -f "$out" | cut -d' ' -f1-3))"
   else
-    echo "  ERROR: $out is not a parseable OpenSSH key — check the vault item '$name' (must be a Document holding the raw key file)"
-    rm -f "$out"
+    echo "  ERROR: $out is not a parseable OpenSSH key — the item '$name'"
+    echo "  exported mangled (the known SSH-Key-item quirk) or holds wrong"
+    echo "  material. A Document uploading the raw key file is byte-exact."
+    rm -f -- "$out"
     exit 1
   fi
+}
+
+fetch() { # <item name> <output path> — required
+  local name="$1" out="$2"
+  if ! try_fetch "$name" "$out"; then
+    echo "  ERROR: couldn't fetch '$name' as either a Document or an SSH Key"
+    echo "  item (shapes: Document holding the key file, or SSH Key item read"
+    echo "  via its 'private key' field; vault is expected to be '$VAULT')"
+    exit 1
+  fi
+  validate_key "$name" "$out"
 }
 
 echo "== fetching identity keys from the Provisioning vault =="
@@ -65,11 +83,10 @@ fetch "bootstrap git"     "$TARGET/home/batman/.ssh/git"
 # to the target's /root for completeness when TARGET is /mnt.
 if [ "$TARGET" = "/mnt" ]; then
   mkdir -p "$TARGET/root/.ssh"
-  if op document get "bootstrap harmonia" --out-file "$TARGET/root/.ssh/id_ed25519" 2>/dev/null; then
-    chmod 600 "$TARGET/root/.ssh/id_ed25519"
-    echo "  ok: harmonia /root push key -> $TARGET/root/.ssh/id_ed25519"
+  if try_fetch "bootstrap harmonia" "$TARGET/root/.ssh/id_ed25519"; then
+    validate_key "bootstrap harmonia" "$TARGET/root/.ssh/id_ed25519"
   else
-    echo "  note: no 'bootstrap harmonia' document — skipping the /root push key (optional)"
+    echo "  note: no usable 'bootstrap harmonia' item — skipping the /root push key (optional)"
   fi
 fi
 

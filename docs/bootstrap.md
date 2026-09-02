@@ -51,18 +51,21 @@ four objects:
 1. a vault — `Provisioning` by convention — holding **only**
    provisioning material (the script looks documents up by name; the
    vault name matters for scoping the service account);
-2. three **Documents** — not native SSH Key items, which export lossily
-   through the CLI — named exactly as the script looks them up, each
-   containing the private key file and nothing else (create via
-   New Item → **Document**, uploading the key file itself:
-   `~/.ssh/id_borg`, `~/.ssh/git`; for harmonia,
-   `sudo cat /root/.ssh/id_ed25519 > /tmp/key` first):
+2. three **SSH Key items** — the natural shape — named exactly as the
+   script looks them up, each holding the private key (the public half
+   is optional; every public key already lives in the repo). The script
+   reads each item's `private key` field and validates the material
+   with `ssh-keygen`:
 
-   | Document | Content |
+   | Item | Content |
    |---|---|
    | `bootstrap id_borg` | the agenix identity (required) |
    | `bootstrap git` | the GitHub push key (required) |
    | `bootstrap harmonia` | the desktop `/root` cache-push key (optional) |
+
+   A **Document** holding the raw key file is the byte-exact fallback
+   if an older CLI ever mangles the field export (the pre-2.13 quirk)
+   — the script tries both shapes automatically.
 
 3. a **service account** with **read-only** access to exactly that
    vault — its `ops_…` token is the headless credential the ISO flow
