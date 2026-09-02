@@ -122,9 +122,14 @@ rebuild on the existing machine, set the labels once (metadata-only,
 safe on a mounted disk, reversible the same way):
 
 ```sh
-sudo sgdisk --change-name=3:nixos-ESP --change-name=4:nixos-root /dev/nvme0n1
+SGDISK=$(nix build --no-link --print-out-paths nixpkgs#gptfdisk)/bin/sgdisk
+sudo "$SGDISK" --change-name=3:nixos-ESP --change-name=4:nixos-root /dev/nvme0n1
 ls -l /dev/disk/by-partlabel/nixos-*   # both symlinks must appear
 ```
+
+(`sgdisk` ships in `gptfdisk`, which the system config deliberately
+doesn't install permanently — the absolute store path sidesteps both
+the missing package and sudo's PATH scrubbing.)
 
 **Order matters:** label first, then `git pull && sudo nixos-rebuild
 switch --flake .#nixos`. Rebuilding before labeling leaves `/` and
