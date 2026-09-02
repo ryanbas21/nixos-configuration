@@ -45,69 +45,93 @@ brought under management) the cache's signing key.
 
 ## Fresh desktop runbook (same hardware)
 
-> **Different hardware** (new box, new disk layout)? The tracked
-> `_hardware.nix` belongs to the old machine — regenerate it first, see
-> [machines](machines.md#hardware).
+Partitioning is declarative (disko layout at
+`modules/computers/nixos/_disko.nix`; see
+[machines → hardware](machines.md#hardware)) — the runbook has no manual
+partitioning or installer-menu steps:
 
-1. **Install NixOS** from the ISO. Create the user `batman` during
-   install so it gets UID 1000 (matches the restored data's ownership).
-   Keep the generated `/etc/nixos` around as `hardware-configuration.nix`
-   reference; the repo carries its own scan.
+1. **Boot the NixOS ISO** (recent minimal ISO; connect networking —
+   `nmtui` or plug in ethernet). Everything on the target disk is
+   about to be wiped; borg first if anything matters.
 
-2. **Restore the keys** from 1Password:
-
-   ```sh
-   install -D -m 600 <key material> ~/.ssh/id_borg
-   install -D -m 600 <key material> ~/.ssh/git
-   ```
-
-3. **Accept GitHub's host key once** (the system-wide pin only exists
-   after the first rebuild; verify the fingerprint against
-   <https://api.github.com/meta> if paranoid):
+2. **Partition declaratively** — disko creates GPT + `nixos-ESP` (2G)
+   + `nixos-root` (btrfs) and mounts them under `/mnt`:
 
    ```sh
-   ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
-   ```
-
-4. **Clone the repo and symlink `/etc/nixos` at it** — the checkout
-   lives in batman's home (so the user-level git-backup timer can commit
-   it, and so it rides along in the borg backup of `$HOME`), and
-   `/etc/nixos` is a symlink to it (the desktop's actual layout):
-
-   ```sh
-   git clone git@github.com:ryanbas21/nixos-configuration.git ~/programming/nixos
-   sudo mv /etc/nixos /etc/nixos-generated
-   sudo ln -s /home/batman/programming/nixos /etc/nixos
-   ```
-
-5. **First rebuild.** The fresh install's nix still has flakes disabled
-   (the generated config leaves them off; the repo enables them itself
-   from the first successful rebuild on):
-
-   ```sh
-   cd /etc/nixos
-   sudo nixos-rebuild switch --flake .#nixos \
+   nix run github:nix-community/disko -- -m destroy,format,mount \
+     -f github:ryanbas21/nixos-configuration#nixos \
      --option experimental-features "nix-command flakes"
    ```
 
-   The first build substitutes what it can from the caches (cachix,
-   cache.nixos.org, and the LAN harmonia server at `192.168.1.82` if the
-   NAS is up) and compiles the rest — expect it to take a while. A down
-   NAS only slows things down; it never fails the build.
+   (The `--option` is only needed if the ISO's nix predates flakes —
+   recent ISOs ship with them. If the repo is private, clone it first —
+   https + token or USB stick — and pass `-f /path/to/clone#nixos`.)
 
-6. **Post-boot manual state** (interactive, cannot be declarative):
+3. **Restore the keys onto the target**, so first-boot activation can
+   decrypt (the rebuild creates batman/UID 1000 itself — no manual user
+   creation):
 
-   - `gh auth login` — unblocks the CI cachix-secret sync (the activation
-     hook warns until this is done);
+   ```sh
+   install -D -m 600 <id_borg material> /mnt/home/batman/.ssh/id_borg
+   install -D -m 600 <git material>   /mnt/home/batman/.ssh/git
+   ```
+
+4. **Install and fix ownership**:
+
+   ```sh
+   sudo nixos-install --flake github:ryanbas21/nixos-configuration#nixos \
+     --option experimental-features "nix-command flakes"
+   sudo nixos-enter -- chown -R batman: /home/batman/.ssh
+   ```
+
+5. **Reboot**, remove the USB, and do the post-boot manual state
+   (interactive, cannot be declarative):
+
+   - clone the repo into batman's home (so the user-level git-backup
+     timer can commit it, and so it rides along in the borg backup of
+     `$HOME`) and symlink `/etc/nixos` at it — the desktop's actual
+     layout:
+
+     ```sh
+     git clone git@github.com:ryanbas21/nixos-configuration.git ~/programming/nixos
+     sudo rm -rf /etc/nixos-generated 2>/dev/null; sudo ln -sfn /home/batman/programming/nixos /etc/nixos
+     ```
+
+   - `gh auth login` — unblocks the CI cachix-secret sync (the
+     activation hook warns until this is done);
    - sign in to 1Password (account, then biometric unlock —
      `OP_BIOMETRIC_UNLOCK` is already set in fish);
    - connect to Wi-Fi networks if any (NetworkManager state);
    - optionally restore `/root/.ssh/id_ed25519` for harmonia cache
-     warming (see the key inventory above).
+     warming (see the key inventory above);
+   - **restore data** with borgmatic — the repos live on
+     `/mnt/nix-backups` (NFS, mounts on access); `Documents` (including
+     the Obsidian vault) is the bulk of it.
 
-7. **Restore data** with borgmatic — the repos live on
-   `/mnt/nix-backups` (NFS, mounts on access). `Documents` (including
-   the Obsidian vault) is the bulk of it.borg will list/extract.
+   On this first-boot system the repo's config is already active
+   (nixos-install activated it), so no separate first rebuild is
+   needed — the next `git pull && sudo nixos-rebuild switch` is just
+   the steady state.
+
+## Adopting the existing disk (one-time)
+
+The live (hand-partitioned) disk predates disko. Its mounts moved from
+UUID to PARTLABEL — the same labels `_disko.nix` sets on fresh installs
+— so both disks satisfy the identical `_hardware.nix`. Before the next
+rebuild on the existing machine, set the labels once (metadata-only,
+safe on a mounted disk, reversible the same way):
+
+```sh
+sudo sgdisk --change-name=3:nixos-ESP --change-name=4:nixos-root /dev/nvme0n1
+ls -l /dev/disk/by-partlabel/nixos-*   # both symlinks must appear
+```
+
+**Order matters:** label first, then `git pull && sudo nixos-rebuild
+switch --flake .#nixos`. Rebuilding before labeling leaves `/` and
+`/boot` unmountable at boot (recoverable from an older boot-menu
+generation, but avoid it — labeling takes five seconds). The disk's
+p1/p2 are dead leftovers from a previous install; harmless, ignored,
+and wiped whenever a disko run happens.
 
 ## Fresh laptop runbook (CachyOS, user ryan)
 

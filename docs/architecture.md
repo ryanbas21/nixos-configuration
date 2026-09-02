@@ -162,6 +162,7 @@ Read the repo in this order:
 | `nixpkgs-intel-mac` | `github:NixOS/nixpkgs/nixpkgs-26.05-darwin`; feeds only the `ryan-intel-mac` export, since unstable dropped `x86_64-darwin` |
 | `agenix` | secrets: the home-manager module + `agenix` CLI; follows `nixpkgs` |
 | `home-manager` | user environments; follows `nixpkgs` |
+| `disko` | declarative partitioning, consumed by the disko CLI via `flake.diskoConfigurations`; follows `nixpkgs` |
 | `nvf` | the neovim distribution, `github:NotAShelf/nvf/v26.07`; follows `nixpkgs` |
 | `ryan-nvim` | `github:ryanbas21/dotfiles`, `flake = false`; the pinned lua tree nvf sources |
 | `fzf-git-sh` | `github:junegunn/fzf-git.sh`, `flake = false`; fish keybindings |
@@ -189,6 +190,8 @@ Read the repo in this order:
 │   ├── home.nix                 standalone home option tree; homeConfigurations exports
 │   ├── home-manager.nix         homeManager.modules.base; wires HM into NixOS
 │   ├── users.nix                users.<name>.* slots; declares batman
+│   ├── disko.nix                flake.diskoConfigurations — disk layouts
+│   │                            for the disko CLI (not in any host eval)
 │   ├── time.nix                 ntpd-rs time sync (timeZone static in base.nix)
 │   ├── security.nix             paretosecurity posture checks (system service)
 │   ├── sudo.nix                 sudo-rs replaces classic sudo
@@ -204,7 +207,8 @@ Read the repo in this order:
 │   │   ├── harmonia.nix         the cache-server host: headless, own minimal
 │   │   │                        base, harmonia service + signing-key secret
 │   │   ├── nixos/
-│   │   │   └── _hardware.nix    the desktop's hardware scan (manual import)
+│   │   │   ├── _hardware.nix    mounts (by partlabel) + kernel facts
+│   │   │   └── _disko.nix       declarative partition layout (disko CLI)
 │   │   └── harmonia/
 │   │       └── _hardware.nix    the server's hardware scan (manual import;
 │   │                            placeholder until adoption — see nix-caches)

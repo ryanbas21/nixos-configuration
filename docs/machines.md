@@ -48,7 +48,9 @@ restored first) is covered in [bootstrap.md](bootstrap.md).
 2. On the box, run `nixos-generate-config`; copy the generated
    `hardware-configuration.nix` content into
    `modules/computers/<name>/_hardware.nix` (the `_` prefix is required —
-   see [hardware](#hardware)).
+   see [hardware](#hardware)), and write a matching
+   `modules/computers/<name>/_disko.nix` layout plus a
+   `diskoConfigurations.<name>` entry (`modules/disko.nix`).
 3. Commit, then `sudo nixos-rebuild switch --flake .#<name>`.
    `nixosConfigurations.<name>` and a flake check appear automatically.
 
@@ -75,20 +77,35 @@ Notes on the existing entries:
 
 ## Hardware
 
-**Hardware lives in the repo, per host.** The desktop's generated hardware
-scan is tracked as `modules/computers/nixos/_hardware.nix` —
-machine-local data, kept next to its host file. The underscore prefix
-matters: the file is a NixOS module
-(`imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];`) that
-would infinitely recurse if import-tree auto-imported it as a flake-parts
-module; the `/_` in its path keeps it manual, and
-`modules/computers/nixos.nix` imports it explicitly.
+**Partitioning and hardware both live in the repo, per host.** Each
+NixOS host carries two files next to its host file:
 
-**When hardware changes** (a disk swap, a new partition layout): run
-`nixos-generate-config` on the machine, copy the generated
-`hardware-configuration.nix` content into
-`modules/computers/nixos/_hardware.nix`, and commit it.
+- `modules/computers/<name>/_disko.nix` — the **declarative disk
+  layout** (disko), exposed flake-level as `diskoConfigurations.<name>`
+  (`modules/disko.nix`) and consumed by the disko CLI on fresh metal:
+  `nix run github:nix-community/disko -- -m destroy,format,mount -f
+  github:ryanbas21/nixos-configuration#<name>`. Explicit partition
+  **labels are the contract**: the layout sets them, and the host's
+  mounts reference `/dev/disk/by-partlabel/...`, so a disko-formatted
+  disk and the original hand-partitioned disk (labeled once in place —
+  see [bootstrap](bootstrap.md#adopting-the-existing-disk-one-time))
+  satisfy the identical config.
+- `modules/computers/<name>/_hardware.nix` — the mount table (by
+  partlabel) plus kernel facts (modules, microcode), maintained by
+  hand; originally from `nixos-generate-config`.
 
-The current scan says: systemd-boot on UEFI, btrfs root
-(`/dev/disk/by-uuid/a4fad180-...`), vfat `/boot`, no swap, Intel CPU with
-`kvm-intel`, no LUKS.
+The `_` prefix keeps import-tree from auto-importing both; the host
+file imports `_hardware.nix` manually, and `_disko.nix` is deliberately
+**not** in the host eval at all (no generated-mount conflicts — the
+layout and the mount table are independent facts meeting at the
+labels).
+
+**When hardware changes** (a disk swap, a new partition layout): update
+both files to match — `nixos-generate-config` output for the mounts and
+kernel facts, the layout for partitions — and commit.
+
+The desktop today: systemd-boot on UEFI, 2G ESP (`nixos-ESP`) + btrfs
+root (`nixos-root`), no swap, Intel CPU (`kvm-intel`), no LUKS. The
+harmonia host gets its `_disko.nix` when the
+[adoption runbook](programs/nix-caches.md#bringing-82-under-management-one-time)
+lands a real hardware scan.

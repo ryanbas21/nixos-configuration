@@ -86,7 +86,8 @@ program does, why it is there, and the war stories:
 ├── flake.nix / outputs.nix      inputs only; mkFlake + import-tree of ./modules
 ├── flake.lock                   locked input revisions (the reproducibility anchor)
 ├── modules/                     every .nix file = one feature (auto-imported)
-│   ├── computers/               per-host data (+ _hardware.nix scans)
+│   ├── computers/               per-host data (+ _hardware.nix mounts,
+│   │                            _disko.nix layouts)
 │   ├── nixos/                   the shared system base
 │   ├── batman/                  user-level features (shell, nvf, backups, ...)
 │   └── *.nix                    machinery (users, home, eval-modules, ...)

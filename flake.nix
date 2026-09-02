@@ -21,6 +21,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Declarative partitioning (consumed by the disko CLI via the
+    # flake-level diskoConfigurations; not part of any host eval).
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     ryan-nvim = {
       url = "github:ryanbas21/dotfiles";
       flake = false;
