@@ -12,7 +12,10 @@
 #       "bootstrap harmonia" — the desktop /root push key (optional here)
 #   - a service account with READ access to exactly that vault
 #   - the token lives OFF the repo/CI — it is the carried bootstrap
-#     secret; revoke/rotate it from the 1Password console at will
+#     secret; revoke/rotate it from the 1Password console at will.
+#     Store it OUTSIDE the Provisioning vault: a token kept in the vault
+#     it unlocks defeats rotation (a compromised token can read its own
+#     replacement) and silently reaches every future vault item.
 #
 # Usage (on the ISO, after disko has mounted /mnt; or post-boot on any
 # machine with nix, passing a different target):

@@ -66,7 +66,10 @@ four objects:
    uses;
 4. the token stored **outside** the vault it unlocks (personal vault
    or break-glass) — never in the repo or CI, and revocable from the
-   console in one click.
+   console in one click. Storing it inside the vault it unlocks
+   defeats rotation (a compromised token can read its own replacement)
+   and silently extends the token's reach to every item later added to
+   the vault.
 
 Each fetch is validated with `ssh-keygen` before install; without the
 token, the script also runs against a normal signed-in `op` session
