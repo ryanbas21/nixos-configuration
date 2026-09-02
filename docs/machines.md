@@ -100,9 +100,25 @@ file imports `_hardware.nix` manually, and `_disko.nix` is deliberately
 layout and the mount table are independent facts meeting at the
 labels).
 
-**When hardware changes** (a disk swap, a new partition layout): update
-both files to match — `nixos-generate-config` output for the mounts and
-kernel facts, the layout for partitions — and commit.
+**When hardware changes**, scan-and-harvest — sized by what actually
+changed:
+
+| Change | To do |
+|---|---|
+| RAM, most USB peripherals | nothing — no config tracks them |
+| GPU (same vendor class) | usually nothing; an NVIDIA card would need the driver + an unfree-allowlist entry (none today) |
+| CPU/motherboard (same arch) | harvest fresh kernel facts into `_hardware.nix` (`kvm-amd` vs `kvm-intel`, microcode, initrd modules); the box still boots on the generic modules, so rebuild in place |
+| Disk swapped/replaced | the ISO flow — `_disko.nix` is size-agnostic (ESP 2G + 100% rest), a bigger/new disk needs no layout edit; then borg restores the data. (Or clone the disk — the partlabels ride along.) |
+| Second disk added | a `fileSystems` entry in `_hardware.nix` — do NOT add data disks to the disko layout unless `-m destroy` should wipe them too |
+| Whole platform change (e.g. ARM) | also `nixpkgs.hostPlatform`, plus the `system` pins in `modules/nixos.nix` (per-host `args`) and `outputs.nix` (`systems`) |
+
+Gotcha: on the live desktop `/etc/nixos` is the repo checkout, so a
+bare `nixos-generate-config` would drop generated files into the
+working tree — use `nixos-generate-config --show-hardware-config >
+/tmp/hw.nix` and harvest from there. Worst case, a hardware change
+that breaks boot: the ISO flow reinstalls from the repo — it is cheap
+now — and the boot menu's previous generations remain the first
+rollback stop.
 
 The desktop today: systemd-boot on UEFI, 2G ESP (`nixos-ESP`) + btrfs
 root (`nixos-root`), no swap, Intel CPU (`kvm-intel`), no LUKS. The
