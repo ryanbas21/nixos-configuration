@@ -49,6 +49,15 @@ running. The shadow wins by XDG precedence
 - **Secrets never go in settings** (world-readable store) — use
   `programs.vicinae.settingOverrides` with an agenix-generated file.
 
+## Also the Hyprland launcher
+
+The [Hyprland session](hyprland.md) binds SUPER+Space to `vicinae
+open` — same IPC-only command as the desktop-entry shadow, so the
+launcher experience is identical across Plasma and Hyprland. The
+launcher window needs float+center window rules there (it's a normal
+toplevel without `USE_LAYER_SHELL`), which live in `batman/hyprland.nix`
+next to the bind.
+
 ## Raycast-compatible extensions
 
 Raycast-compat extensions build from the

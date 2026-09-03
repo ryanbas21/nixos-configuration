@@ -43,6 +43,17 @@
       flake = false;
     };
 
+    # The summer-day-and-night Hyprland rice
+    # (https://github.com/MathisP75/summer-day-and-night): pulled in for
+    # its everforest wallpapers, which hyprpaper preloads from the store.
+    # The rice's own config files are NOT used verbatim — they are ported
+    # into modules/batman/hyprland.nix (home-manager) so they stay
+    # declarative — so this input only ever feeds asset paths.
+    summer-day-and-night = {
+      url = "github:MathisP75/summer-day-and-night";
+      flake = false;
+    };
+
     psysonic.url = "github:Psysonic/psysonic";
 
     llm-agents.url = "github:numtide/llm-agents.nix";

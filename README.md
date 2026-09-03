@@ -101,6 +101,9 @@ program does, why it is there, and the war stories:
   setcap wrapper.
 - [Desktop apps](docs/programs/desktop-apps.md) — Plasma, pipewire,
   ghostty, kodi, obsidian, Night Light, kooha, 1Password.
+- [Hyprland](docs/programs/hyprland.md) — the second Wayland session:
+  xmonad muscle memory on SUPER, the everforest rice, and the 0.56
+  gotchas (hyprlang-vs-Lua, the donation nag, the uwsm entry).
 - [AI agents](docs/programs/agents.md) — pi and the llm-agents tools
   bundle, model routing, the ZAI key.
 - [Identity](docs/programs/identity.md) — git signing, GPG auto-import,

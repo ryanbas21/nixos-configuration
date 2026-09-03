@@ -620,6 +620,7 @@
         "psysonic": "psysonic",
         "rigup": "rigup",
         "ryan-nvim": "ryan-nvim",
+        "summer-day-and-night": "summer-day-and-night",
         "vicinae": "vicinae"
       }
     },
@@ -658,6 +659,22 @@
       "original": {
         "owner": "vicinaehq",
         "repo": "soulver-cpp",
+        "type": "github"
+      }
+    },
+    "summer-day-and-night": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1746814672,
+        "narHash": "sha256-44rCN7rRRo8Anemq4WxoOFIAiYl8+/z+QGivem0zoNo=",
+        "owner": "MathisP75",
+        "repo": "summer-day-and-night",
+        "rev": "6f7374ad6db1c9c308ca727b35af731ba1b31afb",
+        "type": "github"
+      },
+      "original": {
+        "owner": "MathisP75",
+        "repo": "summer-day-and-night",
         "type": "github"
       }
     },

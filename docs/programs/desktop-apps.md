@@ -10,6 +10,7 @@ Host-agnostic, every NixOS host gets it:
 |---|---|
 | systemd-boot + EFI | `boot.loader.systemd-boot`; no GRUB |
 | Plasma 6 + SDDM | `services.desktopManager.plasma6`, `services.displayManager.sddm` |
+| Hyprland | `programs.hyprland` — a second Wayland session in the SDDM picker (uwsm entry stripped); see [hyprland.md](hyprland.md) |
 | X11 server | enabled (Plasma Wayland is the session, but X11 sits underneath for XWayland/X11 apps); keymap `us` |
 | pipewire | full stack: alsa (+32-bit), pulse compat; `security.rtkit` for realtime; pulseaudio explicitly off |
 | NetworkManager | networking; Wi-Fi state is machine state, not config |
@@ -48,7 +49,10 @@ geolocation. Why manual, in one breath: the geolocation chain (geoclue
 ISP in Singapore, which put the sun schedule 14 hours off — same root
 cause as the [static
 timezone](dns-and-time.md#timezone-static-and-why-americadenver). If the
-machine ever moves, update the coordinates.
+machine ever moves, update the coordinates. Under the [Hyprland
+session](hyprland.md), gammastep runs instead (Hyprland implements
+wlr-gamma-control, so the original tool works there) with the same
+coordinates and temperatures, started per-session via exec-once.
 
 ### kodi (`batman/kodi.nix`)
 

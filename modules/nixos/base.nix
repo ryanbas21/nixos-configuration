@@ -50,6 +50,52 @@
     services.displayManager.sddm.enable = true;
     services.desktopManager.plasma6.enable = true;
 
+    # Hyprland as a second Wayland session, selectable in the SDDM
+    # session picker next to Plasma (nothing is forced; Plasma stays
+    # the default until the session is switched in SDDM). The user-side
+    # config — keybinds, waybar, wofi, everforest theming — lives in
+    # modules/batman/hyprland.nix (home-manager). This only pulls the
+    # compositor, its session file, and the hyprland xdg portal
+    # (which coexists with plasma's in the portal config NixOS builds).
+    programs.hyprland = {
+      enable = true;
+      # The hyprland package ships a "Hyprland (uwsm-managed)" session
+      # desktop file unconditionally, but the module only wires uwsm
+      # itself up under withUWSM = true — picked from SDDM on the
+      # first boot it black-screened (the Exec's uwsm exists in the
+      # closure, its session units don't). Building with
+      # withSystemd = false would drop the file but also Hyprland's
+      # systemd integration, so instead symlinkJoin relinks the stock
+      # package and deletes that one file — no hyprland rebuild. The
+      # `// version` keeps the module's `versionOlder cfg.package.version
+      # "0.41.2"` default (systemd.setPath) working: symlinkJoin
+      # drops the passthru attributes.
+      package =
+        let
+          # Relink the stock package minus the uwsm session file.
+          noUwsmSession = hyprland: pkgs.symlinkJoin {
+            name = "hyprland-${hyprland.version}-no-uwsm-session";
+            paths = [ hyprland ];
+            postBuild = ''
+              rm -f "$out/share/wayland-sessions/hyprland-uwsm.desktop"
+            '';
+          };
+        in
+        (noUwsmSession pkgs.hyprland) // {
+          # passthru the module's genFinalPackage probes (versionOlder
+          # in systemd.setPath, functionArgs .override): the override
+          # delegates to the inner package and re-applies the file
+          # removal, so e.g. an enableXWayland override still lands
+          # uwsm-free.
+          inherit (pkgs.hyprland) version;
+          # getExe (security.wrappers.Hyprland) wants this — the
+          # compositor binary is bin/Hyprland.
+          meta.mainProgram = "Hyprland";
+          providedSessions = [ "hyprland" ];
+          override = args: noUwsmSession (pkgs.hyprland.override args);
+        };
+    };
+
     # Expose the user's nix profile alongside the per-user profile so
     # nix-env installed apps (desktop entries, icons) are visible.
     environment.profiles = [
