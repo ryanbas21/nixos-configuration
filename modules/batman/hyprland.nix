@@ -41,7 +41,7 @@
 { inputs, ... }:
 
 {
-  users.batman.home.pc = { lib, pkgs, ... }:
+  users.batman.home.pc = { config, lib, pkgs, ... }:
     let
       # Everforest (medium, dark) palette, single source for the hypr
       # conf, hyprlock, waybar and wofi styling below. Values are the
@@ -476,6 +476,20 @@
           ];
         };
       };
+
+      # Hyprland's emergency fallback: when a session on the legacy
+      # config manager reloads and finds no hyprland.conf (e.g. mid-
+      # session switch to the Lua config), it WRITES a stub config
+      # ("This config is a STUB!", SUPER+Q→kitty, SUPER+M→exit) as a
+      # regular file — which then shadows hyprland.lua at next login
+      # (happened on the lua migration: the running hyprlang session
+      # reloaded after HM had already swapped the symlink). Sweep it
+      # on every activation; only regular files, never HM symlinks.
+      home.activation.hyprlandSweepLegacyConf = config.lib.dag.entryAfter [ "writeBoundary" ] ''
+        if [ -f "$HOME/.config/hypr/hyprland.conf" ] && [ ! -L "$HOME/.config/hypr/hyprland.conf" ]; then
+          rm -f -- "$HOME/.config/hypr/hyprland.conf"
+        fi
+      '';
 
       # Session-scoped daemons configured as plain files — the HM
       # service modules would also run them under Plasma (see header).
