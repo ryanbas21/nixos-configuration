@@ -119,7 +119,7 @@
           | wofi --dmenu --prompt 'Power' -i)
         case "$entry" in
           *Lock*)     hyprlock ;;
-          *Log*)      hyprctl dispatch exit ;;
+          *Log*)      hyprctl dispatch 'hl.dsp.exit()' ;;
           *Suspend*)  systemctl suspend ;;
           *Reboot*)   systemctl reboot ;;
           *Shutdown*) systemctl poweroff ;;
@@ -226,7 +226,7 @@
             { _args = [ "QT_QPA_PLATFORMTHEME" "kde" ]; }
           ];
 
-          monitor = [ { output = ""; mode = "preferred"; position = "auto"; } ];
+          monitor = [{ output = ""; mode = "preferred"; position = "auto"; }];
 
           # Config sections, one hl.config({...}) call. Fields match
           # the generated Lua stubs in the hyprland package
@@ -260,7 +260,10 @@
                   color = rgba everforest.accent;
                   color_inactive = "rgba(2b312fff)";
                   scale = 1.0;
-                  offset = { x = 0; y = 10; };
+                  # Vec2Like parses positional pairs only — {x=,y=}
+                  # keyed tables trip "vec2 type requires exactly
+                  # 2 elements" despite the stub alias allowing both.
+                  offset = [ 0 10 ];
                 };
               };
               master = {
@@ -321,8 +324,8 @@
           window_rule = [
             { name = "firefox-to-ws2"; match.class = "^firefox$"; workspace = "2"; }
             { name = "gimp-float"; match.class = "^gimp$"; float = true; }
-            { name = "pavucontrol-float"; match.class = "^pavucontrol$"; float = true; center = true; size = { x = 600; y = 800; }; }
-            { name = "calculator-float"; match.class = "^org\\.gnome\\.Calculator$"; float = true; size = { x = 490; y = 600; }; }
+            { name = "pavucontrol-float"; match.class = "^pavucontrol$"; float = true; center = true; size = [ 600 800 ]; }
+            { name = "calculator-float"; match.class = "^org\\.gnome\\.Calculator$"; float = true; size = [ 490 600 ]; }
             { name = "blueman-float"; match.class = "^blueman-manager$"; float = true; }
             { name = "dialog-replace"; match.title = "^Confirm to replace files$"; float = true; }
             { name = "dialog-progress"; match.title = "^File Operation Progress$"; float = true; }
