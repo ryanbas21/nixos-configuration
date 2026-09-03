@@ -28,15 +28,27 @@ Terminal, home.base but `mkIf isLinux` (no x86_64-darwin package).
 Theme Catppuccin Frappe, font-size 12. Also installed as a package (see
 [shell & CLI](shell-and-cli.md)).
 
-### gammastep (`batman/time-of-day-gamma.nix`)
+### Night Light (`batman/time-of-day-gamma.nix`)
 
-Day/night screen gamma, **desktop-only** (`home.pc`): GUI/Wayland-only.
-`provider = "manual"` with **fixed Denver coordinates** (39.7392,
--104.9903) — not geoclue2. Why manual, in one breath: the geolocation
-chain (geoclue → beacondb) has no WiFi coverage here and its IP fallback
-places this ISP in Singapore, which put the sun schedule 14 hours off —
-same root cause as the [static timezone](dns-and-time.md#timezone-static-and-why-americadenver).
-Tray icon on. If the machine ever moves, update the coordinates.
+Day/night screen temperature via **KWin's built-in Night Light**,
+desktop-only (`home.pc`): GUI/Wayland-only. A previous incarnation ran
+gammastep, which cannot drive Plasma Wayland at all — KWin implements
+neither wlr-gamma-control nor a usable randr gamma path over XWayland
+("SetCrtcGamma returned error 148"), so the indicator crash-looped
+and notified about it ~twice a day. Two config files are involved:
+`kwinrc` `[NightColor]` (the filter: DarkLight mode, 5500K day /
+3700K night) and `knighttimerc` (the `knighttimed` schedule daemon
+shared with automatic dark/light theming) — both edited in place by an
+activation script (kwriteconfig6 + a KConfig notify D-Bus signal so a
+running session applies them immediately), because they also hold
+live Plasma state a whole-file replacement would clobber. The schedule
+uses **fixed Denver coordinates** (39.7392, -104.9903) — not automatic
+geolocation. Why manual, in one breath: the geolocation chain (geoclue
+→ beacondb) has no WiFi coverage here and its IP fallback places this
+ISP in Singapore, which put the sun schedule 14 hours off — same root
+cause as the [static
+timezone](dns-and-time.md#timezone-static-and-why-americadenver). If the
+machine ever moves, update the coordinates.
 
 ### kodi (`batman/kodi.nix`)
 

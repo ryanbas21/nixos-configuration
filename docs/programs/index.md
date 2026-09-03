@@ -20,6 +20,6 @@ layer).
 | [Security](security.md) | `sudo.nix`, `security.nix`, `nixos/base.nix` (sshd/known_hosts) | sudo-rs, paretosecurity, sshd, the pre-trusted GitHub host key |
 | [Virtualization](virtualization.md) | `virtualization.nix` | rootless + socket-activated docker, VirtualBox |
 | [Vicinae](vicinae.md) | `batman/vicinae.nix` | the launcher, setcap input server, desktop-entry shadow, raycast extensions |
-| [Desktop apps](desktop-apps.md) | `batman/{ghostty,obsidian,kodi,screen-capture,time-of-day-gamma}.nix`, `nixos/base.nix` | Plasma/pipewire base, ghostty, kodi IPTV, obsidian, kooha, gammastep, 1Password |
+| [Desktop apps](desktop-apps.md) | `batman/{ghostty,obsidian,kodi,screen-capture,time-of-day-gamma}.nix`, `nixos/base.nix` | Plasma/pipewire base, ghostty, kodi IPTV, obsidian, kooha, Night Light, 1Password |
 | [AI agents](agents.md) | `batman/agents.nix` | pi + llm-agents tools, model router, ZAI key flow |
 | [Identity](identity.md) | `batman/{git,gh_cli,ssh,agenix}.nix` | git signing, GPG auto-import, SSH key inventory, gh |

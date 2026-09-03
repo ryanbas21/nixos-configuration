@@ -170,7 +170,7 @@ knows how to mount this layout; that's the labels contract.
    `batman` through the *target's* user database, where the account now
    exists (uid 1000) — the ISO's own `/etc/passwd` has no batman.
 5. **reboot** — systemd boots generation 1 and activates everything:
-   NetworkManager, the backup timers, gammastep, the agenix secrets,
+   NetworkManager, the backup timers, Night Light, the agenix secrets,
    the whole home. There is no setup phase; the first boot IS your
    machine.
 

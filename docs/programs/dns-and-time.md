@@ -39,8 +39,8 @@ geoclue2 — and that entire chain was removed for a concrete reason:
 > IP-based lookup, and DB-IP misattributes this ISP's address to
 > **Singapore** — putting the clock 14 hours off at every boot.
 
-The same geolocation failure is why gammastep uses fixed coordinates
-([desktop apps](desktop-apps.md#gammastep-batmantime-of-day-gammanix)). If this machine ever
+The same geolocation failure is why Night Light uses fixed coordinates
+([desktop apps](desktop-apps.md#night-light-batmantime-of-day-gammanix)). If this machine ever
 becomes mobile, revisit both — until then, static is correct.
 
 Related history: while `automatic-timezoned` existed, its nixpkgs module

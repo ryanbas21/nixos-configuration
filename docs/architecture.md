@@ -232,7 +232,7 @@ Read the repo in this order:
 │       ├── obsidian.nix         obsidian vault (home.pc; desktop)
 │       ├── kodi.nix             kodi media center + IPTV PVR (home.pc; desktop)
 │       ├── screen-capture.nix   kooha screen recorder (home.pc; desktop)
-│       ├── time-of-day-gamma.nix gammastep, fixed Denver coordinates
+│       ├── time-of-day-gamma.nix KWin Night Light, fixed Denver coordinates
 │       │                        (home.pc; desktop)
 │       ├── vicinae.nix          vicinae launcher (HM module + NixOS setcap)
 │       └── _nvf/

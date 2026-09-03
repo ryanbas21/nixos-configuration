@@ -100,8 +100,8 @@ program does, why it is there, and the war stories:
 - [Vicinae](docs/programs/vicinae.md) — the desktop launcher and its
   setcap wrapper.
 - [Desktop apps](docs/programs/desktop-apps.md) — Plasma, pipewire,
-  ghostty, kodi, obsidian, gammastep, kooha, 1Password.
-- [AI agents](docs/programs/agents.md) — pi and the llm-agents tool
+  ghostty, kodi, obsidian, Night Light, kooha, 1Password.
+- [AI agents](docs/programs/agents.md) — pi and the llm-agents tools
   bundle, model routing, the ZAI key.
 - [Identity](docs/programs/identity.md) — git signing, GPG auto-import,
   the SSH key inventory, gh.
