@@ -498,8 +498,18 @@
       # service modules would also run them under Plasma (see header).
       xdg.configFile = {
         "hypr/hyprpaper.conf".text = ''
-          preload = ${wallpaper}
-          wallpaper = ,${wallpaper}
+          # hyprpaper 0.8 was rewritten on hyprtoolkit and broke the
+          # old grammar: `preload`/`wallpaper = ,path` lines are now
+          # unknown keys ("Config has errors", no wallpaper, monitor
+          # left with "no target"). Wallpapers are anonymous wallpaper
+          # {} blocks; the empty monitor is still the all-monitors
+          # wildcard, and fit_mode is cover by default.
+          wallpaper {
+            monitor =
+            fit_mode = cover
+            path = ${wallpaper}
+          }
+
           splash = false
         '';
 

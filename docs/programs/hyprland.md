@@ -60,6 +60,7 @@ live compositor via `hyprctl keyword`:
 | `dwindle:pseudotile` | removed | — (the `pseudo` dispatcher went with it) |
 | `gestures:workspace_swipe` | removed | gesture API, Lua-config-only; no touchpad here, dropped |
 | `layerrule noanim, <ns>` | syntax changed | field/value pairs (`no_anim 1`); the namespace-match spelling is undiscoverable offline — rule dropped (was cosmetic) |
+| hyprpaper `preload`/`wallpaper = ,path` | removed in 0.8's hyprtoolkit rewrite | `wallpaper { monitor =; fit_mode = cover; path = ... }` blocks (empty monitor is still the wildcard) |
 
 Also in 0.56: a Windows-style **"Go to settings to activate Hyprland"
 donation nag** painted over the wallpaper until
