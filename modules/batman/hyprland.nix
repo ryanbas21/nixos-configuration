@@ -28,11 +28,12 @@
 #    everforest dark variant is baked in statically.
 #
 # Session daemons (waybar, dunst, hyprpaper, gammastep) are started by
-# exec-once, NOT home-manager systemd services: HM services bind to
-# graphical-session.target, which also activates inside the Plasma
-# session — dunst would fight Plasma's notification daemon and
-# gammastep cannot drive KWin at all (see time-of-day-gamma.nix for
-# that whole saga). exec-once scopes them to Hyprland only. On Hyprland
+# an hl.on("hyprland.start") hook, NOT home-manager systemd services:
+# HM services bind to graphical-session.target, which also activates
+# inside the Plasma session — dunst would fight Plasma's notification
+# daemon and gammastep cannot drive KWin at all (see
+# time-of-day-gamma.nix for that whole saga). The start hook scopes
+# them to Hyprland only. On Hyprland
 # gammastep works again — it speaks wlr-gamma-control, which KWin
 # refuses to implement but Hyprland does — so this restores the
 # 5500/3700 K day/night schedule the Plasma session gets via KWin
@@ -80,6 +81,19 @@
       # first cut of this file shipped empty format strings, which waybar
       # renders as an absent module (the invisible power button).
       glyph = code: builtins.fromJSON ''"\u${code}"'';
+
+      # --- Lua config helpers (configType = "lua"): home-manager's
+      # Lua renderer emits hl.<key>(...) per settings key, and raw Lua
+      # enters it through mkLuaInline — the hl.dsp.* dispatchers are
+      # runtime objects, not serializable values. _args turns an
+      # attrset into a multi-argument call (hl.bind's
+      # key/dispatcher/flags triple).
+      raw = lib.generators.mkLuaInline;
+      dsp = s: raw "hl.dsp.${s}";
+      bind = key: action: { _args = [ key action ]; };
+      bindOpts = key: action: opts: { _args = [ key action opts ]; };
+      # everforest hex + opaque alpha, as an rgba() color string.
+      rgba = c: "rgba(${c}ff)";
 
       # The rice's switch-layout behaviour, reduced to what stock
       # Hyprland offers: xmonad's NextLayout (M-e) cycled
@@ -159,338 +173,307 @@
 
       wayland.windowManager.hyprland = {
         enable = true;
-        # Hyprland 0.56 grew a Lua config backend (hl.bind/hl.config,
-        # see the example in the hyprland package's share/hypr/), and
-        # home-manager flips its default to render hyprland.lua for
-        # stateVersion >= 26.05. The classic hyprlang format stays
-        # fully supported though — and the rice, the wiki, and this
-        # module's $variable idiom ($bg0/$fg/$mainMod, hoisted to the
-        # top of the conf via importantPrefixes) are all hyprlang —
-        # so pin it rather than translate every dispatcher to Lua.
-        configType = "hyprlang";
-        # Compositor config in Nix rather than the rice's raw conf:
-        # hyprland.conf becomes a generated file, version-controlled
-        # with everything else.
-        settings = {
-          # --- everforest palette as hypr variables ($ sorts before
-          # letters, so home-manager's alphabetical serialization puts
-          # every $var ahead of the first section that uses them). ---
-          "$bg0" = "0xff${everforest.bg0}";
-          "$bg1" = "0xff${everforest.bg1}";
-          "$bg5" = "0xff${everforest.bg5}";
-          "$fg" = "0xff${everforest.fg}";
-          "$red" = "0xff${everforest.red}";
-          "$yellow" = "0xff${everforest.yellow}";
-          "$green" = "0xff${everforest.green}";
-          "$aqua" = "0xff${everforest.aqua}";
+        # The Lua config backend (hyprland.lua, the hl.* API): the
+        # format Hyprland 0.55+ develops against — hyprlang is
+        # deprecated and slated for removal, so this module speaks
+        # Lua natively rather than pinning the legacy format.
+        # Home-manager renders each settings key as an hl.<name>(...)
+        # call: lists become one call per element, `{ _args = [...]; }`
+        # becomes a multi-argument call (how hl.bind's key/dispatcher/
+        # flags triple is expressed), and lib.generators.mkLuaInline
+        # (the `raw` helper in the let above) splices raw Lua for the
+        # hl.dsp.* dispatcher objects, which are runtime values no
+        # serializer can emit. Dispatcher spellings below are verified
+        # against the wiki's dispatcher/master-layout tables and
+        # src/config/lua/bindings/LuaBindingsDispatchers.cpp (notably
+        # window.move's `follow = false` == the old movetoworkspace
+        # `silent`, i.e. xmonad's W.shift).
+        configType = "lua";
 
-          # SUPER (Hyprland's convention) rather than xmonad's
-          # mod1Mask/ALT — the xmonad chords stay identical apart from
-          # the modifier, and Alt stays free for terminal shortcuts.
-          "$mainMod" = "SUPER";
+        settings = {
+          # Session daemons — launched on hyprland.start, not HM
+          # services, so they never leak into the Plasma session (see
+          # module header). HM injects its own systemd activation hook
+          # (hyprland-session.target) separately from this.
+          on = [
+            {
+              _args = [
+                "hyprland.start"
+                (raw ''
+                  function()
+                    hl.exec_cmd("waybar")
+                    hl.exec_cmd("dunst")
+                    hl.exec_cmd("hyprpaper")
+                    hl.exec_cmd("gammastep")
+                    hl.exec_cmd("nm-applet --indicator")
+                    hl.exec_cmd("${pkgs.kdePackages.polkit-kde-agent-1}/libexec/polkit-kde-authentication-agent-1")
+                    hl.exec_cmd("wl-paste --type text --watch cliphist store")
+                    hl.exec_cmd("wl-paste --type image --watch cliphist store")
+                  end
+                '')
+              ];
+            }
+          ];
 
           env = [
-            "MOZ_ENABLE_WAYLAND,1"
-            "_JAVA_AWT_WM_NONREPARENTING,1"
-            # Match the Plasma session's cursor/Qt theming so apps feel
-            # at home; Breeze is installed system-wide via plasma6.
-            "XCURSOR_THEME,Breeze"
-            "XCURSOR_SIZE,24"
-            "QT_QPA_PLATFORMTHEME,kde"
+            { _args = [ "MOZ_ENABLE_WAYLAND" "1" ]; }
+            { _args = [ "_JAVA_AWT_WM_NONREPARENTING" "1" ]; }
+            # Match the Plasma session's cursor/Qt theming so apps
+            # feel at home; Breeze is installed system-wide via
+            # plasma6.
+            { _args = [ "XCURSOR_THEME" "Breeze" ]; }
+            { _args = [ "XCURSOR_SIZE" "24" ]; }
+            { _args = [ "QT_QPA_PLATFORMTHEME" "kde" ]; }
           ];
 
-          monitor = [ ",preferred,auto,1" ];
+          monitor = [ { output = ""; mode = "preferred"; position = "auto"; } ];
 
-          exec-once = [
-            # No manual systemd/D-Bus environment import here:
-            # wayland.windowManager.hyprland.systemd.enable defaults
-            # to true and home-manager injects the exec-once that
-            # starts hyprland-session.target (which imports
-            # WAYLAND_DISPLAY et al for user services/portals, the
-            # way KWin does for Plasma).
-            # Session daemons — exec-once, not HM services, so they
-            # never leak into the Plasma session (see module header).
-            "waybar"
-            "dunst"
-            "hyprpaper"
-            "gammastep" # reads ~/.config/gammastep/config.ini
-            "nm-applet --indicator"
-            "${pkgs.kdePackages.polkit-kde-agent-1}/libexec/polkit-kde-authentication-agent-1"
-            # Clipboard history (the rice's two watcher lines).
-            "wl-paste --type text --watch cliphist store"
-            "wl-paste --type image --watch cliphist store"
+          # Config sections, one hl.config({...}) call. Fields match
+          # the generated Lua stubs in the hyprland package
+          # (share/hypr/stubs/hl.meta.lua).
+          config = [
+            {
+              general = {
+                # xmonad: 20px screen gaps + 6px window spacing.
+                gaps_in = 6;
+                gaps_out = 20;
+                border_size = 4;
+                # everforest: cream active border, mossy inactive.
+                col = {
+                  active_border = rgba everforest.fg;
+                  inactive_border = rgba everforest.bg5;
+                };
+                # The xmonad-like master+stack comes first; SUPER+E
+                # flips to dwindle at runtime.
+                layout = "master";
+                resize_on_border = true;
+              };
+              decoration = {
+                rounding = 10;
+                blur.enabled = false;
+                # The rice's signature flat "3D" bottom edge: a shadow
+                # pinned below the window (range 0, offset y+10).
+                shadow = {
+                  enabled = true;
+                  range = 0;
+                  render_power = 4;
+                  color = rgba everforest.accent;
+                  color_inactive = "rgba(2b312fff)";
+                  scale = 1.0;
+                  offset = { x = 0; y = 10; };
+                };
+              };
+              master = {
+                # xmonad Tall: master 2/3 of the screen; new windows
+                # join the stack ("slave"), not the master pane.
+                mfact = 0.67;
+                new_status = "slave";
+              };
+              dwindle.preserve_split = true;
+              group.col = {
+                border_active = rgba everforest.bg5;
+                border_inactive = rgba everforest.fg;
+              };
+              input = {
+                kb_layout = "us";
+                numlock_by_default = true;
+                follow_mouse = 1;
+                touchpad.natural_scroll = true;
+              };
+              misc = {
+                # xmonad's focus follows activation — jump to windows
+                # that ask for attention.
+                focus_on_activate = true;
+                # Belt-and-braces behind hyprpaper: never fall back to
+                # the built-in mascot wallpapers / logo if hyprpaper
+                # is slow or dead.
+                force_default_wallpaper = 0;
+                disable_hyprland_logo = true;
+              };
+              ecosystem = {
+                # 0.56 renders a Windows-style "Go to settings to
+                # activate Hyprland" donation nag over the wallpaper
+                # until switched off — the documented off switch.
+                no_donation_nag = true;
+              };
+            }
           ];
 
-          general = {
-            # xmonad: 20px screen gaps (gaps_out) + 6px window spacing
-            # (gaps_in). The rice widens gaps_in to 10; the xmonad
-            # value wins.
-            gaps_in = 6;
-            gaps_out = 20;
-            border_size = 4;
-            "col.active_border" = "$fg";
-            "col.inactive_border" = "$bg5";
-            # The xmonad-like master+stack comes first; M-e flips to
-            # dwindle at runtime.
-            layout = "master";
-            resize_on_border = true;
-          };
-
-          decoration = {
-            rounding = 10;
-            blur.enabled = false;
-            # The rice's signature flat "3D" bottom edge: a shadow
-            # pinned below the window. (The rice's C++ patch extends it
-            # to borders; the stock effect is close enough.)
-            shadow = {
-              enabled = true;
-              range = 0;
-              render_power = 4;
-              color = "rgb(${everforest.accent})";
-              color_inactive = "rgb(2b312f)";
-              scale = 1.0;
-              offset = "0 10";
-            };
-            dim_inactive = false;
-            dim_strength = 0.1;
-          };
-
-          animations = {
-            enabled = "yes";
-            bezier = [
-              "slow,0,0.85,0.3,1"
-              "overshot,0.7,0.6,0.1,1.1"
-              "bounce,1,1.6,0.1,0.85"
-            ];
-            animation = [
-              "windows,1,5,bounce,popin"
-              "border,1,20,default"
-              "fade,1,5,overshot"
-              "workspaces,1,6,overshot,slidevert"
-              "windowsIn,1,5,slow,popin"
-              "windowsMove,1,5,default"
-            ];
-          };
-
-          master = {
-            # xmonad Tall: master 2/3 of the screen, on the left, and
-            # new windows join the stack rather than stealing master.
-            mfact = 0.67;
-            # 0.56 renamed new_is_master (bool) to new_status: xmonad
-            # Tall keeps new windows in the stack, which is "slave".
-            new_status = "slave";
-          };
-
-          dwindle = {
-            # pseudotile was dropped from the config in 0.56 (the
-            # per-window `pseudo` dispatcher went with it);
-            # preserve_split keeps the split direction when moving
-            # windows around, which is the part that matters.
-            preserve_split = "yes";
-          };
-
-          group = {
-            "col.border_inactive" = "$fg";
-            "col.border_active" = "$bg5";
-          };
-
-          input = {
-            kb_layout = "us";
-            numlock_by_default = true;
-            follow_mouse = 1;
-            touchpad.natural_scroll = true;
-          };
-
-          # (0.56 dropped gestures.workspace_swipe from the config —
-          # touchpad gestures are declared through the gesture API
-          # now, which is Lua-config-only. Desktop without a touchpad,
-          # so nothing is lost.)
-
-          misc = {
-            # xmonad's focus follows EWMH activation — jump to windows
-            # that ask for attention.
-            focus_on_activate = true;
-            # Belt-and-braces behind hyprpaper: never fall back to the
-            # built-in mascot wallpapers / logo if hyprpaper is slow
-            # or dead (that fallback is what painted the first boot).
-            force_default_wallpaper = 0;
-            disable_hyprland_logo = true;
-          };
-
-          ecosystem = {
-            # 0.56 renders a Windows-style "Go to settings to activate
-            # Hyprland" donation nag over the wallpaper until switched
-            # off — the documented off switch, verified live via
-            # `hyprctl keyword ecosystem:no_donation_nag true`.
-            no_donation_nag = true;
-          };
-
-          # --- keybinds: the xmonad translation (see module header) ---
-
-          bind = [
-            # Launchers (xmonad: M-Return ghostty, M-Space rofi, M-Tab
-            # window switcher; pkill-first makes repeat presses toggle).
-            "$mainMod, Return, exec, ghostty"
-            # Vicinae (modules/batman/vicinae.nix) is the launcher —
-            # `vicinae open` shows the window against the daemon that
-            # module already runs under graphical-session.target, so
-            # no exec-once here. (The pkill-wofi toggle pattern from
-            # the rofi binds doesn't apply; `vicinae toggle` exists if
-            # toggle-on-repeat-press is ever wanted.)
-            "$mainMod, Space, exec, vicinae open"
-            "$mainMod, Tab, exec, pkill wofi || wofi --show window"
-            # xmonad had fullscreen on M-f and the browser on M4-f —
-            # two different mods. On a single SUPER mod they collide,
-            # so fullscreen keeps F (the constantly-used bind) and the
-            # browser takes B.
-            "$mainMod, B, exec, firefox"
-
-            # Focus: M-j/k cycle the stack (xmonad focusDown/focusUp),
-            # M-m the master; arrows are Hyprland-directional.
-            "$mainMod, J, cyclenext"
-            "$mainMod, K, cyclenext, prev"
-            # 0.56 dropped the focusmaster dispatcher; the master
-            # layout still answers `layoutmsg focusmaster`.
-            "$mainMod, M, layoutmsg, focusmaster"
-            "$mainMod, left, movefocus, l"
-            "$mainMod, right, movefocus, r"
-            "$mainMod, up, movefocus, u"
-            "$mainMod, down, movefocus, d"
-
-            # Swap: M-S-j/k (xmonad swapDown/Up), M-S-. swaps with
-            # master (xmonad swapMaster).
-            "$mainMod SHIFT, J, swapnext"
-            "$mainMod SHIFT, K, swapnext, prev"
-            "$mainMod SHIFT, period, layoutmsg, swapwithmaster"
-            "$mainMod SHIFT, left, movewindow, l"
-            "$mainMod SHIFT, right, movewindow, r"
-            "$mainMod SHIFT, up, movewindow, u"
-            "$mainMod SHIFT, down, movewindow, d"
-
-            # Master pane geometry (xmonad Shrink/Expand = M-h/l,
-            # IncMasterN = M-,/M-.).
-            "$mainMod, H, layoutmsg, mfact -0.05"
-            "$mainMod, L, layoutmsg, mfact +0.05"
-            "$mainMod, comma, layoutmsg, addmaster"
-            "$mainMod, period, layoutmsg, removemaster"
-
-            # Layouts & window state: M-e cycles layouts, M-w tabbed
-            # groups, M-f fullscreen, M-t float (xmonad sink), M-g
-            # hides the bar (xmonad ToggleStruts).
-            "$mainMod, E, exec, ${cycleLayout}"
-            "$mainMod, W, togglegroup"
-            "$mainMod, F, fullscreen, 0"
-            "$mainMod, T, togglefloating"
-            "$mainMod SHIFT, Q, killactive"
-            "$mainMod, G, exec, pkill -SIGUSR1 waybar"
-
-            # Workspaces: M-1..M-0 → 1..10, M-S-1..0 moves without
-            # following (xmonad W.shift), M-[/] cycles
-            # (xmonad nextWS/prevWS), M-S-[] shifts across.
-            "$mainMod, 1, workspace, 1"
-            "$mainMod, 2, workspace, 2"
-            "$mainMod, 3, workspace, 3"
-            "$mainMod, 4, workspace, 4"
-            "$mainMod, 5, workspace, 5"
-            "$mainMod, 6, workspace, 6"
-            "$mainMod, 7, workspace, 7"
-            "$mainMod, 8, workspace, 8"
-            "$mainMod, 9, workspace, 9"
-            "$mainMod, 0, workspace, 10"
-            "$mainMod SHIFT, 1, movetoworkspacesilent, 1"
-            "$mainMod SHIFT, 2, movetoworkspacesilent, 2"
-            "$mainMod SHIFT, 3, movetoworkspacesilent, 3"
-            "$mainMod SHIFT, 4, movetoworkspacesilent, 4"
-            "$mainMod SHIFT, 5, movetoworkspacesilent, 5"
-            "$mainMod SHIFT, 6, movetoworkspacesilent, 6"
-            "$mainMod SHIFT, 7, movetoworkspacesilent, 7"
-            "$mainMod SHIFT, 8, movetoworkspacesilent, 8"
-            "$mainMod SHIFT, 9, movetoworkspacesilent, 9"
-            "$mainMod SHIFT, 0, movetoworkspacesilent, 10"
-            "$mainMod, bracketleft, workspace, e-1"
-            "$mainMod, bracketright, workspace, e+1"
-            "$mainMod SHIFT, bracketleft, movetoworkspacesilent, e-1"
-            "$mainMod SHIFT, bracketright, movetoworkspacesilent, e+1"
-
-            # Session: M-S-r reload (xmonad restart), M-S-e exits to
-            # SDDM (xmonad quit), M-S-x locks (xmonad loginctl
-            # lock-session — under Hyprland that job belongs to
-            # hyprlock directly).
-            "$mainMod SHIFT, R, exec, hyprctl reload"
-            "$mainMod SHIFT, E, exit"
-            "$mainMod SHIFT, X, exec, hyprlock"
-            "$mainMod SHIFT, P, exec, ${powerMenu}"
-
-            # Screenshots (xmonad F12/S-F12 flameshot; grim+slurp are
-            # the Wayland equivalents).
-            ", F12, exec, ${screenshot "region"}"
-            "SHIFT, F12, exec, ${screenshot "full"}"
-            "$mainMod, Print, exec, ${screenshot "full"}"
-
-            # Clipboard history (the rice's M-V menu).
-            "$mainMod, V, exec, cliphist list | wofi --dmenu | cliphist decode | wl-copy"
-
-            # Workspace cycling on the wheel (the rice).
-            "$mainMod, mouse_down, workspace, e-1"
-            "$mainMod, mouse_up, workspace, e+1"
-
-            # Media/hardware keys: wpctl ships with the pipewire the
-            # base module enables (pactl would need the pulseaudio
-            # package pulled in just for the CLI).
-            ", XF86AudioRaiseVolume, exec, wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 10%+"
-            ", XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 10%-"
-            ", XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
-            ", XF86AudioMicMute, exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
-            ", XF86MonBrightnessUp, exec, brightnessctl set +10%"
-            ", XF86MonBrightnessDown, exec, brightnessctl set 10%-"
-
-            # The rice's resize submap (xmonad had none — resizing was
-            # M-h/l — so this is a bonus, not a translation).
-            "$mainMod, R, submap, resize"
+          # Animation curves: hl.curve(name, {type="bezier", points}),
+          # then hl.animation({leaf=..., speed=..., bezier=...,
+          # style=...}) per animation.
+          curve = [
+            { _args = [ "slow" { type = "bezier"; points = [ [ 0 0.85 ] [ 0.3 1 ] ]; } ]; }
+            { _args = [ "overshot" { type = "bezier"; points = [ [ 0.7 0.6 ] [ 0.1 1.1 ] ]; } ]; }
+            { _args = [ "bounce" { type = "bezier"; points = [ [ 1 1.6 ] [ 0.1 0.85 ] ]; } ]; }
+          ];
+          animation = [
+            { leaf = "windows"; enabled = true; speed = 5; bezier = "bounce"; style = "popin"; }
+            { leaf = "border"; enabled = true; speed = 20; bezier = "default"; }
+            { leaf = "fade"; enabled = true; speed = 5; bezier = "overshot"; }
+            { leaf = "workspaces"; enabled = true; speed = 6; bezier = "overshot"; style = "slidevert"; }
+            { leaf = "windowsIn"; enabled = true; speed = 5; bezier = "slow"; style = "popin"; }
           ];
 
           # Window rules: the xmonad ManageHook (firefox → ws2, Gimp
-          # float) plus the rice's utility floats.
-          windowruleV2 = [
-            "workspace 2 silent, class:^(firefox)$"
-            # Vicinae's launcher window must float centered or the
-            # tiler adopts it (class from the module's StartupWMClass).
-            "float, class:^(vicinae)$"
-            "center, class:^(vicinae)$"
-            "float, class:^(gimp)$"
-            "float, class:^(pavucontrol)$"
-            "size 600 800, class:^(pavucontrol)$"
-            "center, class:^(pavucontrol)$"
-            "float, class:^(org\\.gnome\\.Calculator)$"
-            "size 490 600, class:^(org\\.gnome\\.Calculator)$"
-            "float, class:^(blueman-manager)$"
-            "float, title:^(Confirm to replace files)$"
-            "float, title:^(File Operation Progress)$"
-            "float, title:^(Steam - News)$"
+          # float) plus the rice's utility floats and vicinae's
+          # launcher popup.
+          window_rule = [
+            { name = "firefox-to-ws2"; match.class = "^firefox$"; workspace = "2"; }
+            { name = "gimp-float"; match.class = "^gimp$"; float = true; }
+            { name = "pavucontrol-float"; match.class = "^pavucontrol$"; float = true; center = true; size = { x = 600; y = 800; }; }
+            { name = "calculator-float"; match.class = "^org\\.gnome\\.Calculator$"; float = true; size = { x = 490; y = 600; }; }
+            { name = "blueman-float"; match.class = "^blueman-manager$"; float = true; }
+            { name = "dialog-replace"; match.title = "^Confirm to replace files$"; float = true; }
+            { name = "dialog-progress"; match.title = "^File Operation Progress$"; float = true; }
+            { name = "steam-news"; match.title = "^Steam - News$"; float = true; }
+            { name = "vicinae-float"; match.class = "^vicinae$"; float = true; center = true; }
           ];
 
-          # (The rice's `layerrule noanim, selection` — no fade on
-          # slurp's screenshot overlay — is dropped: 0.56 turned
-          # layerrules into field/value pairs (no_anim 1) and its
-          # namespace-matching syntax is in neither the shipped
-          # example nor reachable through hyprctl keyword probes.
-          # Purely cosmetic; revisit with 0.56 docs.)
+          # The rice's no-anim slurp overlay — now expressible again:
+          # the Lua layerrule form is documented, unlike 0.56's
+          # hyprlang field/value pairs.
+          layer_rule = [
+            { name = "no-anim-selection"; match.namespace = "^selection$"; no_anim = true; }
+          ];
+
+          # --- keybinds: the xmonad translation (see module header) ---
+          bind = [
+            # Launchers (xmonad: M-Return ghostty, M-Space launcher,
+            # M-Tab window switcher). Vicinae's daemon is systemd-
+            # managed by its own module; `vicinae open` just raises it.
+            (bind "SUPER + Return" (dsp ''exec_cmd("ghostty")''))
+            (bind "SUPER + Space" (dsp ''exec_cmd("vicinae open")''))
+            (bind "SUPER + Tab" (dsp ''exec_cmd("pkill wofi || wofi --show window")''))
+            # xmonad had fullscreen on M-f and the browser on M4-f —
+            # two different mods. On a single SUPER mod they collide,
+            # so fullscreen keeps F and the browser takes B.
+            (bind "SUPER + B" (dsp ''exec_cmd("firefox")''))
+
+            # Focus: SUPER+J/K cycle the stack (xmonad focusDown/Up —
+            # the master layout's cyclenext/cycleprev), SUPER+M the
+            # master; arrows are Hyprland-directional.
+            (bind "SUPER + J" (dsp ''layout("cyclenext")''))
+            (bind "SUPER + K" (dsp ''layout("cycleprev")''))
+            (bind "SUPER + M" (dsp ''layout("focusmaster")''))
+            (bind "SUPER + left" (dsp ''focus({ direction = "left" })''))
+            (bind "SUPER + right" (dsp ''focus({ direction = "right" })''))
+            (bind "SUPER + up" (dsp ''focus({ direction = "up" })''))
+            (bind "SUPER + down" (dsp ''focus({ direction = "down" })''))
+
+            # Swap: SUPER+Shift+J/K (xmonad swapDown/Up — directional
+            # in the Lua API), SUPER+Shift+period swaps with master
+            # (xmonad swapMaster).
+            (bind "SUPER + SHIFT + J" (dsp ''window.swap({ direction = "down" })''))
+            (bind "SUPER + SHIFT + K" (dsp ''window.swap({ direction = "up" })''))
+            (bind "SUPER + SHIFT + period" (dsp ''layout("swapwithmaster")''))
+            (bind "SUPER + SHIFT + left" (dsp ''window.move({ direction = "left" })''))
+            (bind "SUPER + SHIFT + right" (dsp ''window.move({ direction = "right" })''))
+            (bind "SUPER + SHIFT + up" (dsp ''window.move({ direction = "up" })''))
+            (bind "SUPER + SHIFT + down" (dsp ''window.move({ direction = "down" })''))
+
+            # Master pane geometry (xmonad Shrink/Expand = M-h/l,
+            # IncMasterN = M-,/M-.).
+            (bind "SUPER + H" (dsp ''layout("mfact -0.05")''))
+            (bind "SUPER + L" (dsp ''layout("mfact +0.05")''))
+            (bind "SUPER + comma" (dsp ''layout("addmaster")''))
+            (bind "SUPER + period" (dsp ''layout("removemaster")''))
+
+            # Layouts & window state: SUPER+E cycles layouts, SUPER+W
+            # tabbed groups, SUPER+F fullscreen (layout-aware, like
+            # xmonad's Toggle NBFULL), SUPER+T float (xmonad sink),
+            # SUPER+G hides the bar (xmonad ToggleStruts).
+            (bind "SUPER + E" (dsp ''exec_cmd("${cycleLayout}")''))
+            (bind "SUPER + W" (dsp ''group.toggle()''))
+            (bind "SUPER + F" (dsp ''window.fullscreen({ mode = "fullscreen" })''))
+            (bind "SUPER + T" (dsp ''window.float({ action = "toggle" })''))
+            (bind "SUPER + SHIFT + Q" (dsp ''window.close()''))
+            (bind "SUPER + G" (dsp ''exec_cmd("pkill -SIGUSR1 waybar")''))
+
+            # Workspaces: SUPER+1..0 → 1..10; SUPER+Shift+1..0 moves
+            # without following (follow=false, xmonad W.shift);
+            # SUPER+[/] cycles existing (xmonad nextWS/prevWS).
+            (bind "SUPER + 1" (dsp ''focus({ workspace = 1 })''))
+            (bind "SUPER + 2" (dsp ''focus({ workspace = 2 })''))
+            (bind "SUPER + 3" (dsp ''focus({ workspace = 3 })''))
+            (bind "SUPER + 4" (dsp ''focus({ workspace = 4 })''))
+            (bind "SUPER + 5" (dsp ''focus({ workspace = 5 })''))
+            (bind "SUPER + 6" (dsp ''focus({ workspace = 6 })''))
+            (bind "SUPER + 7" (dsp ''focus({ workspace = 7 })''))
+            (bind "SUPER + 8" (dsp ''focus({ workspace = 8 })''))
+            (bind "SUPER + 9" (dsp ''focus({ workspace = 9 })''))
+            (bind "SUPER + 0" (dsp ''focus({ workspace = 10 })''))
+            (bind "SUPER + SHIFT + 1" (dsp ''window.move({ workspace = 1, follow = false })''))
+            (bind "SUPER + SHIFT + 2" (dsp ''window.move({ workspace = 2, follow = false })''))
+            (bind "SUPER + SHIFT + 3" (dsp ''window.move({ workspace = 3, follow = false })''))
+            (bind "SUPER + SHIFT + 4" (dsp ''window.move({ workspace = 4, follow = false })''))
+            (bind "SUPER + SHIFT + 5" (dsp ''window.move({ workspace = 5, follow = false })''))
+            (bind "SUPER + SHIFT + 6" (dsp ''window.move({ workspace = 6, follow = false })''))
+            (bind "SUPER + SHIFT + 7" (dsp ''window.move({ workspace = 7, follow = false })''))
+            (bind "SUPER + SHIFT + 8" (dsp ''window.move({ workspace = 8, follow = false })''))
+            (bind "SUPER + SHIFT + 9" (dsp ''window.move({ workspace = 9, follow = false })''))
+            (bind "SUPER + SHIFT + 0" (dsp ''window.move({ workspace = 10, follow = false })''))
+            (bind "SUPER + bracketleft" (dsp ''focus({ workspace = "e-1" })''))
+            (bind "SUPER + bracketright" (dsp ''focus({ workspace = "e+1" })''))
+            (bind "SUPER + SHIFT + bracketleft" (dsp ''window.move({ workspace = "e-1", follow = false })''))
+            (bind "SUPER + SHIFT + bracketright" (dsp ''window.move({ workspace = "e+1", follow = false })''))
+
+            # Session: SUPER+Shift+R reload (xmonad restart),
+            # SUPER+Shift+E exits to SDDM (xmonad quit), SUPER+Shift+X
+            # locks (hyprlock — under Hyprland that job belongs to it
+            # directly), SUPER+Shift+P power menu.
+            (bind "SUPER + SHIFT + R" (dsp ''exec_cmd("hyprctl reload")''))
+            (bind "SUPER + SHIFT + E" (dsp ''exit()''))
+            (bind "SUPER + SHIFT + X" (dsp ''exec_cmd("hyprlock")''))
+            (bind "SUPER + SHIFT + P" (dsp ''exec_cmd("${powerMenu}")''))
+
+            # Screenshots (xmonad F12/S-F12 flameshot; grim+slurp are
+            # the Wayland equivalents).
+            (bind "F12" (dsp ''exec_cmd("${screenshot "region"}")''))
+            (bind "SHIFT + F12" (dsp ''exec_cmd("${screenshot "full"}")''))
+            (bind "SUPER + Print" (dsp ''exec_cmd("${screenshot "full"}")''))
+
+            # Clipboard history (the rice's M-V menu).
+            (bind "SUPER + V" (dsp ''exec_cmd("cliphist list | wofi --dmenu | cliphist decode | wl-copy")''))
+
+            # Workspace cycling on the wheel (the rice).
+            (bind "SUPER + mouse_down" (dsp ''focus({ workspace = "e-1" })''))
+            (bind "SUPER + mouse_up" (dsp ''focus({ workspace = "e+1" })''))
+
+            # Media/hardware keys: repeating while held and active on
+            # the lock screen too. wpctl ships with the pipewire the
+            # base module enables (pactl would need the pulseaudio
+            # package pulled in just for the CLI).
+            (bindOpts "XF86AudioRaiseVolume" (dsp ''exec_cmd("wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 10%+")'') { locked = true; repeating = true; })
+            (bindOpts "XF86AudioLowerVolume" (dsp ''exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 10%-")'') { locked = true; repeating = true; })
+            (bindOpts "XF86AudioMute" (dsp ''exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle")'') { locked = true; repeating = true; })
+            (bindOpts "XF86AudioMicMute" (dsp ''exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle")'') { locked = true; repeating = true; })
+            (bindOpts "XF86MonBrightnessUp" (dsp ''exec_cmd("brightnessctl set +10%")'') { locked = true; repeating = true; })
+            (bindOpts "XF86MonBrightnessDown" (dsp ''exec_cmd("brightnessctl set 10%-")'') { locked = true; repeating = true; })
+
+            # Move/resize with SUPER + LMB/RMB dragging (xmonad's
+            # mod-button1/3 mouseActions).
+            (bindOpts "SUPER + mouse:272" (dsp ''window.drag()'') { mouse = true; })
+            (bindOpts "SUPER + mouse:273" (dsp ''window.resize()'') { mouse = true; })
+
+            # Resize submap entry (xmonad had none — bonus bind).
+            (bind "SUPER + R" (dsp ''submap("resize")''))
+          ];
         };
 
-        # The rice's resize submap (xmonad had none — resizing was
-        # M-h/l — so this is a bonus, not a translation). The entry
-        # bind (M-R) lives in settings.bind above; home-manager
-        # renders each submap as a `submap = name ... submap = reset`
-        # block after the main settings, so the attrset-ordering that
-        # blocked submaps from settings doesn't apply.
+        # The rice's resize submap. Entry bind (SUPER+R) lives in
+        # settings.bind above; home-manager wraps these in
+        # hl.define_submap("resize", function() ... end) — binds
+        # registered inside only fire while the submap is active,
+        # until hl.dsp.submap("reset") returns to the default map.
         submaps.resize.settings = {
-          binde = [
-            ", right, resizeactive, 15 0"
-            ", left, resizeactive, -15 0"
-            ", up, resizeactive, 0 -15"
-            ", down, resizeactive, 0 15"
+          bind = [
+            { _args = [ "escape" (dsp ''submap("reset")'') ]; }
+            { _args = [ "right" (dsp ''window.resize({ x = 15, y = 0, relative = true })'') { repeating = true; } ]; }
+            { _args = [ "left" (dsp ''window.resize({ x = -15, y = 0, relative = true })'') { repeating = true; } ]; }
+            { _args = [ "up" (dsp ''window.resize({ x = 0, y = -15, relative = true })'') { repeating = true; } ]; }
+            { _args = [ "down" (dsp ''window.resize({ x = 0, y = 15, relative = true })'') { repeating = true; } ]; }
           ];
-          bind = [ ", escape, submap, reset" ];
         };
       };
 

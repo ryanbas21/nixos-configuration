@@ -36,47 +36,52 @@ module's `genFinalPackage` and `security.wrappers` probe all three
 (`functionArgs pkg.override`, `versionOlder cfg.package.version`,
 `getExe`).
 
-## 0.56 gotchas (the Lua-config era)
+## 0.56 gotchas (the Lua-config migration)
 
-Hyprland 0.56 (nixpkgs unstable, 26.11) grew a Lua config backend, and
-home-manager flips its default to render `hyprland.lua` for
-stateVersion ≥ 26.05. This config pins
-`wayland.windowManager.hyprland.configType = "hyprlang"`:
+Hyprland 0.55+ deprecates hyprlang in favor of the Lua backend —
+`hyprland.lua` with the `hl.*` API — and a future release removes
+`.conf` outright, so this config speaks Lua natively
+(`wayland.windowManager.hyprland.configType = "lua"`). Home-manager
+renders each settings key as an `hl.<name>(...)` call; dispatchers
+are runtime objects that no serializer can emit, so they enter
+through `lib.generators.mkLuaInline` (the module's `raw`/`dsp`
+helpers), and `{ _args = [...] }` expresses `hl.bind`'s
+key/dispatcher/flags triple. Dispatcher spellings were verified
+against the wiki dispatcher and master-layout tables and
+`src/config/lua/bindings/LuaBindingsDispatchers.cpp` — notably
+`window.move({ workspace = N, follow = false })` is the old
+`movetoworkspacesilent` (xmonad's W.shift), and the master layout's
+`mfact`/`addmaster`/`focusmaster`/`swapwithmaster` ride through
+`hl.dsp.layout("...")`.
 
-- the classic format is still fully supported;
-- the `$variable` idiom (palette + `$mainMod`, hoisted to the top of
-  the conf by the module's `importantPrefixes`) only exists in
-  hyprlang — the Lua renderer turns `"$bg0"` keys into literally
-  `hl.$bg0(...)`, which isn't even parseable Lua;
-- the rice and most wiki examples are hyprlang.
+The hyprlang forms that broke during the first boot (on the legacy
+format), for the record:
 
-Renamed/removed options hit on first boot, all verified against the
-live compositor via `hyprctl keyword`:
-
-| Old | 0.56 status | Replacement |
+| hyprlang (0.54) | 0.56 status | Lua equivalent |
 |---|---|---|
-| `focusmaster` dispatcher | removed | `layoutmsg, focusmaster` (master layout still answers it) |
-| `master:new_is_master` (bool) | renamed | `master:new_status = "master"/"slave"` |
+| `focusmaster` dispatcher | removed | `hl.dsp.layout("focusmaster")` |
+| `master:new_is_master` (bool) | renamed | `master.new_status = "master"/"slave"` |
 | `dwindle:pseudotile` | removed | — (the `pseudo` dispatcher went with it) |
-| `gestures:workspace_swipe` | removed | gesture API, Lua-config-only; no touchpad here, dropped |
-| `layerrule noanim, <ns>` | syntax changed | field/value pairs (`no_anim 1`); the namespace-match spelling is undiscoverable offline — rule dropped (was cosmetic) |
+| `gestures:workspace_swipe` | removed | `hl.gesture({...})` API; no touchpad here, dropped |
+| `layerrule noanim, <ns>` | syntax changed | `hl.layer_rule({ match.namespace, no_anim = true })` — restored |
 | hyprpaper `preload`/`wallpaper = ,path` | removed in 0.8's hyprtoolkit rewrite | `wallpaper { monitor =; fit_mode = cover; path = ... }` blocks (empty monitor is still the wildcard) |
 
 Also in 0.56: a Windows-style **"Go to settings to activate Hyprland"
 donation nag** painted over the wallpaper until
-`ecosystem.no_donation_nag = true` (the documented off switch), and
-built-in mascot wallpapers that show whenever nothing else claims the
-background — `misc.force_default_wallpaper = 0` +
-`disable_hyprland_logo = true` are belt-and-braces behind hyprpaper.
+`ecosystem.no_donation_nag = true`, and built-in mascot wallpapers
+that show whenever nothing else claims the background —
+`misc.force_default_wallpaper = 0` + `disable_hyprland_logo = true`
+are belt-and-braces behind hyprpaper.
 
-## Session daemons: exec-once, not home-manager services
+## Session daemons: start hook, not home-manager services
 
-Waybar, dunst, hyprpaper, and gammastep are started by `exec-once`,
-deliberately **not** via HM systemd services: those bind to
+Waybar, dunst, hyprpaper, and gammastep are started by an
+`hl.on("hyprland.start", function() ... end)` hook, deliberately
+**not** via HM systemd services: those bind to
 `graphical-session.target`, which also activates inside the Plasma
 session — dunst would fight Plasma's notification daemon, and
 gammastep cannot drive KWin at all (see
-[desktop-apps.md](desktop-apps.md) for that saga). exec-once scopes
+[desktop-apps.md](desktop-apps.md) for that saga). The hook scopes
 them to Hyprland only.
 
 Related trap: **config files don't install binaries.** The first cut
