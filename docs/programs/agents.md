@@ -28,7 +28,9 @@ packages. Assigned to `home.base`, so the laptop gets the bundle too.
 
 - **`settings.json`** (declarative, from `piSettings`): theme
   `catppuccin-mocha`, `defaultProvider = "zai-coding-plan"`,
-  `defaultThinkingLevel = "high"`, `hideThinkingBlock`, telemetry off,
+  `defaultModel = "router/auto"` (sessions start on the model
+  router's logical provider — see below), `defaultThinkingLevel =
+  "high"`, `hideThinkingBlock`, telemetry off,
   and the extension package list — pi-resource-center, context-mode,
   pi-studio, pi-subagents, pi-mcp-adapter, obsidian-notes,
   pi-ralph-wiggum (from a git source), the model router, and more. Treat
@@ -36,7 +38,10 @@ packages. Assigned to `home.base`, so the laptop gets the bundle too.
   outside it (and home-manager's `backupFileExtension` deals with drift
   on re-activation).
 - **`model-router.json`**: budget-capped automatic model selection —
-  `maxSessionBudget = 1.0`, enabled on new sessions, with zai GLM tiers:
+  `maxSessionBudget = 1.0`, active from session start via
+  `settings.json`'s `defaultModel = "router/auto"` (the earlier
+  `enableOnNewSession` key was dead config: pi-model-router 0.4.4
+  never reads it), with zai GLM tiers:
   `glm-5.3`+high thinking for `high`, `glm-5.2`+medium for `medium`,
   `glm-5.0`+medium for `low`.
 - **`fzf.json` + `skills/`**: sourced **from the dotfiles repo** (the

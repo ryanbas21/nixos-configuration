@@ -61,6 +61,18 @@ the IPTV PVR setup belongs to the living-room box. Built with exactly
 one addon: `pvr-iptvsimple`. Kodi's own settings/library are machine
 state (data, not config).
 
+### hypnotix (`batman/hypnotix.nix`)
+
+IPTV player, desktop-only (`home.pc`) like kodi. The embedded mpv
+renders into an X11 window (no Wayland surface), so under Hyprland it
+runs via XWayland: the module's symlinkJoin wrapper forces
+`GDK_BACKEND=x11`, and the declared dconf key
+`org/x/hypnotix/mpv-options = "hwdec=auto-safe vo=x11"` carries the
+upstream-recommended mpv flags for the same reason. The NixOS-side
+assignment (`users.batman.nixos.base`) enables `programs.dconf` —
+home-manager's dconf activation needs the D-Bus service or the
+mpv-options write fails at activation time.
+
 ### obsidian (`batman/obsidian.nix`)
 
 Notes, desktop-only (`home.pc`) because the vault lives on the desktop.

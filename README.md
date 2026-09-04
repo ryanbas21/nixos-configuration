@@ -64,8 +64,8 @@ need:
 
 - [Architecture](docs/architecture.md) — how the flake is assembled, the
   option namespaces, the rules of the pattern, and the complete file tour.
-- [Machines](docs/machines.md) — the three machines, and how to add a
-  fourth (NixOS host or standalone box).
+- [Machines](docs/machines.md) — the four machines, and how to add a
+  fifth (NixOS host or standalone box).
 - [Operations](docs/operations.md) — the input-update ritual, deployment
   steady state, hardware changes, and what CI checks.
 - [Bootstrap & recovery](docs/bootstrap.md) — **the reproducibility
@@ -100,7 +100,7 @@ program does, why it is there, and the war stories:
 - [Vicinae](docs/programs/vicinae.md) — the desktop launcher and its
   setcap wrapper.
 - [Desktop apps](docs/programs/desktop-apps.md) — Plasma, pipewire,
-  ghostty, kodi, obsidian, Night Light, kooha, 1Password.
+  ghostty, kodi, hypnotix, obsidian, Night Light, kooha, 1Password.
 - [Hyprland](docs/programs/hyprland.md) — the second Wayland session:
   xmonad muscle memory on SUPER, the everforest rice, and the 0.56
   gotchas (hyprlang-vs-Lua, the donation nag, the uwsm entry).

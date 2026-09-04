@@ -231,6 +231,7 @@ Read the repo in this order:
 │       │                        sync + Mac's declarative nix.conf
 │       ├── obsidian.nix         obsidian vault (home.pc; desktop)
 │       ├── kodi.nix             kodi media center + IPTV PVR (home.pc; desktop)
+│       ├── hypnotix.nix         IPTV player, XWayland-forced (home.pc; desktop)
 │       ├── screen-capture.nix   kooha screen recorder (home.pc; desktop)
 │       ├── hyprland.nix        Hyprland session stack (home.pc; desktop)
 │       ├── time-of-day-gamma.nix KWin Night Light, fixed Denver coordinates

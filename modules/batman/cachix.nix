@@ -25,16 +25,15 @@
 {
   # Desktop: own the credentials, provision CLI + CI from them.
   users.batman.home.pc = { pkgs, config, ... }: {
-    age.secrets = {
-      # No custom `path` — decrypted into agenix's per-session tmpfs
-      # runtime dir, never on disk (same convention as agenix.nix).
-      cachix-auth-token.file = ../../secrets/cachix-auth-token.age;
-      cachix-signing-key.file = ../../secrets/cachix-signing-key.age;
-    };
+    # No age.secrets registrations here: nothing reads these at runtime
+    # post-login — both consumers are activation-time, and activation
+    # cannot depend on the agenix runtime dir (agenix.service is a user
+    # unit that cannot run before first login; Linger=no). The .age
+    # store copies are decrypted inline with rage + id_borg below.
 
     home.activation.provisionCachix = config.lib.dag.entryAfter [ "writeBoundary" ] ''
-      token="${config.age.secrets.cachix-auth-token.path}"
-      key="${config.age.secrets.cachix-signing-key.path}"
+      token_val=$(${pkgs.rage}/bin/rage -d -i ${config.home.homeDirectory}/.ssh/id_borg ${../../secrets/cachix-auth-token.age})
+      key_val=$(${pkgs.rage}/bin/rage -d -i ${config.home.homeDirectory}/.ssh/id_borg ${../../secrets/cachix-signing-key.age})
 
       # ~/.config/cachix/cachix.dhall is derived state now. The file
       # the interactive `cachix authtoken` / `cachix generate-keypair`
@@ -42,7 +41,7 @@
       # every activation.
       tmp=$(${pkgs.coreutils}/bin/mktemp)
       printf '{ authToken =\n    "%s"\n, hostname = "https://cachix.org"\n, binaryCaches =\n  [ { name = "nix-configs"\n    , secretKey =\n        "%s"\n    }\n  ]\n}\n' \
-        "$(cat "$token")" "$(cat "$key")" > "$tmp"
+        "$token_val" "$key_val" > "$tmp"
       ${pkgs.coreutils}/bin/install -D -m 600 "$tmp" "$HOME/.config/cachix/cachix.dhall"
       rm -f "$tmp"
 
@@ -51,10 +50,10 @@
       # warning: a failed sync must not fail the switch, but it must
       # never be silent — silently stale CI secrets cost an evening
       # once already.
-      for kv in "CACHIX_AUTH_TOKEN:$token" "CACHIX_SIGNING_KEY:$key"; do
+      for kv in "CACHIX_AUTH_TOKEN:$token_val" "CACHIX_SIGNING_KEY:$key_val"; do
         name="''${kv%%:*}"
-        path="''${kv#*:}"
-        if ! ${pkgs.gh}/bin/gh secret set "$name" -R ryanbas21/nixos-configuration < "$path"; then
+        val="''${kv#*:}"
+        if ! printf '%s' "$val" | ${pkgs.gh}/bin/gh secret set "$name" -R ryanbas21/nixos-configuration; then
           echo "WARNING: failed to sync $name to GitHub — CI cache pushes will fail until this succeeds (gh authenticated? network?)" >&2
         fi
       done

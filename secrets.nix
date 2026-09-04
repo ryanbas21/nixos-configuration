@@ -21,6 +21,12 @@ in
   "secrets/zai-api-key.age".publicKeys = [ batman ];
   "secrets/gpg.age".publicKeys = [ batman ];
 
+  # Hypnotix IPTV providers: the dconf GVariant text for
+  # org.x.hypnotix/providers — xtream credentials are embedded in the
+  # serialization, so the whole list ships encrypted and is applied at
+  # activation by modules/batman/hypnotix.nix.
+  "secrets/hypnotix-providers.age".publicKeys = [ batman ];
+
   # nix-configs cachix credentials. The signing key is the BARE secret
   # exactly as `cachix generate-keypair nix-configs` stores it in
   # cachix.dhall — NO `name:` prefix (a prefixed key fails server-side

@@ -7,7 +7,11 @@
       piMcp = { };
       piModelRouter = {
         maxSessionBudget = 1.0;
-        enableOnNewSession = true;
+        # No enableOnNewSession here: pi-model-router 0.4.4 never reads
+        # that key (verified against the installed package source — it
+        # was a no-op all along). Sessions start on the router via
+        # settings.json's defaultModel below; profiles register as
+        # router/<profile> models.
 
         profiles = {
           auto = {
@@ -22,7 +26,7 @@
             };
 
             low = {
-              model = "zai/glm-5.0";
+              model = "zai/glm-5-turbo";
               thinking = "medium";
             };
           };
@@ -71,6 +75,12 @@
         enableInstallTelemetry = false;
         theme = "catppuccin-mocha";
         defaultProvider = "zai-coding-plan";
+        # Start every session on the model-router's logical provider:
+        # model-router.json profiles register as router/<profile>
+        # models, so "router/auto" means per-turn tier selection from
+        # the first prompt. defaultProvider above stays as the fallback
+        # for runs where the router extension is absent.
+        defaultModel = "router/auto";
         defaultThinkingLevel = "high";
         hideThinkingBlock = true;
       };
