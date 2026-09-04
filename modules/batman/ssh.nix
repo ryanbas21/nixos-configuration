@@ -31,6 +31,20 @@
           IdentityFile = "~/.ssh/git";
           IdentitiesOnly = true;
         };
+        # The harmonia cache server (root-only host; batman's id_borg
+        # was authorized as the admin key 2026-09-04 — see
+        # modules/computers/harmonia.nix). Without this block ssh never
+        # offers id_borg (it is not a default identity name), so
+        # `ssh root@192.168.1.82` fails even though the key is
+        # authorized. Desktop-only, same as github.com: id_borg is the
+        # desktop's agenix identity and does not ride along on the
+        # standalone exports.
+        "192.168.1.82" = {
+          HostName = "192.168.1.82";
+          User = "root";
+          IdentityFile = "~/.ssh/id_borg";
+          IdentitiesOnly = true;
+        };
       };
     };
   };
