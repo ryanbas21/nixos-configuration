@@ -50,8 +50,21 @@
       # skips nixos.modules.base (would move with it if a server tier
       # ever gets promoted, per the header comment).
       zramSwap.enable = true;
-      # harmonia itself; sshd opens port 22 via its own module default.
-      networking.firewall.allowedTCPPorts = [ 5000 ];
+      # harmonia itself. Both listeners are LAN-only concerns — the
+      # desktop's substituter hits 192.168.1.82:5000 and deploys arrive
+      # over ssh from the same subnet — so instead of the module-default
+      # global opens (sshd's openFirewall, blanket allowedTCPPorts) the
+      # ports are scoped to the home subnet via extraInputRules: the box
+      # stays dark on any other network, which matters given the signing
+      # key it holds. IPv6 stays default-dropped (everything addresses
+      # this box by its v4 literal). extraInputRules needs the nftables
+      # backend, which cannot be inherited from nixos.modules.base
+      # (deliberately not imported here), so it is set in place.
+      services.openssh.openFirewall = false;
+      networking.nftables.enable = true;
+      networking.firewall.extraInputRules = ''
+        ip saddr 192.168.1.0/24 tcp dport { 22, 5000 } accept
+      '';
       # Flakes for local nix ops on the box; remote rebuilds arrive as
       # ready closures from the desktop and don't even need this.
       nix.settings.experimental-features = [ "nix-command" "flakes" ];

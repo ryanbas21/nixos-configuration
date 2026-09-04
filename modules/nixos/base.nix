@@ -166,11 +166,16 @@
       "github.com".publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl";
     };
 
-    # Open ports in the firewall.
-    # networking.firewall.allowedTCPPorts = [ ... ];
-    # networking.firewall.allowedUDPPorts = [ ... ];
-    # Or disable the firewall altogether:
-    # networking.firewall.enable = false;
+    # Firewall: enabled by NixOS default, but pinned explicitly so the
+    # posture is self-documenting and Pareto Security's firewall check
+    # stays deterministic. nftables is the modern backend for the same
+    # declarative options (iptables is the legacy compat path — Docker's
+    # own rules route through iptables-nft on top, which coexists fine
+    # with the nft-native nixos-fw table). Everything stays closed
+    # unless opened; sshd (via its module default) is the only exposed
+    # listener here.
+    networking.firewall.enable = true;
+    networking.nftables.enable = true;
     # Binary caches: self-hosted harmonia first, then psysonic's cachix,
     # then the canonical caches. (Nix tries every trusted key against
     # every substituter — the two lists do not need to match order.)
