@@ -10,8 +10,9 @@ let
   # The harmonia cache server (192.168.1.82). Its agenix identity is
   # the ssh HOST key, so the server needs no user identity. Fetched via
   # `ssh-keyscan` from the LAN (trust-on-first-use, same posture as the
-  # post-build-hook's accept-new); at adoption, verify it matches
-  #   ssh root@192.168.1.82 'cat /etc/ssh/ssh_host_ed25519_key.pub'
+  # post-build-hook's accept-new); verified 2026-09-04 against the
+  # box's /etc/ssh/ssh_host_ed25519_key.pub — key material identical,
+  # only the comment field differs (root@nix-cache vs root@192.168.1.82).
   harmonia =
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINtxzFwIX6e97M/y8aeL0qdI1lM7IykhxS49fe99c0b0 root@192.168.1.82";
 in

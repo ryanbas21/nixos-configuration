@@ -27,15 +27,14 @@
     # The underscore in ./harmonia/_hardware.nix keeps import-tree from
     # auto-importing it as a flake-parts module; it is a NixOS module
     # imported manually here, as the host's data.
-    module = { config, lib, ... }: {
+    module = { config, lib, pkgs, ... }: {
       # Host-specific data.
       networking.hostName = "harmonia";
       nixpkgs.hostPlatform = "x86_64-linux";
 
-      # TODO(first deploy): verify on the box (`nixos-version`, and the
-      # stateVersion in its current /etc/nixos/configuration.nix) and set
-      # to the release it was actually installed with. Never change it
-      # afterwards.
+      # Verified 2026-09-04 against the live box (root@192.168.1.82,
+      # /etc/nixos/configuration.nix on `nix-cache`): installed at
+      # 26.05. Never change it afterwards.
       system.stateVersion = "26.05";
 
       imports = [
@@ -44,7 +43,17 @@
       ];
 
       # --- minimal headless base (instead of nixos.modules.base) ---
+      # NOTE(adoption): the hand-configured box runs PermitRootLogin
+      # "yes" + PasswordAuthentication true. Module defaults are
+      # stricter (prohibit-password, no passwords) — from the first
+      # switch root login is key-only, which makes populating
+      # authorized_keys below a hard prerequisite: password recovery
+      # stops working at that same moment.
       services.openssh.enable = true;
+      # Local time for logs and the weekly GC timer; base sets this but
+      # is skipped here, so carry it explicitly. Parity with the
+      # hand-configured box (America/Denver).
+      time.timeZone = "America/Denver";
       # Compressed RAM swap as an OOM cushion — same rationale as
       # hardware.nix for the desktop, restated here because this host
       # skips nixos.modules.base (would move with it if a server tier
@@ -69,6 +78,11 @@
       # ready closures from the desktop and don't even need this.
       nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
+      # Parity with the box's hand-rolled package list — a console-only
+      # rescue/debug kit for incidents (the cache path itself needs
+      # none of these; harmonia's store is served, not built, there).
+      environment.systemPackages = with pkgs; [ git curl wget htop vim ];
+
       # --- the cache ---
       services.harmonia.cache = {
         enable = true;
@@ -86,20 +100,15 @@
       age.secrets.harmonia-signing-key.file = ../../secrets/harmonia-signing-key.age;
 
       # --- push access: the desktop's post-build-hook key ---
+      # Adopted 2026-09-04 from the box's live ~/.ssh/authorized_keys,
+      # which contained exactly this one key (desktop-nix-cache-push);
+      # nothing else to preserve. This assignment REPLACES the file on
+      # every switch — new keys get added HERE, never on the box. As
+      # adopted, the desktop is the only key-holder: if it dies,
+      # cache-server root access is VM-console-only until a personal
+      # admin key is added to this list.
       users.users.root.openssh.authorizedKeys.keys = [
-        # TODO(first deploy): on the DESKTOP run
-        #   sudo cat /root/.ssh/id_ed25519.pub
-        # and paste it here — that is the key already authorized on .82
-        # ("desktop-nix-cache-push"). Before deploying, diff against the
-        # server's current file
-        #   ssh root@192.168.1.82 'cat ~/.ssh/authorized_keys'
-        # and add any other admin keys to this list as well: this
-        # assignment REPLACES the file on switch, and dropping the
-        # deploy key would lock out remote rebuilds (console-only
-        # recovery).
-        #
-        # This placeholder cannot silently outlive adoption: the
-        # assertion below ties it to the hardware placeholder.
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIlMK7jt86TlHnzvths3bWymyEZfmfxJcUQ1PkuJ/HEJ desktop-nix-cache-push"
       ];
 
       # Adoption tripwire: an empty authorized_keys is not an eval error

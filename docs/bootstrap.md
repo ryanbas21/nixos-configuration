@@ -35,6 +35,7 @@ On `sudo nixos-rebuild switch --flake .#nixos`, activation also:
 | `~/.ssh/id_borg` | 1Password | agenix decryption of **every** secret | **First rebuild fails** — home-manager activation cannot decrypt; restore before rebuilding |
 | `~/.ssh/git` | 1Password | pushes to GitHub (git-backup timer, manual pushes, `gh` over ssh) | Timer pushes fail; rebuild still succeeds |
 | `/root/.ssh/id_ed25519` | 1Password | the harmonia post-build-hook cache push (authorized as `desktop-nix-cache-push` on the cache server) | **Silently** degrades — builds succeed but nothing warms the LAN cache (`|| true` by design); no warning is printed |
+| `.82` ssh **host** key | nowhere yet — save to 1Password at adoption, or rely on the rekey path | the cache server's agenix identity (decrypts `harmonia-signing-key.age` on that box) | Nothing is lost: the [resurrection runbook](#harmonia-resurrection-runbook-the-cache-vm) generates a fresh key and rekeys the secret to it |
 
 Restore with correct permissions: `chmod 600`.
 
@@ -223,6 +224,99 @@ generation, but avoid it — labeling takes five seconds). The disk's
 p1/p2 are dead leftovers from a previous install; harmless, ignored,
 and wiped whenever a disko run happens.
 
+## Harmonia resurrection runbook (the cache VM)
+
+The cache server is a QEMU/KVM guest. Its *contents* (cached store
+paths) are deliberately not reproducible — the cache re-warms itself
+from the desktop's builds via the post-build-hook, which is its whole
+design. What **is** reproducible: the VM's disk layout, system, and
+signing identity.
+
+### The VM spec (what is and is not in the repo)
+
+| fact | value | status |
+|---|---|---|
+| machine | QEMU/KVM guest, x86_64 (`qemu-guest` profile) | verified 2026-09-04 |
+| disk | single 64G virtual disk, IDE/SCSI presentation → `/dev/sda`; emulated cdrom `sr0` | verified |
+| boot | UEFI + systemd-boot | verified (systemd-boot requires UEFI) |
+| layout | `harmonia-ESP` 1023M + `harmonia-root` ext4 | `modules/computers/harmonia/_disko.nix` |
+| address | 192.168.1.82 via DHCP — the **router reservation** is outside the repo | TODO at adoption: confirm reservation |
+| shell | hypervisor host, vCPU/RAM, NIC model | TODO at adoption: fill in |
+
+### Resurrect
+
+1. **Recreate the VM** on whatever hypervisor ran it (fill the spec
+   table once known). Two presentation details the tracked layout
+   pins: the disk must land on `/dev/sda` — IDE/SCSI presentation; a
+   virtio-blk disk lands on `/dev/vda`, so either fix the two device
+   fields in `_disko.nix` or present the disk as IDE — and the guest
+   must boot **UEFI**, because systemd-boot does not boot from BIOS.
+   The
+   [rehearsal recipe](#rehearsing-the-runbook-in-a-vm-optional-before-a-reinstall)
+   shows the qemu-img/qemu pattern; add OVMF for UEFI
+   (`-drive if=pflash,format=raw,file=…/OVMF_CODE.fd` plus a writable
+copy of `OVMF_VARS.fd`).
+2. **Boot the NixOS minimal ISO in the VM**, partition and mount:
+
+   ```fish
+   nix run github:nix-community/disko -- -m destroy,format,mount \
+     -f github:ryanbas21/nixos-configuration#harmonia
+   ```
+
+   No adoption relabel step here — disko *sets* the
+   `harmonia-{ESP,root}` labels itself; that step exists only for
+   adopting a hand-partitioned disk.
+
+3. **Pre-seed the host key before install.** The signing secret is
+   age-encrypted to the host key, so the key must exist *before*
+   activation — otherwise nixos-install's agenix step fails to
+   decrypt (openssh would generate a key only later; it keeps
+   pre-existing ones):
+
+   ```sh
+   mkdir -p /mnt/etc/ssh
+   ssh-keygen -t ed25519 -N "" -f /mnt/etc/ssh/ssh_host_ed25519_key
+   cat /mnt/etc/ssh/ssh_host_ed25519_key.pub   # → to the desktop
+   ```
+
+   If the OLD host key was saved to 1Password, restore it to
+   `/mnt/etc/ssh/` instead and skip step 4 entirely.
+4. **On the desktop, rekey the secret to the new host key** (batman's
+   key can always decrypt — 1Password backup): update the `harmonia`
+   recipient in `secrets.nix` with the `.pub` from step 3, then run
+   `agenix -r` (re-encrypts every secret for its current recipients;
+   only the harmonia one gains the new host key). Commit and push.
+   Clients' `trusted-public-keys` pin the *signing* key
+   (`nix-cache-1:…`), which did not change — the rekey only changes
+   who may *read* the secret.
+5. **Install, from inside the VM:**
+
+   ```sh
+   nixos-install --flake github:ryanbas21/nixos-configuration#harmonia
+   ```
+
+   (the root-password prompt is the console-recovery path only).
+   Reboot into generation 1: the box comes up headless, serving
+   `:5000`, LAN-scoped firewall, zram swap — no setup phase.
+6. **On the desktop, heal the new host identity.** The post-build-hook
+   self-heals (`StrictHostKeyChecking=accept-new`), but interactive
+   rebuilds need the stale known_hosts entry gone first:
+
+   ```sh
+   ssh-keygen -R 192.168.1.82   # the next deploy re-trusts
+   ```
+
+7. **Re-warm.** The cache starts empty and fills as the desktop
+   builds. To force-warm the current system closure:
+
+   ```sh
+   sudo nix copy --to ssh://root@192.168.1.82 /run/current-system
+   ```
+
+The signing secret never left the repo (repo state since adoption);
+a resurrection's only fresh decisions are the host identity
+(steps 3–4) — after that, the cache refills on its own.
+
 ## Fresh laptop runbook (CachyOS, user ryan)
 
 1. Install nix (the multi-user daemon) if not already present.
@@ -281,11 +375,16 @@ Data and account state — restore or re-authenticate, don't expect Nix:
   `journalctl -u nix-daemon` after a big build if the cache seems cold.
   The server itself is now a tracked host (see
   [nix caches](programs/nix-caches.md#the-server-82--tracked-in-this-repo));
-  until the [adoption runbook](programs/nix-caches.md#bringing-82-under-management-one-time)
-  is completed, its placeholders make deploys fail loudly rather than
-  half-apply — and an eval-time assertion cross-locks the empty
-  authorized_keys placeholder against the hardware placeholder, so CI
-  flags a still-empty key list the moment the host becomes deployable.
+  adoption landed its real hardware file, disko mirror, and verified
+  stateVersion on 2026-09-04, and the fresh-metal path is documented
+  ([resurrection runbook](#harmonia-resurrection-runbook-the-cache-vm)).
+  Everything declarative landed the same day — real hardware file,
+  disko mirror, verified stateVersion, verified host-key recipient,
+  push key in authorized_keys: eval and CI are green. What remains is
+  physical only — the one-time sgdisk relabel on the box, then the
+  first `--target-host` deploy (see the
+  [adoption runbook](programs/nix-caches.md#bringing-82-under-management-one-time)
+  and [resurrection runbook](#harmonia-resurrection-runbook-the-cache-vm)).
 
 ### Deliberate: no impermanence
 

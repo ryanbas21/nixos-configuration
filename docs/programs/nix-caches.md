@@ -161,6 +161,12 @@ curl -sf http://192.168.1.82:5000/<that path's basename>.narinfo && echo PUSH WO
 it doubles as the definitive check that the push path, unverified
 since the hook landed, actually works.)
 
+### If the VM is ever recreated
+
+Full fresh-metal runbook — recreating the guest, pre-seeding its host
+key, re-keying the signing secret, re-warming — lives in
+[bootstrap](../bootstrap.md#harmonia-resurrection-runbook-the-cache-vm).
+
 ## nix-configs cachix: the cache as repo state
 
 The personal cachix cache's credentials are **provisions of this repo**,

@@ -214,6 +214,28 @@
 
       experimental-features = [ "nix-command" "flakes" ];
 
+      # Keep build inputs and derivers alive across the weekly GC in
+      # maintenance.nix (idea: mitchellh/nixos-config machines/macbook-
+      # pro-m1.nix). Without these, GC drops the build-time closure of
+      # anything not directly rooted, so dev shells (nix develop / direnv)
+      # rebuild after every GC run and `nix-store -q --references` on a
+      # live path stops seeing its inputs. keep-derivations retains the
+      # .drv of each live path; keep-outputs retains outputs of live
+      # derivations. Cost: faster /nix/store growth (auto-optimise-store
+      # softens it) — fine on the desktop; the harmonia host skips
+      # nixos.modules.base and stays lean on purpose.
+      keep-derivations = true;
+      keep-outputs = true;
+
+      # Trust the desktop user (mitchellh's @admin equivalent): batman
+      # is in wheel (users.nix), so batman-invoked `nix build` — not just
+      # daemon-driven nixos-rebuilds — may use every substituter above
+      # and fires post-build-hook, meaning warm-the-cache pushes happen
+      # for ad-hoc builds too. The module default already contributes
+      # "root" (lists merge), so only wheel needs to be added. No new
+      # capability granted: wheel already has sudo.
+      trusted-users = [ "@wheel" ];
+
       # Warm the home-lab harmonia cache: every path this machine BUILDS
       # (as opposed to substitutes) is pushed to the cache server's nix
       # store after the build. Harmonia 3.x serves that store over HTTP

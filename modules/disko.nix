@@ -7,5 +7,6 @@
 { ... }: {
   flake.diskoConfigurations = {
     nixos = import ./computers/nixos/_disko.nix;
+    harmonia = import ./computers/harmonia/_disko.nix;
   };
 }
