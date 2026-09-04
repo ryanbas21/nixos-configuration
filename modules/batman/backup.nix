@@ -70,6 +70,12 @@
       frequency = "daily";
     };
 
+    # STABILITY WARNING: any change to this unit's content makes
+    # home-manager restart it during the next switch — and restarting
+    # this oneshot runs a full backup synchronously inside the switch
+    # (the 3m ExecStartPre settle + borg over NFS). Backup *config*
+    # changes belong in programs.borgmatic above (writes the yaml,
+    # leaves this unit untouched). Learned the hard way 2026-09-04.
     systemd.user.services.borgmatic = {
       Service = {
         EnvironmentFile = config.age.secrets.borg-passphrase.path;

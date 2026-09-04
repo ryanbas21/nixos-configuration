@@ -23,10 +23,15 @@
         # default path is the literal "${XDG_RUNTIME_DIR}/agenix/
         # borg-passphrase", which systemd silently ignores (the
         # journal's "path is not absolute" warning), meaning borgmatic
-        # ran WITHOUT BORG_PASSPHRASE. Force the evaluated absolute
-        # path; agenix.service decrypts to this same option, so the
-        # runtime location moves consistently.
-        path = "/run/user/${toString config.home.uid}/agenix/borg-passphrase";
+        # ran WITHOUT BORG_PASSPHRASE. The path must be a fully
+        # evaluated absolute value: config.home.uid is EMPTY under
+        # NixOS-integrated home-manager (uid not statically known —
+        # "/run/user//agenix" killed both agenix.service and
+        # borgmatic's env load), so pin batman's uid directly. 1000 is
+        # the documented runtime dir (bootstrap.md, secrets.md); if the
+        # uid ever changes, this moves with those docs. agenix.service
+        # decrypts to this same option, so both sides stay in sync.
+        path = "/run/user/1000/agenix/borg-passphrase";
       };
       zai-api-key.file = ../../secrets/zai-api-key.age;
     };
