@@ -9,9 +9,23 @@
 # each non-NixOS machine pulls — ryan-linux on an x86_64-linux runner,
 # ryan-intel-mac on GitHub's Intel macOS runners (the last x86_64 images
 # Actions offers) — catching build failures that evaluation cannot see.
-# The NixOS toplevel itself stays unbuilt in CI: a full system build on an
-# unpersisted runner costs hours for little signal, and build failures
-# there surface at the desktop's `nixos-rebuild` anyway.
+# The DESKTOP's NixOS toplevel stays unbuilt in CI: a full system build
+# on an unpersisted runner costs hours for little signal, and build
+# failures there surface at the desktop's `nixos-rebuild` anyway. The
+# harmonia host is the exception (build-harmonia): its closure is tiny
+# and almost entirely substitutable from cache.nixos.org, so building
+# it costs minutes and warms nix-configs — every later `--target-host`
+# deploy substitutes instead of building. test-harmonia goes further:
+# it BOOTS the real harmonia module as a UEFI QEMU guest and proves
+# the cache serves signed narinfos (modules/computers/harmonia/
+# vm-test.nix) — the resurrection guarantee, on every push.
+#
+# CI never touches the harmonia server itself: it is LAN-only by
+# design (nftables subnet scoping), which GitHub runners cannot
+# reach — and tunneling runners into the home LAN to warm a cache
+# cachix already covers would trade the firewall posture for nothing.
+# The split is deliberate: CI warms the public cache (nix-configs),
+# the desktop's post-build-hook warms the LAN cache (harmonia).
 #
 # The build job's substituters are the repo's set (modules/nixos/base.nix)
 # minus the LAN harmonia server, which GitHub runners cannot reach;
@@ -153,3 +167,68 @@ jobs:
 
       - name: Build the ${{ matrix.home }} activation package
         run: nix build .#homeConfigurations.${{ matrix.home }}.activationPackage
+
+  build-harmonia:
+    # The cache server's own NixOS closure. Small and almost entirely
+    # substitutable from cache.nixos.org, so this composes the system
+    # (minutes, not hours) and pushes the few new paths to nix-configs:
+    # later `--target-host` deploys then substitute instead of build.
+    # This warms the PUBLIC cache — runners cannot reach the LAN
+    # server (and must not; see the header). Steps mirror build-homes;
+    # the hard-won cachix settings are explained in that job's comments.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+        with:
+          # Same pin as flake-check: evaluator parity with the desktop.
+          install_url: https://releases.nixos.org/nix/nix-2.34.8/install
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+            substituters = https://nix-configs.cachix.org https://cache.nixos.org https://cache.numtide.com https://psysonic.cachix.org
+            trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA=
+
+      - name: Configure cachix
+        # Same env-routed skip as build-homes: `secrets` is not allowed
+        # in `if:` expressions, and fork PRs never see secrets.
+        env:
+          have_cachix_keys: ${{ secrets.CACHIX_AUTH_TOKEN != '' && secrets.CACHIX_SIGNING_KEY != '' }}
+        if: env.have_cachix_keys == 'true'
+        uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        with:
+          name: nix-configs
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
+          useDaemon: false
+
+      - name: Build the harmonia system closure
+        run: nix build --no-link .#nixosConfigurations.harmonia.config.system.build.toplevel
+
+  test-harmonia:
+    # Boots the REAL harmonia host module as a UEFI QEMU guest and
+    # verifies the cache serves signed narinfos
+    # (modules/computers/harmonia/vm-test.nix). Standard runners have
+    # no /dev/kvm, so the VM runs under TCG emulation — slower than
+    # locally, but the whole closure substitutes from the caches
+    # (build-harmonia warms nix-configs; the rest comes from
+    # cache.nixos.org), so the job is build-light, boot-heavy.
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+        with:
+          # Same pin as flake-check: evaluator parity with the desktop.
+          install_url: https://releases.nixos.org/nix/nix-2.34.8/install
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+            substituters = https://nix-configs.cachix.org https://cache.nixos.org
+            trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+
+      - name: Boot the harmonia VM and verify the cache
+        run: nix build -L .#checks.x86_64-linux."harmonia:vm-test"

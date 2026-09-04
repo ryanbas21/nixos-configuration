@@ -219,4 +219,12 @@ rebuilding. Three hard-won settings:
 The step is skipped when either secret is absent (fork PRs, or before
 the cache existed), so the workflow stays green without them. CI's
 substituters are the repo's set minus the LAN harmonia server, which
-GitHub runners cannot reach.
+GitHub runners cannot reach — and never should: the server is
+LAN-only by design, and a CI→LAN tunnel would trade the firewall
+posture for a cache cachix already covers. The split is the
+architecture: **CI warms the public cache, the desktop's
+post-build-hook warms the LAN cache.** Since the harmonia host's
+adoption, CI additionally builds that host's toplevel
+(`build-harmonia`) — its closure is small and mostly substitutable
+upstream, so the job costs minutes and makes every later
+`--target-host` deploy a pure substitution.

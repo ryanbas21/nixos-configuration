@@ -30,7 +30,11 @@
     module = { config, lib, pkgs, ... }: {
       # Host-specific data.
       networking.hostName = "harmonia";
-      nixpkgs.hostPlatform = "x86_64-linux";
+      # nixpkgs.hostPlatform is deliberately NOT set here: the real
+      # eval gets it from the eval wiring (modules/nixos.nix
+      # extraModules), and the VM test (harmonia/vm-test.nix) imports
+      # this module under the test framework's read-only pkgs, where
+      # any definition collides ("set multiple times").
 
       # Verified 2026-09-04 against the live box (root@192.168.1.82,
       # /etc/nixos/configuration.nix on `nix-cache`): installed at
@@ -97,8 +101,13 @@
         # under /run/credentials), so the agenix secret stays root-owned
         # 0400 — no ownership juggling.
         signKeyPaths = [ config.age.secrets.harmonia-signing-key.path ];
-        # settings defaults apply (bind [::]:5000, priority 50) — matching
-        # what the hand-configured .82 serves today.
+        # settings stay at module defaults (bind [::]:5000, priority 50)
+        # — deliberately NOT the hand config's virtual_nix_store/
+        # real_nix_store pair: setting those activates harmonia's
+        # virtual-store mode, which 404s every narinfo in the VM test
+        # (2026-09-04, three hypotheses deep). Defaults were proven on
+        # the deployed box itself: the first --target-host switch served
+        # a signed system-toplevel narinfo immediately after.
       };
       # System-level agenix: decrypt with the host's own ssh host key,
       # so the server needs no user identity at all.

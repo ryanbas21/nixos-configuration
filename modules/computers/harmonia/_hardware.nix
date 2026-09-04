@@ -1,8 +1,8 @@
 # The harmonia host's hardware facts — real nixos-generate-config
 # output from the box (2026-09-04) replacing the adoption placeholder.
 # The box is a QEMU/KVM guest: virtio disks, qemu-guest profile.
-# nixpkgs.hostPlatform is owned by computers/harmonia.nix (explicit
-# beats the generated mkDefault, so that line was dropped).
+# nixpkgs.hostPlatform is owned by the eval wiring (modules/nixos.nix
+# extraModules — see the comment there for why it left the host files).
 #
 # Mounts follow the repo's labels contract (as computers/nixos/
 # _hardware.nix does): /dev/disk/by-partlabel/harmonia-{ESP,root},

@@ -5,12 +5,13 @@
     # (imports modulesPath + "/installer/scan/not-detected.nix") and is
     # imported manually here, as the host's data.
     module = {
-      # Host-specific data (hostname, platform, stateVersion, NFS
+      # Host-specific data (hostname, stateVersion, NFS
       # automounts) lives with the host, not in the shared
-      # nixos.modules.base.
+      # nixos.modules.base. nixpkgs.hostPlatform is NOT set here — it
+      # is owned by the eval wiring (modules/nixos.nix extraModules)
+      # so host modules stay importable by the VM tests.
       networking.hostName = "nixos"; # Define your hostname.
 
-      nixpkgs.hostPlatform = "x86_64-linux";
       system.stateVersion = "26.05";
 
       # NFS automounts from the Synology NAS at 192.168.1.30, plus the
