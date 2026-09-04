@@ -2,41 +2,39 @@
 { inputs, ... }: {
   users.batman.home.base = { lib, pkgs, ... }: {
 
-    # The chunks preserve the desktop's historical package order exactly:
-    # fd bat kate discord ripgrep gnumake gcc git ghostty sshfs.
-    # (The 1Password GUI is system-level — modules/onepassword.nix — and
-    # the desktop's op is the setgid onepassword-cli wrapper from the same
-    # module; /run/wrappers/bin precedes profiles in PATH, so this package
-    # only actually serves the standalone laptop/Mac exports.)
+    # Two chunks: everything, plus one Linux-only block (no x86_64-darwin
+    # builds, or deliberately Mac-excluded — per-package reasons live in
+    # docs/programs/shell-and-cli.md). The 1Password GUI is system-level
+    # — modules/onepassword.nix — and the desktop's op is the setgid
+    # onepassword-cli wrapper from the same module; /run/wrappers/bin
+    # precedes profiles in PATH, so the CLI package here only actually
+    # serves the standalone Linux laptop.
     home.packages = lib.mkMerge [
-      (with pkgs; [ fd bat xclip _1password-cli cachix ])
-      # Linux-only: the agenix CLI is built by the agenix flake input,
-      # which follows the root nixpkgs (unstable) — and unstable 26.11
-      # dropped x86_64-darwin, so forcing this package on the Intel Mac
-      # export throws. Secrets are edited on the desktop, which is also
-      # the machine holding the agenix decryption identity.
+      (with pkgs; [ fd bat xclip cachix ripgrep ])
+
+      # Linux-only
       (lib.mkIf pkgs.stdenv.hostPlatform.isLinux [
         inputs.agenix.packages.${pkgs.stdenv.hostPlatform.system}.default
-      ])
-      # Linux-only: kate, ghostty, and sshfs do not exist for
-      # x86_64-darwin in nixpkgs, so they are kept off the Intel Mac
-      # standalone export. Gated on the home-manager-side stdenv
-      # (per-target pkgs).
-      (lib.mkIf pkgs.stdenv.hostPlatform.isLinux (with pkgs; [ kdePackages.kate ]))
-      (with pkgs; [ discord ripgrep gnumake gcc git ])
-      (lib.mkIf pkgs.stdenv.hostPlatform.isLinux (with pkgs; [ ghostty sshfs ]))
-      # Linux-only: psysonic publishes no darwin packages and rigup's
-      # x86_64-darwin output fails against nixpkgs unstable, so both stay
-      # off the Intel Mac standalone export.
-      (lib.mkIf pkgs.stdenv.hostPlatform.isLinux [
         inputs.psysonic.packages.${pkgs.stdenv.hostPlatform.system}.psysonic
         inputs.rigup.packages.${pkgs.stdenv.hostPlatform.system}.rigup
+
         # Add temperature monitoring
         pkgs.lm_sensors
         pkgs.btop
+
+        #messaging
+        pkgs.signal-desktop
+        pkgs.discord
+
+        pkgs._1password-cli
+
+        #utils
+        pkgs.gnumake
+        pkgs.gcc
+        pkgs.git
+        pkgs.ghostty
+        pkgs.sshfs
       ])
-
-
     ];
   };
 }

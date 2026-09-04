@@ -37,7 +37,7 @@ imports it manually). Non-NixOS machines consume the standalone
 `homeConfigurations` built by `modules/home.nix` — no hardware anything,
 user-space only. Both kinds eat the same feature files through
 `users.<name>.home.*`, so fish and packages stay identical across the
-fleet (modulo the Linux-only bits: nvf, kate, ghostty, sshfs, and the
+fleet (modulo the Linux-only bits: nvf, ghostty, sshfs, messaging, and the
 desktop's backup timers).
 
 ## Three terms, one sentence each
@@ -225,7 +225,7 @@ Read the repo in this order:
 │       ├── agenix.nix           user-level secrets + GPG auto-import
 │       ├── agents.nix           pi + llm-agents tools, model router
 │       ├── nvf.nix              nvf wiring (+ ryan-nvim injection); Linux-only
-│       ├── packages.nix         home.packages (1Password, build tools, ...)
+│       ├── packages.nix         home.packages (messaging, 1Password CLI, build tools)
 │       ├── backup.nix           borgmatic + git backup timer (home.pc; desktop)
 │       ├── cachix.nix           nix-configs cache: agenix creds + CI secret
 │       │                        sync + Mac's declarative nix.conf

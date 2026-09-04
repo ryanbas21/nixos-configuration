@@ -74,6 +74,10 @@ Notes on the existing entries:
   warn (fzf 0.72 vs fishPlugins.fzf-fish meta) and
   `programs.fzf.enableNushellIntegration = false` (home-manager master's
   fzf 0.73 floor). See the comments in `modules/home.nix`.
+- The Mac self-manages 1Password: the app + `op` are installed on macOS
+  itself, outside this repo. That's why `1password-cli` in
+  `batman/packages.nix` is Linux-only — nothing on the Mac needs it
+  from the profile, so this is intentional, not a regression.
 
 ## Hardware
 

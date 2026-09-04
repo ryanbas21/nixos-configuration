@@ -51,21 +51,32 @@ nushell integration.
 
 ## Package inventory (`batman/packages.nix`)
 
-Assigned to `home.base` (every machine), in chunks that preserve the
-desktop's historical order — `fd bat kate discord ripgrep gnumake gcc
-git ghostty sshfs` — plus later additions:
+Assigned to `home.base`, in two chunks: one everywhere-block plus a
+single consolidated Linux-only block (one
+`mkIf pkgs.stdenv.hostPlatform.isLinux`, per the gating convention
+below):
 
-- **Everywhere:** `fd`, `bat`, `xclip`, `1password-cli` + `1password-gui`
-  (both on the `unfreeNames` allowlist in `modules/lib.nix`), `cachix`.
-- **Linux-only, with reasons** (all wrapped in
-  `mkIf pkgs.stdenv.hostPlatform.isLinux`):
+- **Everywhere:** `fd`, `bat`, `xclip`, `cachix`, `ripgrep`.
+- **Linux-only, with reasons:**
   - `agenix` CLI — built by the agenix flake input following unstable
     nixpkgs; unstable 26.11 dropped `x86_64-darwin`. Secrets are edited
     on the desktop, which also holds the agenix identity.
-  - `kate`, `ghostty`, `sshfs` — no `x86_64-darwin` package in nixpkgs.
+  - `ghostty`, `sshfs` — no `x86_64-darwin` package in nixpkgs.
   - `psysonic`, `rigup` — the former publishes no darwin packages; the
     latter's darwin output fails against unstable.
   - `lm_sensors`, `btop` — hardware monitoring.
+  - `signal-desktop`, `discord` — messaging; `discord` is on the
+    `unfreeNames` allowlist in `modules/lib.nix` (the Mac keeps no
+    messaging apps from this repo). `kate` was dropped from the fleet
+    entirely — the desktop no longer installs a GUI editor from here.
+  - `1password-cli` — on the `unfreeNames` allowlist; on NixOS the
+    setgid `op` wrapper from `modules/onepassword.nix` shadows any
+    profile copy (`/run/wrappers/bin` precedes profiles in PATH), so
+    this entry serves the standalone Linux laptop. The 1Password GUI
+    itself is system-level, NixOS-only, and the Mac installs 1Password
+    natively outside this repo ([machines](../machines.md)).
+  - `gnumake`, `gcc`, `git` — build tools and git (the Mac relies on
+    Xcode Command Line Tools for these).
 - **From flake inputs:** `psysonic`, `rigup` (own nixpkgs pins).
 
 The gating convention used here (and in nvf/vicinae/ghostty/agents):
