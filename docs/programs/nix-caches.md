@@ -76,13 +76,17 @@ host-key recipient in `secrets.nix` re-creates the server; cache
 
 ### Bringing .82 under management (one-time)
 
-**Status:** the secrets side is done — the signing key is aged in
-(encrypted to batman + the server's host key, verified against the
-public pin) and the recipients are wired. Remaining: the hardware scan
-(step 3), the stateVersion check (step 2), the push-key paste (step 8),
-and the deploy (step 10). **`scripts/adopt-harmonia.sh` automates
-steps 1–6, 8 and 9** — run it on the desktop, then finish the printed
-checklist (stateVersion, key paste, commit, deploy, verify).
+**Status: done (2026-09-04).** The full runbook walked end-to-end:
+real `_hardware.nix` from the box's `nixos-generate-config`, the
+disko mirror (`_disko.nix`, `sda` verified), stateVersion confirmed
+26.05, the host-key recipient verified against the box, the push key
+pasted (the box's authorized_keys held only that one key), labels set
+on the live disk, and the first `--target-host` deploy switched the
+box — during which the post-build-hook warmed the cache so the
+deploy's copy step moved 0 paths, and the server came back serving
+signed narinfos under `nix-cache-1`. Retained as reference (and as
+the template for adopting any future hand-configured box);
+`scripts/adopt-harmonia.sh` automated steps 1–6, 8 and 9.
 
 The host file ships with three deliberate placeholders that must be
 filled before the first deploy (each is marked `TODO(first deploy)`

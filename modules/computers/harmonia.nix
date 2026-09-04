@@ -43,13 +43,19 @@
       ];
 
       # --- minimal headless base (instead of nixos.modules.base) ---
-      # NOTE(adoption): the hand-configured box runs PermitRootLogin
-      # "yes" + PasswordAuthentication true. Module defaults are
-      # stricter (prohibit-password, no passwords) — from the first
-      # switch root login is key-only, which makes populating
-      # authorized_keys below a hard prerequisite: password recovery
-      # stops working at that same moment.
+      # NOTE(adoption, learned on the first switch 2026-09-04): the
+      # hand-configured box ran PermitRootLogin "yes" + password auth,
+      # and root-by-password was the human's access path. The switch
+      # applied the module default PermitRootLogin "prohibit-password"
+      # and killed that path in one step. NixOS does NOT default
+      # PasswordAuthentication off (upstream default true — verified
+      # on the deployed box), so it is closed explicitly here: no
+      # non-root users exist anyway, making the box fully key-only.
+      # Human access: batman's id_borg (authorized_keys below); ops
+      # access: sudo ssh from the desktop (the push key); last resort:
+      # the VM console.
       services.openssh.enable = true;
+      services.openssh.settings.PasswordAuthentication = false;
       # Local time for logs and the weekly GC timer; base sets this but
       # is skipped here, so carry it explicitly. Parity with the
       # hand-configured box (America/Denver).
@@ -99,16 +105,17 @@
       age.identityPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
       age.secrets.harmonia-signing-key.file = ../../secrets/harmonia-signing-key.age;
 
-      # --- push access: the desktop's post-build-hook key ---
-      # Adopted 2026-09-04 from the box's live ~/.ssh/authorized_keys,
-      # which contained exactly this one key (desktop-nix-cache-push);
-      # nothing else to preserve. This assignment REPLACES the file on
-      # every switch — new keys get added HERE, never on the box. As
-      # adopted, the desktop is the only key-holder: if it dies,
-      # cache-server root access is VM-console-only until a personal
-      # admin key is added to this list.
+      # --- root access: the push key + batman's admin key ---
+      # The push key was adopted verbatim 2026-09-04 from the box's
+      # live authorized_keys (its only entry). batman's id_borg — the
+      # same key that is the agenix identity (secrets.nix); only the
+      # public half ships here — is authorized so plain
+      # `ssh root@192.168.1.82` from the desktop works without sudo.
+      # This assignment REPLACES the file on every switch: new keys
+      # get added HERE, never on the box.
       users.users.root.openssh.authorizedKeys.keys = [
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIlMK7jt86TlHnzvths3bWymyEZfmfxJcUQ1PkuJ/HEJ desktop-nix-cache-push"
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIELiz8KiOJ2x7L1J2yx3X8RZkZ3bd/uHcsUH5rzVw8Cl batman@nixos"
       ];
 
       # Adoption tripwire: an empty authorized_keys is not an eval error

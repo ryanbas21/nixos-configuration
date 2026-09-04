@@ -378,13 +378,14 @@ Data and account state — restore or re-authenticate, don't expect Nix:
   adoption landed its real hardware file, disko mirror, and verified
   stateVersion on 2026-09-04, and the fresh-metal path is documented
   ([resurrection runbook](#harmonia-resurrection-runbook-the-cache-vm)).
-  Everything declarative landed the same day — real hardware file,
-  disko mirror, verified stateVersion, verified host-key recipient,
-  push key in authorized_keys: eval and CI are green. What remains is
-  physical only — the one-time sgdisk relabel on the box, then the
-  first `--target-host` deploy (see the
-  [adoption runbook](programs/nix-caches.md#bringing-82-under-management-one-time)
-  and [resurrection runbook](#harmonia-resurrection-runbook-the-cache-vm)).
+  Everything landed 2026-09-04 — real hardware file, disko mirror,
+  verified stateVersion, verified host-key recipient, push key in
+  authorized_keys, the one-time sgdisk relabel, and the first
+  `--target-host` deploy (which the cache itself warmed: the desktop's
+  post-build-hook pushed the new closure before the deploy's own copy
+  step ran, so it copied 0 paths). The box is fully under management;
+  see the [adoption runbook](programs/nix-caches.md#bringing-82-under-management-one-time)
+  and [resurrection runbook](#harmonia-resurrection-runbook-the-cache-vm).
 
 ### Deliberate: no impermanence
 
