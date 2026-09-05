@@ -5,7 +5,7 @@
 # merged here — it stays NixOS-side via users.<name>.nixos.base.
 { config, lib, inputs, evalModulesModule, unfreeNames, ... }: {
   options.home.configurations = lib.mkOption {
-    type = lib.types.lazyAttrsOf (lib.types.submodule (homeArgs @ { name, ... }: {
+    type = lib.types.lazyAttrsOf (lib.types.submodule (homeArgs @ { ... }: {
       imports = [ evalModulesModule ];
       options = {
         username = lib.mkOption { type = lib.types.str; };
@@ -43,8 +43,8 @@
           imports = [
             config.homeManager.modules.base
             config.users.batman.home.base
-
           ];
+
           home = {
             username = homeArgs.config.username;
             homeDirectory = homeArgs.config.homeDirectory;

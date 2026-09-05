@@ -10,7 +10,7 @@
     # precedes profiles in PATH, so the CLI package here only actually
     # serves the standalone Linux laptop.
     home.packages = lib.mkMerge [
-      (with pkgs; [ fd bat xclip cachix ripgrep ])
+      (with pkgs; [ fd bat xclip cachix ripgrep tree ])
 
       # Linux-only
       (lib.mkIf pkgs.stdenv.hostPlatform.isLinux [

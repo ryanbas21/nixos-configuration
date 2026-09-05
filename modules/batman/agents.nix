@@ -1,9 +1,37 @@
 # Agent tools for batman
 { inputs, ... }:
 
+
 {
   users.batman.home.base = { lib, pkgs, ... }:
     let
+      llm-agents = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system};
+      nodeGyp = pkgs.writeShellScriptBin "node-gyp" ''
+        exec "${pkgs.nodejs}/bin/node" \
+          "${pkgs.nodejs}/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js" "$@"
+      '';
+      # ... put nodeGyp in the makeBinPath list instead of pkgs.node-gyp
+      # pi installs extensions at runtime into ~/.pi/agent/npm via bun
+      # (settings.json "packages"). Native deps like node-pty fall back to
+      # node-gyp when no prebuild matches, so pi needs a build chain on
+      # its PATH — scoped to pi, not the user session or systemPackages.
+      piWrapped = pkgs.symlinkJoin {
+        name = "pi";
+        paths = [ llm-agents.pi ];
+        nativeBuildInputs = [ pkgs.makeBinaryWrapper ];
+        postBuild = ''
+          wrapProgram $out/bin/pi --prefix PATH : ${
+            pkgs.lib.makeBinPath [
+              pkgs.bun # npmCommand = [ "bun" ]
+              pkgs.nodejs
+              nodeGyp
+              pkgs.python3
+              pkgs.gnumake
+              pkgs.gcc
+            ]
+          }
+        '';
+      };
       piMcp = { };
       piModelRouter = {
         maxSessionBudget = 1.0;
@@ -91,7 +119,7 @@
       # per-system set stops at aarch64/x86_64-linux), so forcing these
       # on the Intel Mac export throws "attribute 'x86_64-darwin' missing".
       home.packages = lib.mkIf pkgs.stdenv.hostPlatform.isLinux [
-        inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.pi
+        piWrapped
         pkgs.bun
         inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.openskills
         inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.plannotator

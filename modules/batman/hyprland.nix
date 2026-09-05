@@ -707,8 +707,9 @@
             };
           };
 
-          clock.format = "${glyph "f017"} {:%H:%M}";
+          clock.format = "${glyph "f017"} {:%I:%M %p}";
           "clock#date".format = "${glyph "f073"} {:%A, %B %d}";
+
 
           "custom/launcher" = {
             format = "❯";
