@@ -5,7 +5,7 @@
 # key. Home-manager backs the existing manual ~/.ssh/config up to *.bak
 # on first activation (backupFileExtension).
 { ... }: {
-  users.batman.home.pc = {...}: {
+  users.batman.home.pc = { ... }: {
     programs.ssh = {
       enable = true;
       # Opt out of home-manager's built-in default block (deprecated; it
@@ -46,6 +46,12 @@
           IdentitiesOnly = true;
         };
       };
+      extraConfig = ''
+        Host 192.168.1.82
+          User root
+          IdentityFile /home/batman/.ssh/id_borg
+          IdentitiesOnly yes
+      '';
     };
   };
 }

@@ -43,6 +43,7 @@
 
       imports = [
         ./harmonia/_hardware.nix
+        ./harmonia/_remote-builder.nix
         inputs.agenix.nixosModules.default
       ];
 
@@ -125,6 +126,7 @@
       users.users.root.openssh.authorizedKeys.keys = [
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIlMK7jt86TlHnzvths3bWymyEZfmfxJcUQ1PkuJ/HEJ desktop-nix-cache-push"
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIELiz8KiOJ2x7L1J2yx3X8RZkZ3bd/uHcsUH5rzVw8Cl batman@nixos"
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHfLjVoQb6UFKvs5mo4PdTBWILJksyQytl6/vjJWG01y framework-remote-build"
       ];
 
       # Adoption tripwire: an empty authorized_keys is not an eval error

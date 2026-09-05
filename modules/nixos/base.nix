@@ -251,9 +251,10 @@
       # (|| true inside the script) so a down cache server can never
       # fail a build.
       post-build-hook = "${pkgs.writeShellScript "push-to-harmonia" ''
-        export NIX_SSHOPTS="-o StrictHostKeyChecking=accept-new -o BatchMode=yes"
-        nix copy --to ssh://root@192.168.1.82 $OUT_PATHS || true
-      ''}";
+    export NIX_SSHOPTS="-o StrictHostKeyChecking=accept-new -o BatchMode=yes -o IdentitiesOnly=yes -o IdentityFile=/home/batman/.ssh/harmonia"
+    nix copy --to ssh://root@192.168.1.82 $OUT_PATHS || true
+  ''}";
+
     };
   };
 }
