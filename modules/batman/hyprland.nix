@@ -684,7 +684,7 @@
 
           modules-left = [ "custom/launcher" "clock" "clock#date" ];
           modules-center = [ "wlr/workspaces" ];
-          modules-right = [ "tray" "pulseaudio" "network" "custom/powermenu" ];
+          modules-right = [ "tray" "pulseaudio" "battery" "network" "custom/powermenu" ];
 
           "wlr/workspaces" = {
             disable-scroll = true;
@@ -719,7 +719,25 @@
             on-click = "${powerMenu}";
             tooltip = false;
           };
-
+          battery = {
+            # No `bat` device pinned — waybar auto-detects via upower/sysfs,
+            # so this stays silent on batman-the-desktop and shows on the
+            # AMD laptop (same home.pc config, different hardware).
+            states = {
+              warning = 30;
+              critical = 15;
+            };
+            format = "{icon} {capacity}%";
+            format-charging = "${glyph "f0e7"} {capacity}%";
+            format-icons = [
+              (glyph "f244") # empty
+              (glyph "f243") # quarter
+              (glyph "f242") # half
+              (glyph "f241") # three-quarters
+              (glyph "f240") # full
+            ];
+            tooltip-format = "{capacity}% ({timeTo})";
+          };
           pulseaudio = {
             format = "{icon} {volume}%";
             format-muted = "${glyph "f026"} muted";
@@ -749,84 +767,103 @@
         # underline. Everforest palette inlined via @define-color so
         # this file is self-contained.
         style = with everforest; ''
-          @define-color bg0 #${bg0};
-          @define-color bg1 #${bg1};
-          @define-color fg #${fg};
-          @define-color red #${red};
-          @define-color green #${green};
-          @define-color blue #${blue};
-          @define-color accent #${accent};
+                    @define-color bg0 #${bg0};
+                    @define-color bg1 #${bg1};
+                    @define-color fg #${fg};
+                    @define-color red #${red};
+                    @define-color green #${green};
+                    @define-color blue #${blue};
+                    @define-color accent #${accent};
 
-          * {
-            font-family: JetBrainsMono Nerd Font, FontAwesome;
-            font-size: 16px;
-            font-weight: bold;
+                    * {
+                      font-family: JetBrainsMono Nerd Font, FontAwesome;
+                      font-size: 16px;
+                      font-weight: bold;
+                    }
+
+                   #battery {
+                      background-color: @bg0;
+                      color: @fg;
+                      padding-left: 10px;
+                      padding-right: 10px;
+                      margin-top: 7px;
+                      margin-bottom: 12px;
+                      border-radius: 10px;
+                      border-bottom: 5px solid #161a1d;
+                    }
+
+          #battery.warning {
+            color: @accent;
           }
 
-          window#waybar {
-            background-color: @fg;
-            color: @bg0;
-            border-radius: 0px 0px 15px 15px;
-            border-bottom: 5px solid @accent;
-          }
-
-          #custom-launcher,
-          #clock,
-          #clock-date,
-          #workspaces,
-          #pulseaudio,
-          #network,
-          #tray,
-          #custom-powermenu {
-            background-color: @bg0;
-            color: @fg;
-            padding-left: 10px;
-            padding-right: 10px;
-            margin-top: 7px;
-            margin-bottom: 12px;
-            border-radius: 10px;
-            border-bottom: 5px solid #161a1d;
-          }
-
-          #workspaces {
-            padding: 0px;
-          }
-
-          #workspaces button {
-            padding: 0px 6px;
-            color: @fg;
-            background-color: transparent;
-            border-radius: 10px;
-          }
-
-          #workspaces button.active {
-            background-color: @blue;
-            color: @bg0;
-            border-bottom: 5px solid #366660;
-          }
-
-          #custom-launcher {
-            background-color: @green;
-            color: @bg0;
-            border-bottom-color: #556a35;
-            margin-left: 15px;
-            padding-left: 20px;
-            padding-right: 21px;
-          }
-
-          #custom-powermenu {
-            background-color: @red;
-            color: @bg0;
+          #battery.critical {
+            color: @red;
             border-bottom-color: #951c1f;
-            margin-right: 15px;
-            padding-left: 20px;
-            padding-right: 23px;
           }
+                    window#waybar {
+                      background-color: @fg;
+                      color: @bg0;
+                      border-radius: 0px 0px 15px 15px;
+                      border-bottom: 5px solid @accent;
+                    }
 
-          #tray {
-            padding-left: 15px;
-            padding-right: 15px;
-          }
+                    #custom-launcher,
+                    #clock,
+                    #clock-date,
+                    #workspaces,
+                    #pulseaudio,
+                    #network,
+                    #tray,
+                    #custom-powermenu {
+                      background-color: @bg0;
+                      color: @fg;
+                      padding-left: 10px;
+                      padding-right: 10px;
+                      margin-top: 7px;
+                      margin-bottom: 12px;
+                      border-radius: 10px;
+                      border-bottom: 5px solid #161a1d;
+                    }
+
+                    #workspaces {
+                      padding: 0px;
+                    }
+
+                    #workspaces button {
+                      padding: 0px 6px;
+                      color: @fg;
+                      background-color: transparent;
+                      border-radius: 10px;
+                    }
+
+                    #workspaces button.active {
+                      background-color: @blue;
+                      color: @bg0;
+                      border-bottom: 5px solid #366660;
+                    }
+
+                    #custom-launcher {
+                      background-color: @green;
+                      color: @bg0;
+                      border-bottom-color: #556a35;
+                      margin-left: 15px;
+                      padding-left: 20px;
+                      padding-right: 21px;
+                    }
+
+                    #custom-powermenu {
+                      background-color: @red;
+                      color: @bg0;
+                      border-bottom-color: #951c1f;
+                      margin-right: 15px;
+                      padding-left: 20px;
+                      padding-right: 23px;
+                    }
+
+                    #tray {
+                      padding-left: 15px;
+                      padding-right: 15px;
+                    }
         '';
       };
     };
