@@ -2,27 +2,53 @@
 
 [← program notes](index.md) · modules: `batman/backup.nix`, `scripts/git-backup.sh`
 
-Desktop-only: assigned to `home.pc`, not `home.base`, so the standalone
-home-manager exports (laptop, Mac) never inherit the backup timers or
-the NFS-mount-dependent borgmatic config. Two halves: data (borgmatic)
-and config (the git timer).
+NixOS hosts only: assigned to `home.pc`, not `home.base`, so the
+standalone home-manager exports (CachyOS laptop, Mac) never inherit the
+backup timers or the NFS-mount-dependent borgmatic config. Two halves:
+data (borgmatic) and config (the git timer).
 
 ## Borgmatic (data)
 
 A daily user-level borgmatic run:
 
-- **Sources:** `$HOME` (the whole home, which includes the actual repo
-  checkout at `~/programming/nixos` and the Obsidian vault under
-  `Documents`) and the repo path (`repoPath` = `/etc/nixos`).
-- **Destination:** `/mnt/nix-backups` — the NFS automount from the
-  Synology NAS (`192.168.1.30:/volume1/Backups/nix`, declared in
-  `modules/computers/nixos.nix`; mounts on access, unmounts after 10 min
-  idle, `nofail` so boot never hangs on the NAS).
+- **Sources:** `$HOME` (the whole home — no excludes) and the repo path
+  (`repoPath` = `/etc/nixos`). On the desktop that path is a symlink
+  into the home checkout at `~/programming/nixos` (so the home source
+  is the real one); on the framework `/etc/nixos` **is** the checkout —
+  a real directory — and is archived directly.
+- **Destination:** `/mnt/nix-backups` — an NFS automount from the
+  Synology NAS, declared per host in `modules/computers/<host>.nix`
+  with an identical stanza shape (mounts on access, unmounts after
+  10 min idle, `nofail` so boot never hangs on the NAS). The
+  *export* differs per host: the desktop mounts
+  `…:/volume1/Backups/nix` (whose root **is** its repo), the
+  framework `…:/volume1/Backups/nix-laptops` — a dedicated export,
+  because borg refuses to create a repository inside another
+  repository's tree ("A repository already exists at <parent>",
+  learned 2026-09-05 when the framework first tried `nix/framework`
+  beside the desktop's repo files).
+- **One repo per host:** the desktop predates the fleet, so its repo
+  lives at the share *root* (`/mnt/nix-backups`, archive prefix
+  `nixos-`); every other host gets its own subdirectory
+  (`/mnt/nix-backups/<hostname>` — the framework's, archive prefix
+  `framework-`). Separate repos mean no cross-host borg locking over
+  NFS and independent retention. `backup.nix` branches on
+  `osConfig.networking.hostName`; do not "fix" the desktop onto a
+  subdirectory — that would orphan its existing repo and dedup
+  history.
 - **Retention:** 7 daily, 4 weekly.
 - **Passphrase:** the `borg-passphrase` agenix secret (declared once in
   `agenix.nix`), injected as the service's `EnvironmentFile` — the
   passphrase itself only exists encrypted in the repo + in 1Password via
   the `id_borg` recovery path.
+- **On battery:** home-manager's borgmatic module hard-codes
+  `ConditionACPower=true`, which silently skips every run on a laptop
+  on battery (the framework's first weeks looked backed up but never
+  ran — timer green, service skipped). `backup.nix` therefore forces
+  the condition to `false` everywhere except the desktop
+  (`hostName == "nixos"`): battery hosts back up regardless; a daily
+  incremental is minutes and `systemd-inhibit` keeps sleep from
+  interrupting it. On the always-on-AC desktop the value is unchanged.
 
 **The NFS race, handled twice:** the `Persistent=true` timer can fire
 during early boot, before the NFS automount is reachable or before DNS
@@ -59,7 +85,9 @@ before its first switch, or another box — read the passphrase from
 ([identity](identity.md)).)
 
 **Inventory.** Archive names are borgmatic's default
-`{hostname}-{now}` — `nixos-` plus an ISO timestamp. Retention is
+`{hostname}-{now}` — `nixos-` or `framework-` plus an ISO timestamp,
+each inside its own repo (so `borgmatic list` on a host shows only that
+host's archives). Retention is
 7 daily + 4 weekly, so the practical restore window is about a month;
 anything older is pruned:
 
@@ -152,8 +180,34 @@ guard (systemd ≥ 254 allows Restart on `Type=oneshot`).
   push, including automated ones), but if you want a real commit
   message, commit before the timer fires (daily at midnight, plus
   immediately after any boot that missed a run).
-- Both timers only exist on the desktop. The laptop and Mac keep their
-  config in this repo by definition — there is nothing to back up
-  locally.
+- The timers exist on every NixOS host (desktop + framework). The
+  CachyOS laptop and Mac keep their config in this repo by definition —
+  there is nothing to back up locally.
 - `repoPath` is bound once at the top of `backup.nix` — moving the
   checkout means changing that one line.
+
+## Bringing a new NixOS host into backups
+
+The config side is declarative: give the host an NFS automount stanza
+modeled on `modules/computers/nixos.nix`, pointed at **its own export**
+(not inside any existing host's repo — see the nesting note above),
+and `backup.nix` picks the `<hostname>` subdirectory repo up
+automatically. The repo itself is **not** auto-created — borgmatic 2.x
+has no auto-init during `create` — so run, once, from the new host:
+
+```console
+$ ls /mnt/nix-backups/          # pull the automount in
+$ export BORG_PASSPHRASE="$(sed 's/^BORG_PASSPHRASE=//' /run/user/$UID/agenix/borg-passphrase)"
+$ borgmatic repo-create -e repokey-blake2
+$ borgmatic create --stats      # the first, full backup
+```
+
+Do this **before** the first `nixos-rebuild switch` that carries the
+borgmatic unit changes: home-manager's sd-switch restarts the changed
+oneshot inside the switch, and it must find an existing repo (and,
+ideally, a completed first backup, so the in-switch run is a fast
+incremental — see the STABILITY WARNING in `backup.nix`). On the
+framework the one-time cutover mounted the share by hand
+(`sudo mount -t nfs 192.168.1.30:/volume1/Backups/nix /mnt/nix-backups`)
+before the automount unit existed, then unmounted before the switch so
+systemd's own automount takes over cleanly.

@@ -1,15 +1,35 @@
 # Backups for batman. Ported from ./home.nix (top level).
-# Desktop-only: assigned to home.pc, not home.base, so the standalone
-# home-manager exports (modules/home.nix) never inherit the backup timers
-# or the NFS-mount-dependent borgmatic config.
+# NixOS hosts only: assigned to home.pc, not home.base, so the
+# standalone home-manager exports (modules/home.nix) never inherit the
+# backup timers or the NFS-mount-dependent borgmatic config.
 { ... }:
 
 {
   # The desktop's checkout location: the git-backup timer's ExecStart and
   # the borgmatic source list both operate on this path, bound once here
   # so moving the checkout means changing exactly one line.
-  users.batman.home.pc = { config, lib, ... }:
-    let repoPath = "/etc/nixos";
+  users.batman.home.pc = { config, lib, osConfig, ... }:
+    let
+      repoPath = "/etc/nixos";
+      # The Synology backup share's automount point (the export itself
+      # is declared per host in modules/computers/<host>.nix — a host
+      # that doesn't mount it simply fails-and-retries, per the Restart
+      # policy below).
+      backupMount = "/mnt/nix-backups";
+      # This profile only ever evaluates NixOS-integrated (it rides
+      # users.batman.nixos.base, never the standalone exports), so
+      # osConfig is always the host config here — never null.
+      hostName = osConfig.networking.hostName;
+      # The desktop predates the fleet: its borg repo lives at ITS
+      # own export's root and stays there (moving it would orphan its
+      # history and break its dedup). Every other host mounts its own
+      # dedicated export (see the host file) and gets a <hostname>
+      # subdirectory repo — separate repos mean no cross-host borg
+      # locking over NFS and independent retention, and because no
+      # host's repo directory is ever a parent of another's, borg's
+      # refusal to nest repos inside repos (2026-09-05) never trips.
+      repository =
+        if hostName == "nixos" then backupMount else "${backupMount}/${hostName}";
     in
   {
     age.identityPaths = [
@@ -54,7 +74,7 @@
           ];
 
           repositories = [
-            "/mnt/nix-backups"
+            repository
           ];
         };
 
@@ -71,18 +91,37 @@
     };
 
     # STABILITY WARNING: any change to this unit's content makes
-    # home-manager restart it during the next switch — and restarting
+    # home-manager restart it during the next switch (sd-switch
+    # restarts changed units even when inactive) — and restarting
     # this oneshot runs a full backup synchronously inside the switch
     # (the 3m ExecStartPre settle + borg over NFS). Backup *config*
     # changes belong in programs.borgmatic above (writes the yaml,
     # leaves this unit untouched). Learned the hard way 2026-09-04.
+    # The Unit block below is the same class of hazard: touching
+    # ConditionACPower changes unit content and triggers exactly that
+    # restart — sequence a new host's first (full) backup BEFORE its
+    # first switch, so the in-switch run is a fast incremental.
     systemd.user.services.borgmatic = {
+      Unit = {
+        # home-manager hard-codes ConditionACPower=true, which silently
+        # skips every run on a laptop running on battery — the framework
+        # spent its first weeks "backing up" exactly this way (timer
+        # green, service skipped). Keep the guard only where it is
+        # meaningful (the always-on-AC desktop); battery hosts back up
+        # regardless: a daily incremental is minutes, and the
+        # systemd-inhibit in ExecStart already keeps sleep from
+        # interrupting it. The desktop's value is unchanged, so its
+        # unit content — and therefore its switch behavior — is
+        # untouched.
+        ConditionACPower = lib.mkForce (hostName == "nixos");
+      };
       Service = {
         EnvironmentFile = config.age.secrets.borg-passphrase.path;
         # The Persistent timer can fire during early boot, before the
-        # NFS automount for /mnt/nix-backups is reachable; retry instead
-        # of failing the whole day's backup. mkForce overrides HM's
-        # stock Restart = "no".
+        # NFS automount for the backup share is reachable (or while a
+        # laptop is off-LAN entirely); retry instead of failing the
+        # whole day's backup. mkForce overrides HM's stock
+        # Restart = "no".
         Restart = lib.mkForce "on-failure";
         RestartSec = "5min";
       };

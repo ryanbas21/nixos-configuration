@@ -7,17 +7,20 @@ The fleet and how to extend it.
 | Machine | OS | Consume via | Command |
 |---|---|---|---|
 | Desktop (host `nixos`, user batman) | NixOS | `nixosConfigurations.nixos` | `cd /etc/nixos && git pull && sudo nixos-rebuild switch --flake .#nixos` |
+| Framework laptop (host `framework`, user batman) | NixOS | `nixosConfigurations.framework` | `cd /etc/nixos && git pull && sudo nixos-rebuild switch --flake .#framework` |
 | CachyOS laptop (user ryan) | Arch-based Linux | `homeConfigurations.ryan-linux` | `nix run home-manager -- switch --flake github:ryanbas21/nixos-configuration#ryan-linux` |
 | Intel Mac (user ryan) | macOS + nix | `homeConfigurations.ryan-intel-mac` | `nix run home-manager -- switch --flake github:ryanbas21/nixos-configuration#ryan-intel-mac` |
 | Harmonia cache server (192.168.1.82) | NixOS, headless | `nixosConfigurations.harmonia` | from the desktop: `sudo nixos-rebuild switch --flake .#harmonia --target-host root@192.168.1.82` |
 
 On the desktop the repo lives at `/etc/nixos` — a symlink to
 `~/programming/nixos`, the actual checkout — so the steady state is
-`git pull` followed by the rebuild command above; the laptop and Mac need
-nothing but nix installed. The desktop's git-backup timer operates on
-that checkout (the path is bound once, as `repoPath`, in
-`modules/batman/backup.nix`), so moving the checkout means changing
-that binding.
+`git pull` followed by the rebuild command above; the framework
+laptop's `/etc/nixos` **is** the checkout itself (a real directory,
+not a symlink), with the same pull-then-rebuild steady state; the
+CachyOS laptop and Mac need nothing but nix installed. The
+desktop's git-backup timer operates on that checkout (the path is
+bound once, as `repoPath`, in `modules/batman/backup.nix`), so moving
+a checkout means changing that binding.
 
 ### The harmonia host — the slim variant
 
