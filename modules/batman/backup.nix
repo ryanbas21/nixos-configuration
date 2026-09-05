@@ -90,19 +90,24 @@
       frequency = "daily";
     };
 
-    # STABILITY WARNING: any change to this unit's content makes
-    # home-manager restart it during the next switch (sd-switch
-    # restarts changed units even when inactive) — and restarting
-    # this oneshot runs a full backup synchronously inside the switch
-    # (the 3m ExecStartPre settle + borg over NFS). Backup *config*
-    # changes belong in programs.borgmatic above (writes the yaml,
-    # leaves this unit untouched). Learned the hard way 2026-09-04.
-    # The Unit block below is the same class of hazard: touching
-    # ConditionACPower changes unit content and triggers exactly that
-    # restart — sequence a new host's first (full) backup BEFORE its
-    # first switch, so the in-switch run is a fast incremental.
+    # NO MID-SWITCH BACKUPS: home-manager's unit switcher (sd-switch)
+    # stop-starts a unit whose file content changed — and for this
+    # oneshot "starting" means RUNNING a backup synchronously inside
+    # the switch (the 3m ExecStartPre settle + borg over NFS; that is
+    # the 2026-09-04 switch that outran its start timeout). sd-switch
+    # only considers units that are active/activating at switch time
+    # — a failed run waiting out its 5min Restart=on-failure delay
+    # counts as activating, which is how 09-04 bit — and it reads
+    # X-SwitchMethod from the NEW unit file (sd-switch 0.6.4,
+    # KeepOld => leave the running unit alone). So this directive
+    # makes every future edit of this unit switch-safe on every host:
+    # a run in flight finishes undisturbed; the new content applies at
+    # the next timer fire. An idle oneshot is never touched either
+    # way. Backup *config* changes still belong in programs.borgmatic
+    # above (writes the yaml, leaves this unit file untouched).
     systemd.user.services.borgmatic = {
       Unit = {
+        X-SwitchMethod = "keep-old";
         # home-manager hard-codes ConditionACPower=true, which silently
         # skips every run on a laptop running on battery — the framework
         # spent its first weeks "backing up" exactly this way (timer
@@ -110,9 +115,9 @@
         # meaningful (the always-on-AC desktop); battery hosts back up
         # regardless: a daily incremental is minutes, and the
         # systemd-inhibit in ExecStart already keeps sleep from
-        # interrupting it. The desktop's value is unchanged, so its
-        # unit content — and therefore its switch behavior — is
-        # untouched.
+        # interrupting it. The desktop keeps its value; the only change
+        # this block makes to the desktop's unit is the protective
+        # X-SwitchMethod above.
         ConditionACPower = lib.mkForce (hostName == "nixos");
       };
       Service = {

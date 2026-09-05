@@ -203,11 +203,13 @@ $ borgmatic create --stats      # the first, full backup
 ```
 
 Do this **before** the first `nixos-rebuild switch` that carries the
-borgmatic unit changes: home-manager's sd-switch restarts the changed
-oneshot inside the switch, and it must find an existing repo (and,
-ideally, a completed first backup, so the in-switch run is a fast
-incremental — see the STABILITY WARNING in `backup.nix`). On the
-framework the one-time cutover mounted the share by hand
-(`sudo mount -t nfs 192.168.1.30:/volume1/Backups/nix /mnt/nix-backups`)
-before the automount unit existed, then unmounted before the switch so
-systemd's own automount takes over cleanly.
+borgmatic unit changes, as belt-and-suspenders: sd-switch normally
+leaves an idle timer-driven oneshot alone (it only stop-starts units
+that are active or auto-restarting mid-switch, and the unit's
+`X-SwitchMethod=keep-old` — see `backup.nix` — exempts it even then),
+but a seeded repo plus one completed backup means any early run is a
+fast incremental instead of a first full sync. On the framework the
+one-time cutover mounted the share by hand (`sudo mount -t nfs
+192.168.1.30:/volume1/Backups/nix /mnt/nix-backups`) before the
+automount unit existed, then unmounted before the switch so systemd's
+own automount takes over cleanly.
