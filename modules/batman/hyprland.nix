@@ -144,6 +144,8 @@
     in
     {
       home.packages = with pkgs; [
+        #polkit
+        lxqt.lxqt-policykit
         # The rice stack around the compositor: launcher, screenshots,
         # clipboard, brightness, and the daemons exec-once'd below.
         # hyprpaper/dunst/gammastep are installed here too — the
@@ -865,6 +867,25 @@
                       padding-right: 15px;
                     }
         '';
+      };
+      systemd.user.services.lxqt-policykit = {
+        Unit = {
+          Description = "LXQt PolicyKit Authentication Agent";
+          Wants = [ "graphical-session.target" ];
+          After = [ "graphical-session.target" ];
+          PartOf = [ "graphical-session.target" ];
+        };
+
+        Install = {
+          WantedBy = [ "graphical-session.target" ];
+        };
+
+        Service = {
+          Type = "simple";
+          ExecStart = "${pkgs.lxqt.lxqt-policykit}/bin/lxqt-policykit-agent";
+          Restart = "on-failure";
+          RestartSec = 1;
+        };
       };
     };
 }
