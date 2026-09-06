@@ -158,16 +158,38 @@
 
     # List services that you want to enable:
 
-    # Enable the OpenSSH daemon.
-    services.openssh.enable = true;
+    # Enable the OpenSSH daemon. Auth posture is PINNED, not
+    # inherited: nixpkgs defaults PermitRootLogin to
+    # "prohibit-password" but does NOT default PasswordAuthentication
+    # off (upstream sshd ships yes — verified on the deployed harmonia
+    # box, 2026-09-04; this repo's own docs disagreed until 2026-09-06).
+    # Both closed here = key-only on every host that eats this base —
+    # which matters most for the framework, a laptop that joins
+    # untrusted networks with port 22 open (openFirewall module
+    # default below).
+    services.openssh = {
+      enable = true;
+      settings = {
+        PasswordAuthentication = false;
+        KbdInteractiveAuthentication = false;
+        PermitRootLogin = "prohibit-password"; # nixpkgs default, pinned to be self-documenting
+      };
+    };
 
     # Pre-trust GitHub's host key in the system-wide known_hosts
     # (/etc/ssh/ssh_known_hosts — which user ssh reads as
     # GlobalKnownHostsFile), so unattended pushes (the daily
     # config-backup timer) never block on a host-key prompt. Key
     # verified against https://api.github.com/meta.
+    #
+    # The harmonia cache server's host key is pinned the same way
+    # (it is already public — it IS the agenix recipient in
+    # secrets.nix): the post-build-hook and distributed builds below
+    # then run with StrictHostKeyChecking=yes instead of accept-new
+    # TOFU, so a first-connect MITM on the LAN cannot plant a key.
     programs.ssh.knownHosts = {
       "github.com".publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl";
+      "192.168.1.82".publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINtxzFwIX6e97M/y8aeL0qdI1lM7IykhxS49fe99c0b0";
     };
 
     # Firewall: enabled by NixOS default, but pinned explicitly so the
@@ -251,16 +273,21 @@
       # as root but authenticates with batman's
       # /home/batman/.ssh/harmonia (NIX_SSHOPTS below) — the shared
       # 1Password key distributed-builds.nix also uses to offload builds
-      # to .82, authorized there as "framework-remote-build". (The
-      # original /root/.ssh/id_ed25519 — "desktop-nix-cache-push" —
-      # still carries sudo --target-host deploys; no hook pushes with
-      # it.) Wrapped in a writeShellScript because
+      # to .82, authorized there as "framework-remote-build". That key
+      # is root-authorized but GATED (harmonia.nix: from=192.168.1.0/24
+      # + a forced command that passes through nothing but the nix
+      # store protocol) — it can push paths, never open a shell on the
+      # signing box. (The original /root/.ssh/id_ed25519 —
+      # "desktop-nix-cache-push" — still carries sudo --target-host
+      # deploys; no hook pushes with it.) The host key is pre-trusted
+      # via knownHosts above, so StrictHostKeyChecking=yes — no TOFU.
+      # Wrapped in a writeShellScript because
       # nix spawns the hook as a single command line — inline quoting and
       # shell operators like || don't survive that — and best-effort
       # (|| true inside the script) so a down cache server can never
       # fail a build.
       post-build-hook = "${pkgs.writeShellScript "push-to-harmonia" ''
-    export NIX_SSHOPTS="-o StrictHostKeyChecking=accept-new -o BatchMode=yes -o IdentitiesOnly=yes -o IdentityFile=/home/batman/.ssh/harmonia"
+    export NIX_SSHOPTS="-o StrictHostKeyChecking=yes -o BatchMode=yes -o IdentitiesOnly=yes -o IdentityFile=/home/batman/.ssh/harmonia"
     nix copy --to ssh://root@192.168.1.82 $OUT_PATHS || true
   ''}";
 

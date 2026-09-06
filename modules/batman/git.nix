@@ -11,7 +11,7 @@
         pull.rebase = true;
         rebase.autoStash = true;
         user.name = "ryan bas";
-        user.email = "ryanbas21@gmail.com";
+        user.email = "18267769+ryanbas21@users.noreply.github.com";
         init.defaultBranch = "main";
         push = {
           autoSetupRemote = true;

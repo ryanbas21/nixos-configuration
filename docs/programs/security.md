@@ -21,8 +21,14 @@ missing disk encryption** — the desktop's root is plain btrfs, no LUKS
 
 `services.openssh.enable = true` — the daemon is on, on every host that
 eats the shared base. The module's `openFirewall` default opens port 22;
-nothing else is opened (firewall otherwise default-deny). No password
-auth tweaks — nixpkgs defaults (no root login, no password auth) apply.
+nothing else is opened (firewall otherwise default-deny). Auth is
+**pinned, not inherited**: nixpkgs defaults `PermitRootLogin` to
+`prohibit-password` but does *not* default `PasswordAuthentication` off
+(upstream sshd ships yes — verified on the deployed harmonia box), so
+the base closes both explicitly (`PasswordAuthentication = false`,
+`KbdInteractiveAuthentication = false`): every host is key-only. This
+matters most for the framework, which joins untrusted networks with
+port 22 open.
 
 ## Pre-trusted GitHub host key
 

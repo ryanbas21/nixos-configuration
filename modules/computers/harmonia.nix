@@ -16,9 +16,11 @@
 #
 # nixos-rebuild builds locally (substituting from this repo's caches —
 # including the cache this host serves) and copies the closure over ssh
-# to the target, authenticating with root's key that is already
-# authorized on .82 ("desktop-nix-cache-push", the same key the push
-# hook uses). The box needs no checkout of this repo.
+# to the target, authenticating with the desktop's deploy key that is
+# already authorized on .82 ("desktop-nix-cache-push", LAN-scoped —
+# root authorized_keys below). Cache pushes and distributed builds use
+# a different, gated key (forced to the nix store protocol only). The
+# box needs no checkout of this repo.
 #
 # One-time adoption runbook: docs/programs/nix-caches.md,
 # "Bringing .82 under management".
@@ -27,7 +29,26 @@
     # The underscore in ./harmonia/_hardware.nix keeps import-tree from
     # auto-importing it as a flake-parts module; it is a NixOS module
     # imported manually here, as the host's data.
-    module = { config, lib, pkgs, ... }: {
+    module =
+      { config, lib, pkgs, ... }:
+      let
+        # Forced-command gate for the fleet-wide build/push key: pass
+        # through the nix store protocol (the legacy ssh store's
+        # `nix-store --serve` that `nix copy`/buildMachines speak, plus
+        # `nix daemon` for ssh-ng clients) and nothing else. Belt to
+        # the from=/no-forwarding suspenders on the key line below —
+        # together they mean the shared ~/.ssh/harmonia key (present on
+        # EVERY fleet host, laptop included) can push store paths but
+        # can never open a root session on this box.
+        nixStoreServeOnly = pkgs.writeShellScript "nix-store-serve-only" ''
+          case "$SSH_ORIGINAL_COMMAND" in
+            "nix-store --serve"*) exec $SSH_ORIGINAL_COMMAND ;;
+            "nix daemon"*) exec $SSH_ORIGINAL_COMMAND ;;
+            *) echo "authorized for the nix store protocol only" >&2; exit 1 ;;
+          esac
+        '';
+      in
+      {
       # Host-specific data.
       networking.hostName = "harmonia";
       # nixpkgs.hostPlatform is deliberately NOT set here: the real
@@ -57,7 +78,7 @@
       # on the deployed box), so it is closed explicitly here: no
       # non-root users exist anyway, making the box fully key-only.
       # Human access: batman's id_borg (authorized_keys below); ops
-      # access: sudo ssh from the desktop (the push key); last resort:
+      # access: sudo ssh from the desktop (the deploy key); last resort:
       # the VM console.
       services.openssh.enable = true;
       services.openssh.settings.PasswordAuthentication = false;
@@ -115,18 +136,27 @@
       age.identityPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
       age.secrets.harmonia-signing-key.file = ../../secrets/harmonia-signing-key.age;
 
-      # --- root access: the push key + batman's admin key ---
-      # The push key was adopted verbatim 2026-09-04 from the box's
-      # live authorized_keys (its only entry). batman's id_borg — the
-      # same key that is the agenix identity (secrets.nix); only the
-      # public half ships here — is authorized so plain
+      # --- root access: one admin key + two gated machine keys ---
+      # "framework-remote-build" is every NixOS host's shared
+      # ~/.ssh/harmonia (the post-build-hook push key and the
+      # distributed-builds key): LAN-scoped, no forwarding, and forced
+      # through nixStoreServeOnly — store protocol ONLY, no shell. This
+      # is the crown-jewel boundary: that key rides the whole fleet
+      # (traveling laptop included), and this box signs what they all
+      # substitute.
+      # "desktop-nix-cache-push" (adopted verbatim 2026-09-04 from the
+      # box's then-only entry) carries sudo nixos-rebuild --target-host
+      # deploys, which need nix copy + remote activation — so no forced
+      # command, but LAN-scoped with no forwarding. batman's id_borg —
+      # the agenix identity (secrets.nix); only the public half ships
+      # here — is the one unrestricted admin path, so plain
       # `ssh root@192.168.1.82` from the desktop works without sudo.
       # This assignment REPLACES the file on every switch: new keys
       # get added HERE, never on the box.
       users.users.root.openssh.authorizedKeys.keys = [
-        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIlMK7jt86TlHnzvths3bWymyEZfmfxJcUQ1PkuJ/HEJ desktop-nix-cache-push"
+        "from=\"192.168.1.0/24\",no-pty,no-X11-forwarding,no-agent-forwarding,no-port-forwarding,command=\"${nixStoreServeOnly}\" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHfLjVoQb6UFKvs5mo4PdTBWILJksyQytl6/vjJWG01y framework-remote-build"
+        "from=\"192.168.1.0/24\",no-X11-forwarding,no-agent-forwarding,no-port-forwarding ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIlMK7jt86TlHnzvths3bWymyEZfmfxJcUQ1PkuJ/HEJ desktop-nix-cache-push"
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIELiz8KiOJ2x7L1J2yx3X8RZkZ3bd/uHcsUH5rzVw8Cl batman@nixos"
-        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHfLjVoQb6UFKvs5mo4PdTBWILJksyQytl6/vjJWG01y framework-remote-build"
       ];
 
       # Adoption tripwire: an empty authorized_keys is not an eval error

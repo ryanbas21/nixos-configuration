@@ -19,16 +19,15 @@
       # own host key never became a recipient (it could not be
       # ssh-keyscanned from the laptop; "nixos" does not resolve), so
       # the default host-key identityPaths left the secret
-      # undecryptable here. id_borg is passphrase-free (verified
-      # 2026-09-06), /home is a local btrfs subvolume mounted before
-      # activation, and root can read batman's 600 file — so offering
-      # it to the boot-time decrypt is safe. Trade: on a fresh install
-      # the secret no-ops (journal note, never a failed alerting unit)
-      # until the runbook restores id_borg — the same first-boot
-      # property every user-level secret already has. The host key
-      # stays in the list so making it a recipient later needs no
-      # second change. (harmonia.nix sets its identityPaths explicitly
-      # the same way.)
+      # undecryptable here. id_borg is usable unattended at boot on
+      # this host (a local /home subvolume, mounted before
+      # activation), so offering it to the boot-time decrypt works.
+      # Trade: on a fresh install the secret no-ops (journal note,
+      # never a failed alerting unit) until the runbook restores
+      # id_borg — the same first-boot property every user-level secret
+      # already has. The host key stays in the list so making it a
+      # recipient later needs no second change. (harmonia.nix sets its
+      # identityPaths explicitly the same way.)
       age.identityPaths = [
         "/etc/ssh/ssh_host_ed25519_key"
         "/home/batman/.ssh/id_borg"

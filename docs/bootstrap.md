@@ -34,7 +34,7 @@ On `sudo nixos-rebuild switch --flake .#nixos`, activation also:
 |---|---|---|---|
 | `~/.ssh/id_borg` | 1Password | agenix decryption of **every** secret | **First rebuild fails** — home-manager activation cannot decrypt; restore before rebuilding |
 | `~/.ssh/git` | 1Password | pushes to GitHub (manual pushes, `gh` over ssh) | Pushes fail; rebuild still succeeds |
-| `~/.ssh/harmonia` | 1Password | the harmonia post-build-hook cache push **and** distributed builds to .82 (one key shared by every NixOS host; authorized on the server alongside `id_borg`) | **Silently** degrades — builds succeed but nothing warms the LAN cache (`|| true` by design) and distributed builds fall back to local; no warning is printed |
+| `~/.ssh/harmonia` | 1Password | the harmonia post-build-hook cache push **and** distributed builds to .82 (one key shared by every NixOS host; root-authorized on the server but **gated**: LAN-scoped, forced to the nix store protocol only — no shell) | **Silently** degrades — builds succeed but nothing warms the LAN cache (`|| true` by design) and distributed builds fall back to local; no warning is printed |
 | `.82` ssh **host** key | nowhere yet — save to 1Password at adoption, or rely on the rekey path | the cache server's agenix identity (decrypts `harmonia-signing-key.age` on that box) | Nothing is lost: the [resurrection runbook](#harmonia-resurrection-runbook-the-cache-vm) generates a fresh key and rekeys the secret to it |
 
 Restore with correct permissions: `chmod 600`.

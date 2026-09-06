@@ -82,10 +82,16 @@ The hook runs as root (nix-daemon) but authenticates with batman's
 `/home/batman/.ssh/harmonia` (`IdentityFile` in its `NIX_SSHOPTS`) —
 the shared 1Password key that `modules/system/distributed-builds.nix`
 also uses to offload builds to .82, authorized on the server as
-`framework-remote-build`. (This paragraph long claimed
+`framework-remote-build` — but **gated** (2026-09-06): LAN-scoped
+(`from="192.168.1.0/24"`), no forwarding, and forced through a command
+wrapper (harmonia.nix's `nixStoreServeOnly`) that passes only the nix
+store protocol. The fleet-wide key can push store paths; it can never
+open a root shell on the box that signs the fleet's binaries.
+(This paragraph long claimed
 `/root/.ssh/id_ed25519` / `desktop-nix-cache-push`; that key stays
-authorized and still carries `sudo nixos-rebuild --target-host`
-deploys — nothing pushes with it anymore.) It is wrapped in
+authorized — LAN-scoped now too — and still carries
+`sudo nixos-rebuild --target-host` deploys; nothing pushes with it
+anymore.) It is wrapped in
 a `writeShellScript` because nix spawns the hook as a single command
 line — inline quoting and shell operators like `||` don't survive that —
 and is best-effort (`|| true` inside the script) so a down cache server
@@ -100,7 +106,9 @@ fails silently** — if the cache seems cold, check
 along: `[::]:5000`, priority 50), the signing key as an agenix secret
 (`secrets/harmonia-signing-key.age` — the secret half of the
 `nix-cache-1:...` pair, no longer single-point-of-failure state on a
-lab box), root's `authorized_keys` holding the desktop push key, the
+lab box), root's `authorized_keys` (id_borg as the one admin path,
+plus two LAN-scoped restricted machine keys — see the gating note in
+the post-build-hook section above), the
 firewall (22 + 5000), and sshd. It is deliberately a **slim host**: no
 `nixos.modules.base` (no Plasma/home-manager), no user slot — root is
 the only account. Deployed from the desktop, never rebuilt on the box:
