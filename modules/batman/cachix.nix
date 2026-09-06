@@ -24,16 +24,25 @@
 
 {
   # Desktop: own the credentials, provision CLI + CI from them.
-  users.batman.home.pc = { pkgs, config, ... }: {
+  users.batman.home.pc = { config, lib, pkgs, ... }: {
     # No age.secrets registrations here: nothing reads these at runtime
     # post-login — both consumers are activation-time, and activation
     # cannot depend on the agenix runtime dir (agenix.service is a user
     # unit that cannot run before first login; Linger=no). The .age
     # store copies are decrypted inline with rage + id_borg below.
 
+    # The .age files the activation hook decrypts. The OPTIONS are
+    # declared in home-manager.nix's sharedModules (home.pc is a
+    # deferredModule, which cannot carry top-level `options`); this
+    # file assigns the real values, and the fresh-boot VM tests
+    # (modules/vm-tests.nix) override them with throwaway material —
+    # the REAL hook runs either way.
+    activationSecrets.cachix.authToken = ../../secrets/cachix-auth-token.age;
+    activationSecrets.cachix.signingKey = ../../secrets/cachix-signing-key.age;
+
     home.activation.provisionCachix = config.lib.dag.entryAfter [ "writeBoundary" ] ''
-      token_val=$(${pkgs.rage}/bin/rage -d -i ${config.home.homeDirectory}/.ssh/id_borg ${../../secrets/cachix-auth-token.age})
-      key_val=$(${pkgs.rage}/bin/rage -d -i ${config.home.homeDirectory}/.ssh/id_borg ${../../secrets/cachix-signing-key.age})
+      token_val=$(${pkgs.rage}/bin/rage -d -i ${config.home.homeDirectory}/.ssh/id_borg ${config.activationSecrets.cachix.authToken})
+      key_val=$(${pkgs.rage}/bin/rage -d -i ${config.home.homeDirectory}/.ssh/id_borg ${config.activationSecrets.cachix.signingKey})
 
       # ~/.config/cachix/cachix.dhall is derived state now. The file
       # the interactive `cachix authtoken` / `cachix generate-keypair`

@@ -6,7 +6,7 @@
 # two mpv options the upstream README recommends for the same reason
 # (hypnotix parses "mpv-options" as space-separated key=value pairs).
 {...}: {
-  users.batman.home.pc = {pkgs, config, ...}: let
+  users.batman.home.pc = {config, lib, pkgs, ...}: let
     hypnotix-x11 = pkgs.symlinkJoin {
       name = "hypnotix-x11";
       paths = [pkgs.hypnotix];
@@ -23,6 +23,14 @@
       mpv-options = "hwdec=auto-safe vo=x11";
     };
 
+    # The .age file the activation hook below decrypts. The OPTION is
+    # declared in home-manager.nix's sharedModules (home.pc is a
+    # deferredModule, which cannot carry top-level `options`); this
+    # file assigns the real value, and the fresh-boot VM tests
+    # (modules/vm-tests.nix) override it with throwaway material — the
+    # REAL hook runs either way.
+    activationSecrets.hypnotixProviders = ../../secrets/hypnotix-providers.age;
+
     # Providers as encrypted repo state: the dconf value embeds xtream
     # credentials in its serialization (name:::type:::url:::user:::pass),
     # so the whole list ships age-encrypted and is decrypted + applied
@@ -37,8 +45,23 @@
     # `agenix -e secrets/hypnotix-providers.age`, never in the app —
     # rebuilds re-assert it. active-provider stays app state.
     home.activation.hypnotixProviders = config.lib.dag.entryAfter [ "dconfSettings" ] ''
-      providers_value=$(${pkgs.rage}/bin/rage -d -i ${config.home.homeDirectory}/.ssh/id_borg ${../../secrets/hypnotix-providers.age})
-      ${pkgs.dconf}/bin/dconf write /org/x/hypnotix/providers "$providers_value"
+      providers_value=$(${pkgs.rage}/bin/rage -d -i ${config.home.homeDirectory}/.ssh/id_borg ${config.activationSecrets.hypnotixProviders})
+      # dconf speaks D-Bus only. In a live session the bus address is
+      # already exported, but boot-path activation
+      # (home-manager-batman.service, pre-display-manager) has neither
+      # DBUS_SESSION_BUS_ADDRESS nor X11 to autolaunch with — a bare
+      # `dconf write` fails with "Cannot autolaunch D-Bus without X11
+      # $DISPLAY" and takes the whole activation down with it. Not
+      # theory: the framework laptop's FIRST flake boot (2026-09-05
+      # 15:34) failed exactly there; later boots went green only
+      # because a session bus already existed. Same wrapper
+      # home-manager's own dconfSettings uses (modules/misc/dconf.nix).
+      if [[ -v DBUS_SESSION_BUS_ADDRESS ]]; then
+        ${pkgs.dconf}/bin/dconf write /org/x/hypnotix/providers "$providers_value"
+      else
+        ${pkgs.dbus}/bin/dbus-run-session --dbus-daemon=${pkgs.dbus}/bin/dbus-daemon \
+          ${pkgs.dconf}/bin/dconf write /org/x/hypnotix/providers "$providers_value"
+      fi
     '';
   };
 

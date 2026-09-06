@@ -2,10 +2,20 @@
 { inputs, ... }:
 
 {
-  users.batman.home.pc = { pkgs, config, ... }: {
+  users.batman.home.pc = { config, lib, pkgs, ... }: {
     imports = [
       inputs.agenix.homeManagerModules.default
     ];
+
+    # The .age file and fingerprint this module's activation hook
+    # consumes. The OPTIONS are declared in home-manager.nix's
+    # sharedModules (home.pc is a deferredModule, which cannot carry
+    # top-level `options`); feature files assign the real values here,
+    # and the fresh-boot VM tests (modules/vm-tests.nix) override them
+    # with committed throwaway material — the REAL hook runs either
+    # way (same pattern as harmonia/vm-test.nix's test signing key).
+    activationSecrets.gpg.file = ../../secrets/gpg.age;
+    activationSecrets.gpg.fingerprint = "BEB93A0F2837F4D1CCDDF341F3EB6A9821002B2C";
 
     age.secrets = {
       # Runtime-dir secrets only (decrypted by agenix's user service at
@@ -44,14 +54,14 @@
     # /mnt before nixos-install) — NOT via the agenix runtime dir, which
     # does not exist yet during first-boot activation.
     home.activation.importGpgKey = config.lib.dag.entryAfter [ "writeBoundary" ] ''
-      if ! ${pkgs.gnupg}/bin/gpg --list-secret-keys BEB93A0F2837F4D1CCDDF341F3EB6A9821002B2C >/dev/null 2>&1; then
+      if ! ${pkgs.gnupg}/bin/gpg --list-secret-keys ${config.activationSecrets.gpg.fingerprint} >/dev/null 2>&1; then
         ${pkgs.rage}/bin/rage -d -i ${config.home.homeDirectory}/.ssh/id_borg \
-          ${../../secrets/gpg.age} | ${pkgs.gnupg}/bin/gpg --import
+          ${config.activationSecrets.gpg.file} | ${pkgs.gnupg}/bin/gpg --import
       fi
       # 6 = ultimate trust; --import-ownertrust is idempotent. GnuPG
       # >= 2.4 requires the full 40-char fingerprint here — the 16-char
       # key ID is rejected as "invalid fingerprint".
-      printf '%s\n' 'BEB93A0F2837F4D1CCDDF341F3EB6A9821002B2C:6:' | ${pkgs.gnupg}/bin/gpg --import-ownertrust
+      printf '%s\n' '${config.activationSecrets.gpg.fingerprint}:6:' | ${pkgs.gnupg}/bin/gpg --import-ownertrust
       # Legacy cleanup: an earlier revision of this module left the
       # decrypted key at ~/.gnupg/private-key.asc (and it rode along in
       # the borg backup of $HOME). Remove it if still present.

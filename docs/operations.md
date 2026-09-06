@@ -20,9 +20,10 @@ committed here. The ritual, run on the desktop:
 3. `sudo nixos-rebuild test --flake .#nixos` builds and activates without
    touching the boot entries; run `switch` once the machine has been
    through a session you care about. CI boots both NixOS hosts as VMs
-   on every push (`test-hosts`), but a local `test` still catches
-   breakage *before* the commit — and the activation parts CI cannot
-   see (the VM tests neutralize the 1Password-bound hooks).
+   on every push (`test-hosts`) — with the secret-decrypting hooks
+   running against throwaway key material — but a local `test` still
+   catches breakage *before* the commit, including the parts CI
+   structurally cannot see (real key bytes, hardware).
 4. Commit the lock and push. The laptop and Mac need nothing: their
    one-liners read this repository's `flake.lock` straight from GitHub.
 
@@ -126,11 +127,16 @@ commits) and on every pull request, in six jobs:
   QEMU guests and asserts the fresh-boot contract
   ([modules/vm-tests.nix](../modules/vm-tests.nix)): multi-user.target,
   the boot-path home-manager activation, the batman account, core
-  services, no failed units. The automation of the
-  [bootstrap](bootstrap.md) runbooks' guarantee — the lesson of the
-  2026-09-05 laptop install whose first rebuild froze compiling
-  llm-agents' node-gyp packages: build/boot breakage that an eval check
-  cannot see surfaces here, not on bare metal.
+  services, no failed units. The activation-time secret decryption
+  (rage + `~/.ssh/id_borg`: GPG import + ownertrust, cachix dhall
+  materialization, the hypnotix dconf write) runs against committed
+  throwaway key material — the harmonia vm-test pattern — so the
+  decrypt machinery itself is under test on every push; only the real
+  key BYTES stay in 1Password. (This is the automation of the
+  [bootstrap](bootstrap.md) runbooks' guarantee — and it already paid
+  off once: it reproduced the framework laptop's real first-boot
+  failure, the bare `dconf write` without a D-Bus session, now fixed
+  with the same `dbus-run-session` wrapper home-manager itself uses.)
 - **test-disko** — executes every `_disko.nix` for real in VMs
   ([modules/disko-tests.nix](../modules/disko-tests.nix), built on
   disko's own `makeDiskoTest` harness): scratch disk →

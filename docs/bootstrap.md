@@ -487,10 +487,11 @@ Data and account state — restore or re-authenticate, don't expect Nix:
 ## Residual risks (known, accepted)
 
 - The NixOS toplevels are now **boot**-tested in CI (`test-hosts`,
-  [modules/vm-tests.nix](../modules/vm-tests.nix)) — but with the
-  three 1Password-bound activation hooks neutralized (the VM has no
-  `id_borg`), so a breakage in those still surfaces only on real
-  metal. See [operations](operations.md#ci-githubworkflowsciyml).
+  [modules/vm-tests.nix](../modules/vm-tests.nix)), with the
+  secret-decrypting activation hooks running against committed
+  throwaway key material — what stays untested in CI is only the real
+  key/secret BYTES (their handling code runs on every push). See
+  [operations](operations.md#ci-githubworkflowsciyml).
 - The harmonia push hook fails silently when its key or the server is
   missing (by design, so a down NAS can't fail builds) — check
   `journalctl -u nix-daemon` after a big build if the cache seems cold.

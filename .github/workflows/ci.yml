@@ -25,7 +25,9 @@
 # framework): boots each REAL host module as a UEFI QEMU guest
 # (modules/vm-tests.nix) and asserts a fresh boot reaches the state a
 # reinstall depends on — multi-user.target, the boot-path home-manager
-# activation, the batman account, core services, no failed units. That
+# activation, the batman account, core services, no failed units —
+# including the activation-time secret decryption against committed
+# throwaway key material. That
 # automates the fresh-metal runbook's guarantee (docs/bootstrap.md) and
 # encodes the lesson of the 2026-09-05 laptop install, whose first
 # rebuild froze on llm-agents' node-gyp source builds: build breakage

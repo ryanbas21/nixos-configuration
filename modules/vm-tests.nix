@@ -13,6 +13,33 @@
 # because it asserts cache semantics, not just boot. A new desktop-style
 # host joins simply by adding its name to `hosts` below.
 #
+# Secret decryption — the part that makes these two hosts special — runs
+# FOR REAL here, against committed throwaway material: `modules/vm-tests/`
+# holds a throwaway ed25519 identity (playing ~/.ssh/id_borg — the real
+# one's private half lives only in 1Password and must never reach a CI
+# runner) and .age files encrypted to it; the three production modules
+# expose their hook inputs as `activationSecrets.*` options
+# (batman/agenix.nix, cachix.nix, hypnotix.nix — defaults are the real
+# 1Password-bound secrets), which the test points at the throwaway
+# files. The hooks themselves are the production code, unmodified: rage
+# decrypt with the identity file, GPG import + ownertrust pin, cachix
+# dhall materialization + gh sync, dconf write. What stays untested is
+# only the real key/secret BYTES — their handling code is exactly what
+# runs on every push. (Same pattern as the harmonia test's committed
+# test-signing-key.nixkey.)
+#
+# Regenerating the material in vm-tests/ (all throwaway; regenerate
+# freely — update testGpgFingerprint below if the GPG key changes):
+#   ssh-keygen -t ed25519 -N "" -C "vm-test-identity: throwaway" -f test-identity
+#   ...gpg --batch --quick-gen-key "VM Test <vm-test@invalid>" ed25519 cert never
+#   printf <plaintext> | rage -R test-identity.pub > test-<name>.age
+# The .age files MUST be encrypted with rage to the SSH PUBLIC key
+# (`rage -R test-identity.pub`) — that is the exact counterpart of the
+# hooks' `rage -d -i ~/.ssh/id_borg`. Encrypting with `age` to the
+# ssh-to-age-CONVERTED age1 recipient does NOT match rage's ssh
+# identity handling and the hooks fail with "No matching keys found"
+# (learned the hard way, 2026-09-06).
+#
 # No fileSystems/swapDevices overrides are needed (unlike the harmonia
 # test's): the test framework's `useDefaultFilesystems` supplies its own
 # root disk + 9p store share and drops the physical mounts — both
@@ -23,17 +50,9 @@
 #   node by default, and nixos.modules.base legitimately sets
 #   `nixpkgs.config.allowUnfreePredicate` (the slim harmonia host needs
 #   neither).
-# - the three identity-shaped home activation hooks: importGpgKey,
-#   provisionCachix and hypnotixProviders each decrypt .age files inline
-#   with ~/.ssh/id_borg — the one thing the reproducibility contract
-#   deliberately keeps OUT of the repo (its private half lives in
-#   1Password and is restored onto real installs before the first boot;
-#   see docs/bootstrap.md). A test VM has no 1Password, so those three
-#   hooks become no-ops: everything else — link generation, the full
-#   package tree, dconf settings, the agenix registrations — activates
-#   exactly as on a real first boot that HAS the keys. The agenix user
-#   services that would actually decrypt only start with a login session
-#   (Linger=no), which a boot test never starts.
+# - the agenix user services (age.secrets) are left registered but
+#   never run: they decrypt at session start (Linger=no), and a boot
+#   test starts no login session.
 { config, lib, inputs, ... }:
 let
   # Desktop-style hosts: full nixos.modules.base (Plasma + home-manager)
@@ -41,6 +60,10 @@ let
   hosts = [ "nixos" "framework" ];
 
   pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
+
+  # The throwaway GPG key inside vm-tests/test-gpg.age (its fingerprint
+  # is the ownertrust pin the test asserts).
+  testGpgFingerprint = "007C335566F316CE65AD976B5BFC43D7801A9AF3";
 in
 {
   flake.checks.x86_64-linux = lib.genAttrs
@@ -67,13 +90,41 @@ in
             memorySize = 4096;
             cores = 2;
           };
-          home-manager.users.batman = { config, lib, ... }: {
-            home.activation = {
-              # See the header: 1Password-bound hooks, neutralized.
-              importGpgKey = lib.mkForce (config.lib.dag.entryAnywhere "");
-              provisionCachix = lib.mkForce (config.lib.dag.entryAnywhere "");
-              hypnotixProviders = lib.mkForce (config.lib.dag.entryAnywhere "");
-            };
+          # The throwaway identity must exist BEFORE home activation —
+          # exactly like a real install, where the runbook restores
+          # ~/.ssh/id_borg onto the target before first boot. It cannot
+          # be a home.file entry: hypnotixProviders chains after
+          # dconfSettings, which runs before writeBoundary/linkGeneration
+          # — the hook would race (and lose against) the link step.
+          systemd.services.vm-test-identity = {
+            description = "Seed throwaway ~/.ssh/id_borg for the VM test";
+            # nss-lookup: user/group resolution may not be live yet at
+            # early boot (nsncd races), and install validates -o/-g
+            # names against it. Owner-only flags: the dir needs no group
+            # change — mode 700 + owner batman grants everything the
+            # activation requires.
+            before = [ "home-manager-batman.service" ];
+            after = [ "nss-lookup.target" ];
+            wantedBy = [ "home-manager-batman.service" ];
+            serviceConfig.Type = "oneshot";
+            script = ''
+              # Mirror the runbook's key-restore + chown exactly: the
+              # directory must be batman's too, or linkGeneration cannot
+              # create ~/.ssh/config beside it (the bare-metal runbook
+              # pays for this with its nixos-enter chown step).
+              install -d -m 700 -o batman /home/batman/.ssh
+              install -m 600 -o batman ${./vm-tests/test-identity} /home/batman/.ssh/id_borg
+            '';
+          };
+          home-manager.users.batman = { lib, ... }: {
+            # The three REAL activation hooks, fed throwaway inputs
+            # (mkForce beats the feature files' real-value assignments;
+            # the options are declared in home-manager.nix).
+            activationSecrets.gpg.file = lib.mkForce ./vm-tests/test-gpg.age;
+            activationSecrets.gpg.fingerprint = lib.mkForce testGpgFingerprint;
+            activationSecrets.cachix.authToken = lib.mkForce ./vm-tests/test-cachix-auth-token.age;
+            activationSecrets.cachix.signingKey = lib.mkForce ./vm-tests/test-cachix-signing-key.age;
+            activationSecrets.hypnotixProviders = lib.mkForce ./vm-tests/test-hypnotix-providers.age;
           };
         };
         testScript = ''
@@ -81,10 +132,16 @@ in
           machine.wait_for_unit("multi-user.target")
           # The boot-path home activation (the service users.nix tunes the
           # timeout of): proves the whole home — nvf, the hyprland files,
-          # the agents bundle, ssh config, ... — activates cleanly on a
-          # fresh boot, the exact step that fails when a real install
-          # forgets to restore the identity keys first.
+          # the agents bundle, ssh config, the secret-decrypting hooks,
+          # ... — activates cleanly on a fresh boot.
           machine.wait_for_unit("home-manager-batman.service")
+          # The REAL identity-shaped hooks ran with the throwaway
+          # identity (throwaway plaintexts, safe to assert on):
+          machine.succeed("su - batman -c 'gpg --list-secret-keys ${testGpgFingerprint} >/dev/null'")
+          trust = machine.succeed("su - batman -c 'gpg --export-ownertrust'")
+          assert "${testGpgFingerprint}:6:" in trust, trust
+          machine.succeed("grep -q test-token-vm-tests /home/batman/.config/cachix/cachix.dhall")
+          machine.succeed("grep -aq vm-test:::xtream /home/batman/.config/dconf/user")
           # Core base-module services.
           machine.succeed("systemctl is-active NetworkManager.service")
           machine.succeed("systemctl is-active sshd.service")
