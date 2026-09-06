@@ -21,14 +21,12 @@ let
   framework-laptop =
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBogygVOqZK4YBXOiHufygez1wsXQVbomtuowXlLtdFL root@amd";
 
-  # TODO(desktop): the nixos desktop's host key is NOT yet a recipient
-  # below — "nixos" does not resolve from the laptop and no neighbor
-  # answered :22. Add it (cat /etc/ssh/ssh_host_ed25519.key.pub on the
-  # desktop — or ssh-keyscan it), then re-encrypt:
-  #   EDITOR=cat nix run github:ryantm/agenix -- -e secrets/ntfy-url.age
-  # Until then the desktop's alerting silently no-ops (see
-  # system/observability.nix — missing secret ≠ failed unit); the
-  # laptop and harmonia decrypt fine.
+  # The nixos desktop decrypts ntfy-url.age via id_borg, not its host
+  # key: its host key could never be fetched ("nixos" does not resolve
+  # from the laptop, nothing answered :22), so instead the desktop's
+  # SYSTEM agenix offers /home/batman/.ssh/id_borg as an identity
+  # (age.identityPaths in computers/nixos.nix) — the same recipient
+  # every edit already uses. Resolved 2026-09-06.
 in
 {
   # User-level secrets (home-manager agenix, identity ~/.ssh/id_borg).
