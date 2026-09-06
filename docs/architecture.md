@@ -213,8 +213,8 @@ Read the repo in this order:
 │   │   │   ├── _hardware.nix    mounts (by partlabel) + kernel facts
 │   │   │   └── _disko.nix       declarative partition layout (disko CLI)
 │   │   ├── framework/
-│   │   │   ├── _hardware.nix    mounts (by UUID — installer-made layout; no
-│   │   │   │                    _disko.nix yet, see machines/hardware)
+│   │   │   ├── _hardware.nix    mounts (by partlabel) + kernel facts
+│   │   │   ├── _disko.nix       declarative layout (btrfs subvols + swap)
 │   │   │   └── _pam.nix         fprintd PAM integrations
 │   │   └── harmonia/
 │   │       ├── _hardware.nix    the server's hardware scan

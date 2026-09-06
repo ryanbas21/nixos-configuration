@@ -39,8 +39,9 @@ From there, two paths (details, the mental model, and the post-boot
 layer in [bootstrap](docs/bootstrap.md)):
 
 - **disko wipe** — for hosts whose disk layout is repo state (the
-desktop: `modules/computers/nixos/_disko.nix` → `diskoConfigurations
-.nixos`; partitioning is declarative, no manual steps, ever):
+desktop and the framework laptop both:
+`modules/computers/<host>/_disko.nix` → `diskoConfigurations.<host>`;
+partitioning is declarative, no manual steps, ever):
 
   ```sh
   nix run github:nix-community/disko -- -m destroy,format,mount \
@@ -56,10 +57,11 @@ desktop: `modules/computers/nixos/_disko.nix` → `diskoConfigurations
   sudo reboot
   ```
 
-- **ISO installer, then adopt** — when there is no `_disko.nix` for
-  the host yet (this is how the framework laptop actually landed,
-  2026-09-05): install NixOS from the flash drive the installer's own
-  way, restore the keys, clone the repo, and switch to the flake —
+- **ISO installer, then adopt** — the fallback for a host with no
+  `_disko.nix` yet (none today; the framework laptop used this once,
+  2026-09-05, before its layout mirror landed): install NixOS from
+  the flash drive the installer's own way, restore the keys, clone
+  the repo, and switch to the flake —
   [fresh laptop runbook](docs/bootstrap.md#fresh-laptop-runbook-framework-nixos-from-the-flash-drive).
 
 **Whatever the path: install with the caches.** The ISO's (and the

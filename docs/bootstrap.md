@@ -219,15 +219,17 @@ vehicle that built it.
 
 ## Fresh laptop runbook (Framework, NixOS from the flash drive)
 
-The framework laptop landed 2026-09-05 the installer's way — **NixOS
-from the flash drive first, the flake taking over after** — because
-the host has no `_disko.nix` yet: the layout the installer made (ESP
-+ btrfs with `root`/`nix`/`home` subvolumes + swap, mounted by UUID)
-is tracked in `modules/computers/framework/_hardware.nix`, but not as
-a declarative layout. Until a disko mirror lands (see
-[machines → hardware](machines.md#hardware)), this is the laptop's
-fresh-metal path — and the template for adopting any box when a
-`-m destroy` disko run is not what you want:
+**Superseded for fresh metal:** since 2026-09-06 the framework's
+layout is repo state (`modules/computers/framework/_disko.nix` —
+ESP + btrfs with the top-level at `/` plus `home`/`nix` subvolumes +
+swap), and the live installer disk got the `framework-*` partition
+labels renamed in place — a laptop reinstall is now the **same disko
+wipe as the desktop**, just with `#framework` (and the
+[disko validation trick](programs/disko.md#validating-a-layout-change-without-touching-a-disk)
+was run before anything shipped). The runbook below is retained
+verbatim: it is how the laptop actually landed 2026-09-05 (before the
+mirror existed), and it remains the template for **adopting any box
+without wiping it** — which is sometimes exactly what you want:
 
 1. **Flash drive → installer.** Write the NixOS ISO to a USB stick
    (the same vehicle the desktop path boots), boot it, and install
@@ -277,18 +279,34 @@ fresh-metal path — and the template for adopting any box when a
    dedicated `nix-laptops` NFS export, NOT the desktop's repo (see
    `modules/computers/framework.nix` for the why).
 
-**Debt, on purpose:** with no `_disko.nix`, a laptop reinstall repeats
-this runbook instead of the desktop's disko wipe. Mirroring the layout
-declaratively (ESP + btrfs subvolumes + swap, labels
-`framework-ESP`/`framework-root`, mounts by partlabel) restores the
-disko path and the labels contract.
+6. **Adopt the disk into the labels contract** (once, after the box
+   works): rename the installer's PARTLABELs in place — metadata-only,
+   same play as the desktop's
+   [adoption](#adopting-the-existing-disk-one-time--completed-2026-09-02) —
+   and write the `_disko.nix` mirror:
+
+   ```sh
+   SGDISK=$(nix build --no-link --print-out-paths 'nixpkgs#gptfdisk^out')/bin/sgdisk
+   sudo "$SGDISK" --change-name=1:framework-ESP --change-name=2:framework-root \
+     --change-name=3:framework-swap /dev/nvme0n1
+   ls -l /dev/disk/by-partlabel/framework-*   # all three symlinks must appear
+   ```
+
+   Then (order matters — labels before rebuild) the first `switch`
+   picks up the partlabel mounts. Both landed 2026-09-06; a box
+   adopted this way is thereafter indistinguishable from a
+   disko-installed one.
 
 ## Adopting the existing disk (one-time) — completed 2026-09-02
 
 **Status: done.** Labels set, the rebuild landed (fstab by partlabel,
 boot menu pruned to 10); the live disk and a fresh disko-formatted
  disk are interchangeable. Retained as reference for adopting any
-future hand-partitioned disk.
+future hand-partitioned disk — and reused verbatim for the framework
+laptop on 2026-09-06 (its installer PARTLABELs `EFI`/`root`/`swap`
+became `framework-ESP`/`framework-root`/`framework-swap`, partitions
+1/2/3, alongside the new `framework/_disko.nix` mirror; see the
+laptop runbook's step 6).
 
 The live (hand-partitioned) disk predates disko. Its mounts moved from
 UUID to PARTLABEL — the same labels `_disko.nix` sets on fresh installs

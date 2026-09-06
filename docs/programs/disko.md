@@ -81,14 +81,10 @@ NixOS-level options like `assertions` and `boot`.)
 - **LUKS** would be declared in the layout (`content.type = "luks"`
   wrapping the btrfs) — the natural moment is the next reinstall,
   which the [bootstrap runbook](../bootstrap.md#fresh-desktop-runbook-same-hardware) now makes cheap.
-- The **framework laptop** has no `_disko.nix` yet — its layout (ESP
-  + btrfs `root`/`nix`/`home` subvolumes + swap) exists only as the
-  `_hardware.nix` mount table, mounted by UUID, so fresh metal for it
-  is the
-  [installer runbook](../bootstrap.md#fresh-laptop-runbook-framework-nixos-from-the-flash-drive),
-  not disko. Mirroring it declaratively (labels
-  `framework-ESP`/`framework-root`, mounts by partlabel) closes the
-  gap; the harmonia host's mirror is the template to copy from.
-- **Validating a layout against the live disk**: once the framework
-  mirror lands, the same eval trick below verifies the generated
-  devices match `_hardware.nix` before any disk is touched.
+- The **framework laptop's** mirror landed 2026-09-06
+  (`computers/framework/_disko.nix`, the fleet's first layout with
+  btrfs subvolumes and a swap partition — and the first to use the
+  modern `type = "btrfs"` spelling, required for subvolumes). The
+  labels were renamed on the live installer disk in place; the same
+  eval trick below verified the generated devices match
+  `_hardware.nix` before anything shipped.

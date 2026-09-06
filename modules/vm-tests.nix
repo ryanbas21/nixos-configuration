@@ -15,9 +15,9 @@
 #
 # No fileSystems/swapDevices overrides are needed (unlike the harmonia
 # test's): the test framework's `useDefaultFilesystems` supplies its own
-# root disk + 9p store share and drops the physical mounts — the
-# desktop's by-partlabel entries, the framework's by-uuid entries and
-# swap partition, and both hosts' noauto NFS automounts — automatically.
+# root disk + 9p store share and drops the physical mounts — both
+# hosts' by-partlabel entries, the framework's swap partition, and
+# the noauto NFS automounts — automatically.
 # Likewise neutralized, with reasons inline:
 # - node.pkgsReadOnly = false: testers pins a shared read-only pkgs per
 #   node by default, and nixos.modules.base legitimately sets

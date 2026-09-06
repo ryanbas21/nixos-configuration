@@ -94,12 +94,9 @@ NixOS host carries two files next to its host file:
   github:ryanbas21/nixos-configuration#<name>`. Explicit partition
   **labels are the contract**: the layout sets them, and the host's
   mounts reference `/dev/disk/by-partlabel/...`, so a disko-formatted
-  disk and the original hand-partitioned disk (labeled once in place —
+  disk and a hand-partitioned original (labels set once in place —
   see [bootstrap](bootstrap.md#adopting-the-existing-disk-one-time--completed-2026-09-02))
-  satisfy the identical config. (The framework laptop currently has
-  **no** `_disko.nix` — it was installed from the flash drive's own
-  installer and mounts by UUID; see the gap note at the end of this
-  page.)
+  satisfy the identical config.
 - `modules/computers/<name>/_hardware.nix` — the mount table (by
   partlabel) plus kernel facts (modules, microcode), maintained by
   hand; originally from `nixos-generate-config`.
@@ -133,13 +130,10 @@ rollback stop.
 The desktop today: systemd-boot on UEFI, 2G ESP (`nixos-ESP`) + btrfs
 root (`nixos-root`), no swap, Intel CPU (`kvm-intel`), no LUKS. The
 harmonia host mirrors its layout (`harmonia-ESP` 1023M + ext4 root).
-The **framework laptop is the deliberate gap**: it was installed from
-the flash drive's own installer (2026-09-05), so its layout — ESP +
-btrfs `root`/`nix`/`home` subvolumes + swap, mounted by UUID — is
-tracked only as the `_hardware.nix` mount table, with **no
-`_disko.nix`, no partlabels, and no `diskoConfigurations` entry**.
-Fresh metal for it means the
-[installer runbook](bootstrap.md#fresh-laptop-runbook-framework-nixos-from-the-flash-drive)
-instead of a disko wipe; mirroring the layout declaratively (labels
-`framework-ESP`/`framework-root`, mounts by partlabel) would close
-that gap and restore the labels contract.
+The **framework laptop** mirrors its installer-made layout since
+2026-09-06: 1G ESP (`framework-ESP`) + btrfs root
+(`framework-root`, the filesystem top-level at `/` with `home` and
+`nix` subvolumes) + 67G swap (`framework-swap`) — the labels were
+renamed on the live installer disk in place (see
+[bootstrap](bootstrap.md#adopting-the-existing-disk-one-time--completed-2026-09-02)),
+so the disko wipe and the running disk are interchangeable there too.
