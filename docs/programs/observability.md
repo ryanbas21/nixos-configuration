@@ -10,7 +10,7 @@ instead of waiting to be asked.
 
 ```
 any host failure ──OnFailure──▶ notify-failed@.service ──POST──▶ the self-hosted ntfy
-any host weekly  ──timer──────▶ health-digest.service ──POST──▶ (URL: agenix secret)
+any host weekly  ──timer──────▶ health-digest.service ──POST──▶ (URL+token: agenix secret)
                                               │
                                               ▼
                  phone (ntfy app) subscribes /<hostname> — anywhere, not just LAN
@@ -22,14 +22,16 @@ any host weekly  ──timer──────▶ health-digest.service ──PO
   instant push anywhere; the known trade is that the ntfy box does
   not ride the rack UPS — a mains event takes alerts down with
   everything else. The URL is the agenix secret
-  `secrets/ntfy-url.age` (recipients in secrets.nix): a personal
-  domain is not something the repo should broadcast. No publish auth
-  today; if that changes, extend the secret's plaintext with a token
-  line and teach the notify scripts to send it.
+  `secrets/ntfy-url.age` (recipients in secrets.nix; plaintext = URL
+  line + token line): a personal domain is not something the repo
+  should broadcast. The server runs deny-all auth (since 2026-09-06):
+  the fleet publishes with the token as a Bearer header and the phone
+  subscribes logged in as the token's user — guessing a topic name
+  grants nothing.
 - **Client half** (`modules/system/observability.nix`, both the base
   tier and harmonia directly): the `notify-failed@` template, the
   digest service+timer, sysstat, and the journald cap. Scripts read
-  the URL from `/run/agenix/ntfy-url` at runtime and no-op (journal
+  the URL and token from `/run/agenix/ntfy-url` at runtime and no-op (journal
   note, never a failed unit) when it is absent — which is also what
   keeps the VM boot tests clean, where no secret can decrypt.
 
@@ -92,8 +94,6 @@ Synology's job (DSM's UPS support).
 
 ## Decided against, for now
 
-- **ntfy auth**: anonymous publish on the secret URL; if the server
-  grows token auth, the secret gains a token line (see above).
 - **healthchecks.io-style dead-man service**: the digest's
   stop-arriving-is-the-signal covers the same need without an external
   dependency.
@@ -104,7 +104,10 @@ Synology's job (DSM's UPS support).
 ## Verifying
 
 ```
-ntfy app → server = the secret URL, topic = each hostname
+ntfy app → server = the secret URL, logged in as the token's user; topic = each hostname
+curl -s -o /dev/null -w 'HTTP %{http_code}\n' -d probe \
+  -H "Authorization: Bearer $(sudo sed -n 2p /run/agenix/ntfy-url)" \
+  "$(sudo sed -n 1p /run/agenix/ntfy-url)/$(uname -n)"   # expect 200
 sudo systemctl start health-digest      # a digest should arrive now
 sudo systemctl start notify-failed@test.service   # synthetic failure push
 journalctl -t observability             # delivery failures land here

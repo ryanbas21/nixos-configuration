@@ -12,7 +12,11 @@
 #      an agenix secret (secrets/ntfy-url.age): a personal domain is
 #      not something the repo should broadcast. Phones subscribe with
 #      the ntfy app against <that-server>/<hostname>, one topic per
-#      host.
+#      host. The server runs deny-all auth (verified 2026-09-06 —
+#      40301 on anonymous publish), so the secret's plaintext is TWO
+#      lines: the URL, then the access token. Scripts publish with it
+#      as a Bearer header; the phone subscribes logged in as the
+#      token's user.
 #   2. FAILURE HOOKS: a notify-failed@.service template that OnFailure
 #      wiring points at — a unit dying pages the phone within seconds.
 #      Wired: nix-gc, fstrim, snapper-timeline/-cleanup (base hosts);
@@ -36,25 +40,37 @@ let
   # Fire-and-forget push helper shared by every alerting path. NEVER
   # fails: an OnFailure hook that itself fails would recurse, and a
   # dead notification path must not take the notifying unit down with
-  # it. The server URL comes from the agenix secret
+  # it. The server URL and access token come from the agenix secret
   # secrets/ntfy-url.age (the pre-existing self-hosted ntfy behind
-  # nginx — see the header); unreadable/empty → journal note + exit 0,
-  # which is also what keeps the VM boot tests (no decryptable secret
-  # there) clean.
+  # nginx — see the header): plaintext line 1 = URL, line 2 = the
+  # token its deny-all auth requires (a one-line file degrades to the
+  # old anonymous attempt — an HTTP 403 into the journal, never a
+  # broken unit). Unreadable/empty → journal note + exit 0, which is
+  # also what keeps the VM boot tests (no decryptable secret there)
+  # clean.
   notify = pkgs.writeShellScript "notify" ''
     # $1 title, $2 ntfy priority (low|default|high|urgent), $3 body
-    url=$(cat /run/agenix/ntfy-url 2>/dev/null || true)
+    url=$(sed -n 1p /run/agenix/ntfy-url 2>/dev/null)
+    token=$(sed -n 2p /run/agenix/ntfy-url 2>/dev/null)
     if [ -z "$url" ]; then
       ${pkgs.util-linux}/bin/logger -t observability \
         "notify: /run/agenix/ntfy-url missing or empty — secret not decrypted?"
       exit 0
     fi
-    if ! ${lib.getExe pkgs.curl} -sf -m 8 --retry 2 --retry-all-errors \
+    auth=()
+    [ -n "$token" ] && auth=(-H "Authorization: Bearer $token")
+    # $(uname -n), NOT $(hostname): hostname(1) is not in a systemd
+    # unit's PATH (2026-09-06 journal: "hostname: command not found" —
+    # every push until then went to the EMPTY topic). %{http_code} in
+    # the log: "HTTP 403" names a missing/stale token line, "HTTP
+    # 000" an unreachable server.
+    code=$(${lib.getExe pkgs.curl} -s -m 8 --retry 2 --retry-all-errors \
+        -o /dev/null -w '%{http_code}' \
+        "''${auth[@]}" \
         -H "Title: $1" -H "Priority: $2" -H "Tags: warning" \
-        -d "$3" "$url/$(hostname)"; then
-      ${pkgs.util-linux}/bin/logger -t observability \
-        "notify: delivery failed — $1: $3"
-    fi
+        -d "$3" "$url/$(uname -n)" || true)
+    [ "$code" = 200 ] || ${pkgs.util-linux}/bin/logger -t observability \
+      "notify: delivery failed (HTTP $code) — $1: $3"
     exit 0
   '';
 
@@ -62,7 +78,7 @@ let
   # template below; systemd's %i (the unit name) arrives as $1.
   notifyFailed = pkgs.writeShellScriptBin "notify-failed" ''
     exec ${notify} "URGENT: $1 failed" urgent \
-      "unit $1 failed on $(hostname) at $(date '+%F %T') — journalctl -u $1"
+      "unit $1 failed on $(uname -n) at $(date '+%F %T') — journalctl -u $1"
   '';
 
   healthDigest = pkgs.writeShellScriptBin "health-digest" ''
@@ -75,8 +91,11 @@ let
     add() { out="$out$1
 "; }
 
-    add "== $(hostname) health digest — $(date '+%F %T')"
-    add "uptime: $(uptime -p | sed 's/^up //')  kernel: $(uname -r)"
+    # uname -n: hostname(1) is not in a unit's PATH (see notify).
+    add "== $(uname -n) health digest — $(date '+%F %T')"
+    # procps' uptime owns -p; coreutils' (which IS in a unit's PATH)
+    # rejects it — 2026-09-06 journal.
+    add "uptime: $(${pkgs.procps}/bin/uptime -p | sed 's/^up //')  kernel: $(uname -r)"
 
     # Failed units, system and (where present) batman's user manager.
     failed=$(systemctl --failed --plain --no-legend | head -n 20)
@@ -127,12 +146,18 @@ let
       | tr '\n' '; ')
     [ -n "$ups" ] && add "ups (rack): $ups"
 
-    if ! ${lib.getExe pkgs.curl} -sf -m 10 --retry 2 --retry-all-errors \
+    # Same two-line secret + Bearer + http_code rationale as notify.
+    url=$(sed -n 1p /run/agenix/ntfy-url 2>/dev/null)
+    token=$(sed -n 2p /run/agenix/ntfy-url 2>/dev/null)
+    auth=()
+    [ -n "$token" ] && auth=(-H "Authorization: Bearer $token")
+    code=$(${lib.getExe pkgs.curl} -s -m 10 --retry 2 --retry-all-errors \
+        -o /dev/null -w '%{http_code}' \
+        "''${auth[@]}" \
         -H "Title: health digest" -H "Priority: low" -H "Tags: pill" \
-        -d "$out" "$(cat /run/agenix/ntfy-url 2>/dev/null || true)/$(hostname)"; then
-      ${pkgs.util-linux}/bin/logger -t health-digest \
-        "delivery failed (empty/missing /run/agenix/ntfy-url counts)"
-    fi
+        -d "$out" "$url/$(uname -n)" || true)
+    [ "$code" = 200 ] || ${pkgs.util-linux}/bin/logger -t health-digest \
+      "delivery failed (HTTP $code; empty/missing /run/agenix/ntfy-url counts)"
     exit 0
   '';
 

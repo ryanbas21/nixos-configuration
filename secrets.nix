@@ -61,10 +61,12 @@ in
   # self-hosted ntfy behind nginx. A personal domain name is not
   # something the repo should broadcast (scrapers correlate
   # repo ↔ infrastructure), so the URL itself is the secret — the
-  # scripts in system/observability.nix read it at runtime from
+  # The server runs deny-all auth (2026-09-06: anonymous publish got
+  # 40301), so the plaintext is TWO lines — the URL, then an access
+  # token with write on the three host topics (the phone subscribes
+  # with the same user's login). Scripts in system/observability.nix
+  # and framework/_ups.nix read both at runtime from
   # /run/agenix/ntfy-url and no-op (journal note, never a failed unit)
-  # when it is absent, which keeps the VM boot tests clean. If the
-  # server ever grows publish auth, extend the plaintext file with a
-  # token line and teach the notify scripts to send it.
+  # when it is absent, which keeps the VM boot tests clean.
   "secrets/ntfy-url.age".publicKeys = [ batman harmonia framework-laptop ];
 }

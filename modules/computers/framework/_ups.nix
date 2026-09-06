@@ -17,9 +17,9 @@
 # AND no reachability claim. The digest's UPS section
 # (observability.nix) is the weekly pull-side of this watcher.
 #
-# ntfy URL from the agenix secret secrets/ntfy-url.age at runtime
-# (same pattern as observability.nix — this file cannot import that
-# one's helper, so the read is restated).
+# ntfy URL + token from the agenix secret secrets/ntfy-url.age at
+# runtime (same pattern as observability.nix — this file cannot import
+# that one's helper, so the read is restated).
 { pkgs, ... }:
 
 let
@@ -37,21 +37,29 @@ let
     prev=$(cat "$state" 2>/dev/null || echo unknown)
 
     if [ "$cur" != "$prev" ] && [ "$prev" != unknown ]; then
-      ntfyUrl=$(cat /run/agenix/ntfy-url 2>/dev/null || true)
-      if [ -n "$ntfyUrl" ] && [ "$cur" = onbatt ]; then
+      # Two-line secret (line 1 URL, line 2 the token the server's
+      # deny-all auth requires) — same read as observability.nix's
+      # notify; uname -n because hostname(1) is not in a unit's PATH.
+      url=$(sed -n 1p /run/agenix/ntfy-url 2>/dev/null)
+      token=$(sed -n 2p /run/agenix/ntfy-url 2>/dev/null)
+      auth=()
+      [ -n "$token" ] && auth=(-H "Authorization: Bearer $token")
+      if [ -n "$url" ] && [ "$cur" = onbatt ]; then
         detail=$(timeout 3 ${pkgs.nut}/bin/upsc ups@192.168.1.30 2>/dev/null \
           | sed -n 's/^battery\.charge: /charge %; /p; s/^battery\.runtime: /runtime s/p' | tr -d '\n')
         ${pkgs.curl}/bin/curl -sf -m 8 --retry 2 --retry-all-errors \
+          "''${auth[@]}" \
           -H "Title: rack UPS on battery" -H "Priority: high" -H "Tags: electric_plug" \
           -d "rack UPS on battery (ups.status=$status; $detail) — NAS/router on borrowed time; the desktop is already down." \
-          "$ntfyUrl/$(hostname)" \
-          || ${pkgs.util-linux}/bin/logger -t ups-watch "delivery failed"
-      elif [ -n "$ntfyUrl" ]; then
+          "$url/$(uname -n)" \
+          || ${pkgs.util-linux}/bin/logger -t ups-watch "delivery failed (403 = stale/missing token line)"
+      elif [ -n "$url" ]; then
         ${pkgs.curl}/bin/curl -sf -m 8 --retry 2 --retry-all-errors \
+          "''${auth[@]}" \
           -H "Title: rack UPS back on mains" -H "Priority: default" -H "Tags: plug" \
           -d "rack UPS is back on line power." \
-          "$ntfyUrl/$(hostname)" \
-          || ${pkgs.util-linux}/bin/logger -t ups-watch "delivery failed"
+          "$url/$(uname -n)" \
+          || ${pkgs.util-linux}/bin/logger -t ups-watch "delivery failed (403 = stale/missing token line)"
       else
         ${pkgs.util-linux}/bin/logger -t ups-watch \
           "transition to $cur observed but /run/agenix/ntfy-url is missing"
