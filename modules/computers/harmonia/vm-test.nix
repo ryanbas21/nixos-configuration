@@ -44,7 +44,7 @@ in
   flake.checks.x86_64-linux."harmonia:vm-test" =
     pkgs.testers.runNixOSTest {
       name = "harmonia-vm-test";
-      nodes.machine = { config, lib, pkgs, ... }: {
+      nodes.machine = { lib, ... }: {
         imports = [ hostModule ];
         virtualisation.useEFIBoot = true;
         fileSystems = lib.mkForce {

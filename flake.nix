@@ -62,6 +62,13 @@
 
     flake-parts.url = "github:hercules-ci/flake-parts";
 
+    # Pre-commit hooks as flake-parts modules (the flake formerly known
+    # as cachix/pre-commit-hooks.nix). deadnix is a built-in hook there.
+    git-hooks = {
+      url = "github:cachix/git-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     import-tree = {
       url = "github:vic/import-tree";
       flake = false;

@@ -14,8 +14,7 @@
 # The only edits to existing lua files are the two mason-path fixes in
 # lsp/eslint.lua and lsp/elixirls.lua (bare command names now resolved
 # from PATH).
-{ config
-, pkgs
+{ pkgs
 , lib
 , ryan-nvim
 , ...

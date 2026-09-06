@@ -63,7 +63,7 @@
   };
   config = {
     flake.homeConfigurations =
-      lib.mapAttrs (name: { configuration, ... }: configuration) config.home.configurations;
+      lib.mapAttrs (_name: { configuration, ... }: configuration) config.home.configurations;
 
     home.configurations = {
       ryan-linux = {

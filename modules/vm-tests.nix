@@ -79,7 +79,7 @@ in
       pkgs.testers.runNixOSTest {
         name = "${host}-vm-test";
         node.pkgsReadOnly = false;
-        nodes.machine = { config, lib, ... }: {
+        nodes.machine = { ... }: {
           imports = [ hostEval.module ];
           # systemd-boot requires UEFI on real metal, so boot UEFI here
           # too. The generous memory/cores: the Plasma-era closure runs

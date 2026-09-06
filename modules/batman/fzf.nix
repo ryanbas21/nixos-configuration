@@ -1,5 +1,5 @@
-{ inputs, ... }: {
-  users.batman.home.base = { pkgs, ... }: {
+{ ... }: {
+  users.batman.home.base = { ... }: {
     programs.fzf = {
       enable = true;
       enableFishIntegration = true;

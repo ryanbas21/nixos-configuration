@@ -12,7 +12,7 @@ layer).
 |---|---|---|
 | [Neovim (nvf)](neovim.md) | `batman/nvf.nix`, `batman/_nvf/` | the nvf + dotfiles-lua bridge, the `_module.args` dance, known gaps |
 | [Shell & CLI](shell-and-cli.md) | `batman/fish.nix`, `batman/fzf.nix`, `batman/packages.nix` | fish + plugins, fzf/fd, starship/zoxide/carapace/eza, direnv, package inventory |
-| [Backups](backup.md) | `batman/backup.nix`, `scripts/git-backup.sh` | borgmatic, the daily git timer, boot-race retries |
+| [Backups](backup.md) | `batman/backup.nix` | borgmatic to the NAS, boot-race retries, the retired git timer |
 | [Nix caches](nix-caches.md) | `batman/cachix.nix`, `computers/harmonia.nix`, `system/base.nix` (settings), `lib.nix` | cachix + harmonia server (now a tracked host), substituter order, CI pushes, adoption runbook |
 | [Disk layout (disko)](disko.md) | `disko.nix`, `computers/nixos/_disko.nix` | declarative partitioning, the labels contract, fresh-metal flow |
 | [Maintenance](maintenance.md) | `system/maintenance.nix` | weekly GC, store optimisation, boot-entry caps — and why rollback reach is bounded |

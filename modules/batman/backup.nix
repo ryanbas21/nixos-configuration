@@ -5,9 +5,11 @@
 { ... }:
 
 {
-  # The desktop's checkout location: the git-backup timer's ExecStart and
-  # the borgmatic source list both operate on this path, bound once here
-  # so moving the checkout means changing exactly one line.
+  # The desktop's checkout location: borgmatic's source list operates
+  # on this path, bound once here so moving the checkout means changing
+  # exactly one line. (The automated git-backup timer that also keyed
+  # off this path is gone — commits are hand-made now, gated by the
+  # pre-commit hook in modules/pre-commit.nix.)
   users.batman.home.pc = { config, lib, osConfig, ... }:
     let
       repoPath = "/etc/nixos";
@@ -37,31 +39,6 @@
     ];
 
     # borg-passphrase itself is declared once, in agenix.nix.
-
-    systemd.user.services.nixos-config-backup = {
-      Unit.Description = "Backup NixOS configuration to Git";
-
-      Service = {
-        Type = "oneshot";
-        ExecStart = "${repoPath}/scripts/git-backup.sh";
-        # Boot-race guard: the timer is Persistent=true and fires the
-        # moment the machine boots; retry instead of silently losing
-        # the day's push (systemd >= 254 allows Restart on Type=oneshot).
-        Restart = "on-failure";
-        RestartSec = "5min";
-      };
-    };
-
-    systemd.user.timers.nixos-config-backup = {
-      Unit.Description = "Daily NixOS configuration Git backup";
-
-      Timer = {
-        OnCalendar = "daily";
-        Persistent = true;
-      };
-
-      Install.WantedBy = [ "timers.target" ];
-    };
 
     programs.borgmatic = {
       enable = true;

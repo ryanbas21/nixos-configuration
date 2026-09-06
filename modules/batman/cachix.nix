@@ -24,7 +24,7 @@
 
 {
   # Desktop: own the credentials, provision CLI + CI from them.
-  users.batman.home.pc = { config, lib, pkgs, ... }: {
+  users.batman.home.pc = { config, pkgs, ... }: {
     # No age.secrets registrations here: nothing reads these at runtime
     # post-login — both consumers are activation-time, and activation
     # cannot depend on the agenix runtime dir (agenix.service is a user

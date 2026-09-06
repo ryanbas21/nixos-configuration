@@ -1,4 +1,4 @@
-{ config, inputs, lib, mkModuleOption, ... }: {
+{ config, inputs, mkModuleOption, ... }: {
   options.homeManager.modules.base = mkModuleOption { key = "home-manager-base"; };
   config = {
     homeManager.modules.base = { programs.home-manager.enable = true; };

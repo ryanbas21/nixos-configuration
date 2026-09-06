@@ -6,7 +6,7 @@
 # two mpv options the upstream README recommends for the same reason
 # (hypnotix parses "mpv-options" as space-separated key=value pairs).
 {...}: {
-  users.batman.home.pc = {config, lib, pkgs, ...}: let
+  users.batman.home.pc = {config, pkgs, ...}: let
     hypnotix-x11 = pkgs.symlinkJoin {
       name = "hypnotix-x11";
       paths = [pkgs.hypnotix];

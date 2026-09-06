@@ -2,7 +2,7 @@
 { inputs, ... }:
 
 {
-  users.batman.home.pc = { config, lib, pkgs, ... }: {
+  users.batman.home.pc = { config, pkgs, ... }: {
     imports = [
       inputs.agenix.homeManagerModules.default
     ];

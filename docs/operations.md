@@ -38,10 +38,8 @@ Notes on individual inputs:
 - `vicinae` deliberately has **no** `follows` on nixpkgs (a follows makes
   its binary cache miss — see
   [nix caches](programs/nix-caches.md#substituter-order-desktop-modulesnixosbasenix)).
-- The git-backup timer (see [backups](programs/backup.md)) commits and
-  pushes any dirty tree — including a half-finished lock update. That is
-  safe (CI checks those pushes too), but if the update commit should
-  carry a real message, commit before the timer fires.
+- `git-hooks` (the pre-commit flake) follows nixpkgs like everything
+  else; only its hook-tool pins move on their own.
 
 Cadence is demand-driven, not calendared: update when a package is needed
 newer, or for security fixes — not on a schedule.
@@ -86,10 +84,6 @@ repository is the recovery path for files
 
 Caveats worth knowing:
 
-- Rollback vs. repo drift: the [git-backup timer](programs/backup.md)
-  keeps pushing repo HEAD regardless. A rolled-back system simply
-  disagrees with repo HEAD until the next rebuild from HEAD re-applies
-  it. Harmless — don't be surprised by it.
 - Secrets re-decrypt fine after rollback: the agenix identity
   (`~/.ssh/id_borg`) is user-level state that predates and outlives any
   generation.
@@ -104,8 +98,7 @@ Caveats worth knowing:
 
 ## CI (.github/workflows/ci.yml)
 
-CI runs on every push to main (including the backup timer's automated
-commits) and on every pull request, in six jobs:
+CI runs on every push to main and on every pull request, in six jobs:
 
 - **flake-check** — a fast eval-only job (`nix flake check --no-build`)
   covering every output: the NixOS hosts against their tracked hardware

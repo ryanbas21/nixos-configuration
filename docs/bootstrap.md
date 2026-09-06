@@ -24,8 +24,8 @@ On `sudo nixos-rebuild switch --flake .#nixos`, activation also:
   syncs `CACHIX_AUTH_TOKEN` / `CACHIX_SIGNING_KEY` to the repo's GitHub
   Actions secrets (loudly warns if `gh` is not authenticated yet — see
   [nix caches](programs/nix-caches.md));
-- pins GitHub's host key system-wide, so unattended pushes never prompt;
-- starts the daily borgmatic and git-backup timers;
+- pins GitHub's host key system-wide, so unattended `gh`/ssh never prompts;
+- starts the daily borgmatic timer;
 - sets up the NFS automounts (media, notes, nix-backups) on demand.
 
 ## The key inventory (the only must-restore items)
@@ -33,7 +33,7 @@ On `sudo nixos-rebuild switch --flake .#nixos`, activation also:
 | Key | Where | Required for | Consequence if missing |
 |---|---|---|---|
 | `~/.ssh/id_borg` | 1Password | agenix decryption of **every** secret | **First rebuild fails** — home-manager activation cannot decrypt; restore before rebuilding |
-| `~/.ssh/git` | 1Password | pushes to GitHub (git-backup timer, manual pushes, `gh` over ssh) | Timer pushes fail; rebuild still succeeds |
+| `~/.ssh/git` | 1Password | pushes to GitHub (manual pushes, `gh` over ssh) | Pushes fail; rebuild still succeeds |
 | `~/.ssh/harmonia` | 1Password | the harmonia post-build-hook cache push **and** distributed builds to .82 (one key shared by every NixOS host; authorized on the server alongside `id_borg`) | **Silently** degrades — builds succeed but nothing warms the LAN cache (`|| true` by design) and distributed builds fall back to local; no warning is printed |
 | `.82` ssh **host** key | nowhere yet — save to 1Password at adoption, or rely on the rekey path | the cache server's agenix identity (decrypts `harmonia-signing-key.age` on that box) | Nothing is lost: the [resurrection runbook](#harmonia-resurrection-runbook-the-cache-vm) generates a fresh key and rekeys the secret to it |
 
@@ -149,10 +149,9 @@ partitioning or installer-menu steps:
 6. **Reboot**, remove the USB, and do the post-boot manual state
    (interactive, cannot be declarative):
 
-   - clone the repo into batman's home (so the user-level git-backup
-     timer can commit it, and so it rides along in the borg backup of
-     `$HOME`) and symlink `/etc/nixos` at it — the desktop's actual
-     layout:
+   - clone the repo into batman's home (so it rides along in the borg
+     backup of `$HOME`) and symlink `/etc/nixos` at it — the desktop's
+     actual layout:
 
      ```sh
      git clone git@github.com:ryanbas21/nixos-configuration.git ~/programming/nixos
@@ -201,7 +200,7 @@ knows how to mount this layout; that's the labels contract.
    `batman` through the *target's* user database, where the account now
    exists (uid 1000) — the ISO's own `/etc/passwd` has no batman.
 5. **reboot** — systemd boots generation 1 and activates everything:
-   NetworkManager, the backup timers, Night Light, the agenix secrets,
+   NetworkManager, the borgmatic timer, Night Light, the agenix secrets,
    the whole home. There is no setup phase; the first boot IS your
    machine.
 
@@ -257,8 +256,7 @@ without wiping it** — which is sometimes exactly what you want:
    ```
 
    (The framework's `/etc/nixos` **is** the checkout — a real
-   directory, not the desktop's symlink; the git-backup timer operates
-   on it directly.) If the box's hardware facts are not harvested
+   directory, not the desktop's symlink.) If the box's hardware facts are not harvested
    yet: `nixos-generate-config --show-hardware-config >
    modules/computers/framework/_hardware.nix`, commit, push.
 

@@ -1,11 +1,13 @@
 # Backups
 
-[← program notes](index.md) · modules: `batman/backup.nix`, `scripts/git-backup.sh`
+[← program notes](index.md) · modules: `batman/backup.nix`
 
 NixOS hosts only: assigned to `home.pc`, not `home.base`, so the
 standalone home-manager exports (CachyOS laptop, Mac) never inherit the
-backup timers or the NFS-mount-dependent borgmatic config. Two halves:
-data (borgmatic) and config (the git timer).
+backup timer or the NFS-mount-dependent borgmatic config. Two halves:
+data (borgmatic) and config (git itself — the repo is its own backup,
+pushed by hand; the desktop's checkout also rides along in borg's
+`$HOME` source).
 
 ## Borgmatic (data)
 
@@ -147,40 +149,21 @@ To make checking routine instead, add a `checks` block to
 `programs.borgmatic.backups.nix-home` in `batman/backup.nix`
 (borgmatic then interleaves them with the nightly create/prune).
 
-## git-backup (config)
+## The config half: git, by hand
 
-A daily systemd **user** timer running `scripts/git-backup.sh` against
-the `/etc/nixos` checkout. The script, in order:
-
-1. Resolves the repo root from its own location (the script lives at
-   `<repo>/scripts/git-backup.sh`); pass a different checkout path as
-   `$1`.
-2. **Exits 0 if the tree is clean** — `git diff --quiet && git diff
-   --cached --quiet` plus no untracked files. A clean tree pushes
-   nothing.
-3. **Waits up to 5 minutes for DNS** (`getent hosts github.com`, 30 ×
-   10 s) — the Persistent timer fires the moment the machine boots,
-   possibly before the network is fully up.
-4. `git add -A`, commit "Automated NixOS config backup".
-5. `git pull --rebase --autostash` — another machine may have pushed in
-   the meantime; rebase instead of failing the push on a diverged
-   remote.
-6. `git push` — over ssh with the dedicated `~/.ssh/git` key
-   ([identity](identity.md)); the system-wide pre-trusted GitHub host
-   key means it never blocks on a host-key prompt.
-
-The **service** unit (not just the timer) also carries
-`Restart = "on-failure"` + `RestartSec = "5min"` — the same boot-race
-guard (systemd ≥ 254 allows Restart on `Type=oneshot`).
+Config used to have an automated half — a daily user timer
+(`scripts/git-backup.sh`, now deleted) that committed any dirty tree as
+"Automated NixOS config backup" and pushed it. It was retired:
+hand-made commits carry real messages, and they now pass through the
+pre-commit hook (`modules/pre-commit.nix`, git-hooks.nix + deadnix) —
+declared in this very repo, so `nix develop` installs it. A dirty tree
+is simply your responsibility to commit when it's ready; borg still
+snapshots the working tree daily regardless, so nothing is lost if a
+day slips.
 
 ## Operational notes
 
-- The timer commits and pushes **any dirty tree**, including a
-  half-finished `nix flake update` — that is safe (CI eval-checks every
-  push, including automated ones), but if you want a real commit
-  message, commit before the timer fires (daily at midnight, plus
-  immediately after any boot that missed a run).
-- The timers exist on every NixOS host (desktop + framework). The
+- The timer exists on every NixOS host (desktop + framework). The
   CachyOS laptop and Mac keep their config in this repo by definition —
   there is nothing to back up locally.
 - `repoPath` is bound once at the top of `backup.nix` — moving the

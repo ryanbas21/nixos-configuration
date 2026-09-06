@@ -201,6 +201,8 @@ Read the repo in this order:
 │   │                            in a VM (CI test-disko)
 │   ├── vm-tests.nix             flake.checks: fresh-boot VM tests that boot the
 │   │                            real nixos/framework modules (CI test-hosts)
+│   ├── pre-commit.nix          git-hooks.nix flakeModule — deadnix pre-commit
+│   │                            hook + the `nix develop` shell that installs it
 │   ├── system/                  the system tier: every file assigns to
 │   │                            nixos.modules.base, the shared layer the
 │   │                            desktop-style hosts import (harmonia does not)
@@ -246,7 +248,7 @@ Read the repo in this order:
 │       ├── agents.nix           pi + llm-agents tools, model router
 │       ├── nvf.nix              nvf wiring (+ ryan-nvim injection); Linux-only
 │       ├── packages.nix         home.packages (messaging, 1Password CLI, build tools)
-│       ├── backup.nix           borgmatic + git backup timer (home.pc; desktop)
+│       ├── backup.nix           borgmatic to the NAS (home.pc; desktop)
 │       ├── cachix.nix           nix-configs cache: agenix creds + CI secret
 │       │                        sync + Mac's declarative nix.conf
 │       ├── obsidian.nix         obsidian vault (home.pc; desktop)
@@ -263,7 +265,7 @@ Read the repo in this order:
 │                                the boot tests decrypt against (CI);
 │                                never real key material
 └── scripts/
-    └── git-backup.sh            the script the backup timer runs
+    └── adopt-harmonia.sh        automates the harmonia adoption runbook's steps
 ```
 
 Notes on the machinery files that are not self-explanatory:

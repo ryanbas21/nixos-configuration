@@ -29,10 +29,12 @@ auth tweaks — nixpkgs defaults (no root login, no password auth) apply.
 `programs.ssh.knownHosts."github.com"` pins the official
 `ssh-ed25519` key (verified against <https://api.github.com/meta>) into
 the **system-wide** `/etc/ssh/ssh_known_hosts`, which user ssh reads as
-`GlobalKnownHostsFile`. Why: the daily
-[git-backup timer](backup.md#git-backup-config) pushes unattended —
-without the pin, a first-ever push would block forever on a host-key
-prompt inside a non-interactive service.
+`GlobalKnownHostsFile`. Why: non-interactive ssh to GitHub still
+happens — the cachix activation hook's `gh secret set` sync
+([nix caches](nix-caches.md)) runs before any interactive session
+exists — and without the pin a first-ever push would block forever on
+a host-key prompt inside it. (The daily git-backup timer that
+originally justified the pin is gone; the hook kept the need alive.)
 
 ## SSH client (`batman/ssh.nix`, desktop-only)
 

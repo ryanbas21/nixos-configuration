@@ -19,7 +19,7 @@
   };
   config = {
     flake.nixosConfigurations =
-      lib.mapAttrs (name: { configuration, ... }: configuration) config.nixos.configurations;
+      lib.mapAttrs (_name: { configuration, ... }: configuration) config.nixos.configurations;
 
     flake.checks =
       lib.mkMerge (lib.mapAttrsToList

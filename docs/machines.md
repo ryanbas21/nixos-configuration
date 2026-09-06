@@ -17,10 +17,10 @@ On the desktop the repo lives at `/etc/nixos` — a symlink to
 `git pull` followed by the rebuild command above; the framework
 laptop's `/etc/nixos` **is** the checkout itself (a real directory,
 not a symlink), with the same pull-then-rebuild steady state; the
-CachyOS laptop and Mac need nothing but nix installed. The
-desktop's git-backup timer operates on that checkout (the path is
-bound once, as `repoPath`, in `modules/batman/backup.nix`), so moving
-a checkout means changing that binding.
+CachyOS laptop and Mac need nothing but nix installed. That checkout
+path is bound once, as `repoPath`, in `modules/batman/backup.nix`
+(it feeds borgmatic's source list), so moving a checkout means
+changing that binding.
 
 ### The harmonia host — the slim variant
 

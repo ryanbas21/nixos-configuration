@@ -60,10 +60,6 @@
 # and later runs substitute them instead of rebuilding. The step is
 # skipped while either secret is absent, so the workflow is green both
 # before and without the cache.
-#
-# This also covers the git-backup timer's automated commits to main
-# (modules/batman/backup.nix): no push, human or timer, may carry a config
-# that fails to evaluate or build.
 name: CI
 
 on:

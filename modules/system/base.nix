@@ -11,7 +11,7 @@
 { mkModuleOption, unfreeNames, cachixCache, ... }: {
   options.nixos.modules.base = mkModuleOption { key = "base"; };
 
-  config.nixos.modules.base = { config, lib, pkgs, ... }: {
+  config.nixos.modules.base = { lib, pkgs, ... }: {
     # Bootloader.
     boot.loader.systemd-boot.enable = true;
     boot.loader.efi.canTouchEfiVariables = true;

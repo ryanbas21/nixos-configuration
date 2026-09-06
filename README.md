@@ -137,8 +137,8 @@ program does, why it is there, and the war stories:
 - [Neovim (nvf)](docs/programs/neovim.md) — the nvf + dotfiles-lua bridge.
 - [Shell & CLI](docs/programs/shell-and-cli.md) — fish, fzf, starship,
   zoxide, carapace, eza, direnv, and the package inventory.
-- [Backups](docs/programs/backup.md) — borgmatic + the daily git-backup
-  timer.
+- [Backups](docs/programs/backup.md) — borgmatic to the NAS; the
+  config half is the repo itself, pushed by hand.
 - [Nix caches](docs/programs/nix-caches.md) — the personal cachix cache,
   the LAN harmonia server (now a tracked host), substituter order, and
   CI cache pushes.
@@ -183,7 +183,7 @@ program does, why it is there, and the war stories:
 │   ├── vm-tests.nix             fresh-boot VM tests (CI boots every host)
 │   └── *.nix                    machinery (users, home, eval-modules, ...)
 ├── secrets/ + secrets.nix       agenix-encrypted secrets (safe to commit)
-├── scripts/git-backup.sh        what the daily config-backup timer runs
+├── scripts/                     host-adoption helper (adopt-harmonia.sh)
 └── .github/workflows/ci.yml     eval-only flake check + standalone home builds
 ```
 

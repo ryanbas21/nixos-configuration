@@ -46,8 +46,8 @@ The GPG **private key itself is in the repo**, encrypted
 
 Why `id_borg` and `git` are separate: the agenix identity only ever
 needs to decrypt on this machine; the push key is the one that
-authenticates to GitHub constantly (and is the one the unattended
-git-backup timer uses). Compromise of one doesn't grant the other.
+authenticates to GitHub constantly (manual pushes, `gh` over ssh).
+Compromise of one doesn't grant the other.
 
 System-side, `programs.ssh.knownHosts` pre-trusts GitHub's host key so
 unattended pushes never prompt — see [security](security.md#pre-trusted-github-host-key).
