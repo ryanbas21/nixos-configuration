@@ -119,6 +119,26 @@
     # Enable sound with pipewire.
     services.pulseaudio.enable = false;
     security.rtkit.enable = true;
+
+    # Allow wheel to suspend the machine over ssh. The stock polkit
+    # defaults only auto-allow `org.freedesktop.login1.suspend*` for
+    # ACTIVE seat sessions — an ssh session is not on a seat, and with
+    # the user's graphical session also logged in the call maps to
+    # suspend-multiple-sessions (auth_admin both ways), so `ssh host
+    # 'systemctl suspend'` dies with "requires interactive
+    # authentication". The prefix match covers both action ids; the
+    # fingerprint reader can't authenticate a remote polkit agent, so
+    # this rule is the only non-interactive path. Needed by the WoL
+    # flow in batman/ssh.nix (suspend the desktop from the laptop,
+    # then ssh in to prove the magic packet wakes it).
+    security.polkit.extraConfig = /* js */ ''
+      polkit.addRule(function(action, subject) {
+        if (action.id.indexOf("org.freedesktop.login1.suspend") == 0
+            && subject.isInGroup("wheel")) {
+          return polkit.Result.YES;
+        }
+      });
+    '';
     services.pipewire = {
       enable = true;
       alsa.enable = true;
