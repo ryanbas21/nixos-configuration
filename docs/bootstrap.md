@@ -101,20 +101,23 @@ partitioning or installer-menu steps:
    [nix caches](programs/nix-caches.md#installing-with-the-caches-fresh-metal--first-rebuild)).
    Paste the 1Password note's `NIX_CONFIG` export (full block on the
    LAN; drop the harmonia lines off-LAN) — it must ride through sudo
-   later, hence `sudo -E` in step 4.
+   later, hence `sudo -E` in step 5.
 
 3. **Partition declaratively** — disko creates GPT + `nixos-ESP` (2G)
    + `nixos-root` (btrfs) and mounts them under `/mnt`:
 
    ```sh
    nix run github:nix-community/disko -- -m destroy,format,mount \
-     -f github:ryanbas21/nixos-configuration#nixos \
-     --option experimental-features "nix-command flakes"
+     -f github:ryanbas21/nixos-configuration#nixos
    ```
 
-   (The `--option` is only needed if the ISO's nix predates flakes —
-   recent ISOs ship with them. If the repo is private, clone it first —
-   https + token or USB stick — and pass `-f /path/to/clone#nixos`.)
+   (If the ISO's nix predates flakes, add
+   `experimental-features = nix-command flakes` as a third line to
+   step 2's `NIX_CONFIG` export — the flag cannot be handed to disko
+   itself: unknown options after `--` are read as the disk-config
+   path. Recent ISOs ship with flakes. If the repo is private, clone
+   it first — https + token or USB stick — and pass
+   `-f /path/to/clone#nixos`.)
 
 4. **Restore the keys onto the target**, so first-boot activation can
    decrypt (the rebuild creates batman/UID 1000 itself — no manual user
@@ -135,12 +138,11 @@ partitioning or installer-menu steps:
    install -D -m 600 /tmp/<harmonia>  /mnt/home/batman/.ssh/harmonia
    ```
 
-5. **Install and fix ownership** (`-E` keeps step 2's substituters;
-   `--option` only if the ISO's nix predates flakes):
+5. **Install and fix ownership** (`-E` keeps step 2's `NIX_CONFIG` —
+   substituters, plus the flakes line if step 3 needed it):
 
    ```sh
-   sudo -E nixos-install --flake github:ryanbas21/nixos-configuration#nixos \
-     --option experimental-features "nix-command flakes"
+   sudo -E nixos-install --flake github:ryanbas21/nixos-configuration#nixos
    sudo nixos-enter -- chown -R batman: /home/batman/.ssh
    ```
 

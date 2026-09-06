@@ -68,11 +68,35 @@ partitioning is declarative, no manual steps, ever):
 fresh install's) nix only knows `cache.nixos.org`, so a naive install
 **compiles the pinned-input packages from source** — the llm-agents
 tools alone (pi and friends build node native modules via node-gyp)
-froze a laptop install twice. On the home LAN, export the repo's
-substituter set first (one `NIX_CONFIG` block, kept as a 1Password
-note; canonical copy in [nix caches](docs/programs/nix-caches.md#installing-with-the-caches-fresh-metal--first-rebuild))
-and pass it through with `sudo -E` — the closure then substitutes
-from harmonia/nix-configs/numtide in minutes.
+froze a laptop install twice. Paste this **once**, in the same shell
+you run disko / `nixos-install` from (home LAN; also kept as a
+1Password note, "nixos-install — substituters"):
+
+```sh
+export NIX_CONFIG='
+substituters = http://192.168.1.82:5000 https://nix-configs.cachix.org https://psysonic.cachix.org https://vicinae.cachix.org https://cache.numtide.com https://cache.nixos.org
+trusted-public-keys = nix-cache-1:SpVt1hjpAaEgQqnY1cIm5tjTETZbG5dQmGZ3rDbTyJc= nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA= vicinae.cachix.org-1:1kDrfienkGHPYbkpNj1mWTr7Fm1+zcenzgTizIcI3oc= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+'
+```
+
+Then three rules:
+
+- **`sudo` scrubs the environment** — that is why the commands above
+  carry `sudo -E`; without it the export dies at the sudo boundary and
+  the install is back to compiling from source.
+- **Off the LAN?** Delete the `192.168.1.82:5000` URL and the
+  `nix-cache-1:` key — an unreachable first substituter only adds
+  latency, and `nix-configs` still carries what CI builds.
+- **ISO's nix predates flakes** (disko / `nix run` errors about
+  experimental features)? Add one more line to the same export:
+  `experimental-features = nix-command flakes`. Recent official ISOs
+  ship with it enabled, and the installed system sets it permanently
+  (`modules/system/base.nix`) — this line is install-time only.
+
+With the export in place, the closure substitutes from
+harmonia/nix-configs/numtide in minutes. The full story — why, the CI
+cache pushes, the post-build hooks — is in
+[nix caches](docs/programs/nix-caches.md#installing-with-the-caches-fresh-metal--first-rebuild).
 
 Both host configurations are **boot-tested in CI** on every push
 (`modules/vm-tests.nix` → the `test-hosts` job): the real `nixos` and
@@ -148,8 +172,13 @@ program does, why it is there, and the war stories:
 ├── modules/                     every .nix file = one feature (auto-imported)
 │   ├── computers/               per-host data (+ _hardware.nix mounts,
 │   │                            _disko.nix layouts, harmonia vm-test)
-│   ├── nixos/                   the shared system base
+│   ├── system/                  the system tier: the shared base layer the
+│   │                            desktop-style hosts import (harmonia skips)
 │   ├── batman/                  user-level features (shell, nvf, backups, ...)
+│   ├── vm-tests/                throwaway identity + .age secrets the CI
+│   │                            boot tests decrypt (real keys: 1Password)
+│   ├── disko.nix                disk layouts exported to the disko CLI
+│   ├── disko-tests.nix          every _disko.nix executed + booted in a VM
 │   ├── vm-tests.nix             fresh-boot VM tests (CI boots every host)
 │   └── *.nix                    machinery (users, home, eval-modules, ...)
 ├── secrets/ + secrets.nix       agenix-encrypted secrets (safe to commit)
