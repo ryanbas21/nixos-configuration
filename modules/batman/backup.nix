@@ -85,17 +85,22 @@
     systemd.user.services.borgmatic = {
       Unit = {
         X-SwitchMethod = "keep-old";
-        # home-manager hard-codes ConditionACPower=true, which silently
-        # skips every run on a laptop running on battery — the framework
-        # spent its first weeks "backing up" exactly this way (timer
-        # green, service skipped). Keep the guard only where it is
-        # meaningful (the always-on-AC desktop); battery hosts back up
-        # regardless: a daily incremental is minutes, and the
-        # systemd-inhibit in ExecStart already keeps sleep from
-        # interrupting it. The desktop keeps its value; the only change
-        # this block makes to the desktop's unit is the protective
-        # X-SwitchMethod above.
-        ConditionACPower = lib.mkForce (hostName == "nixos");
+        # TWO failed spellings of "don't gate backups on AC power", both
+        # on the framework's journal (2026-09-05/06): home-manager's
+        # stock ConditionACPower=true silently skips every battery run
+        # ("timer green, service skipped" — the framework's first
+        # weeks), and the first fix — mkForce (hostName == "nixos"),
+        # rendering ConditionACPower=false on battery hosts — INVERTED
+        # it: systemd conditions are assertions to SATISFY, so false
+        # means "run only on battery", and the docked laptop skipped
+        # its 2026-09-06 00:07 fire instead. A condition assigned an
+        # EMPTY value is how a condition is removed from a unit
+        # (systemd.unit(7): conditions are list settings; empty
+        # assignment resets the list) — so battery hosts get "", the
+        # always-on-AC desktop keeps "true". A daily incremental is
+        # minutes on battery, and the systemd-inhibit in ExecStart
+        # already keeps sleep from interrupting it.
+        ConditionACPower = lib.mkForce (lib.optionalString (hostName == "nixos") "true");
       };
       Service = {
         EnvironmentFile = config.age.secrets.borg-passphrase.path;

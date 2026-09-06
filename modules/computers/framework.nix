@@ -8,6 +8,23 @@
       system.stateVersion = "26.05";
       services.fprintd.enable = true;
 
+      # System-level agenix identities (mirrors nixos.nix): this host's
+      # own ssh host key was never made a recipient of
+      # secrets/ntfy-url.age, so the module-default identityPaths left
+      # /run/agenix/ntfy-url undecryptable here — every alerting path
+      # (the weekly digest, OnFailure pushes, the UPS watcher) has been
+      # silently dead on this box since it joined the fleet (journal
+      # 2026-09-06: "notify: /run/agenix/ntfy-url missing or empty —
+      # secret not decrypted?"). id_borg IS a recipient, is present,
+      # and is local (the /home subvolume is mounted before
+      # activation), so boot-time decrypt works unattended. The host
+      # key stays in the list so making it a recipient later needs no
+      # second change.
+      age.identityPaths = [
+        "/etc/ssh/ssh_host_ed25519_key"
+        "/home/batman/.ssh/id_borg"
+      ];
+
       # NFS automount from the Synology NAS at 192.168.1.30 — a
       # DEDICATED subfolder of the Backups share (nix-laptops), NOT the
       # desktop's export (Backups/nix, whose root IS the desktop's borg
