@@ -247,9 +247,14 @@
       # go over ssh. The legacy ssh:// store is used deliberately:
       # locally-built paths are unsigned, and ssh-ng:// rejects them at
       # the remote daemon ("lacks a signature by a trusted key"), while
-      # ssh:// imports via nix-store --import as root. The hook runs as
-      # root and uses /root/.ssh/id_ed25519 (authorized on the server as
-      # "desktop-nix-cache-push"). Wrapped in a writeShellScript because
+      # ssh:// imports via nix-store --import as root. The hook runs
+      # as root but authenticates with batman's
+      # /home/batman/.ssh/harmonia (NIX_SSHOPTS below) — the shared
+      # 1Password key distributed-builds.nix also uses to offload builds
+      # to .82, authorized there as "framework-remote-build". (The
+      # original /root/.ssh/id_ed25519 — "desktop-nix-cache-push" —
+      # still carries sudo --target-host deploys; no hook pushes with
+      # it.) Wrapped in a writeShellScript because
       # nix spawns the hook as a single command line — inline quoting and
       # shell operators like || don't survive that — and best-effort
       # (|| true inside the script) so a down cache server can never

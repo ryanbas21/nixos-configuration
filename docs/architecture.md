@@ -278,7 +278,8 @@ Read the repo in this order:
 │                                the boot tests decrypt against (CI);
 │                                never real key material
 └── scripts/
-    └── adopt-harmonia.sh        automates the harmonia adoption runbook's steps
+    ├── adopt-harmonia.sh        automates the harmonia adoption runbook's steps
+    └── harmonia-warmth.sh       probes the LAN cache: which closure paths it serves
 ```
 
 Notes on the machinery files that are not self-explanatory:

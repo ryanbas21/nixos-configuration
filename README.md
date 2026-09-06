@@ -192,7 +192,7 @@ program does, why it is there, and the war stories:
 │   ├── vm-tests.nix             fresh-boot VM tests (CI boots every host)
 │   └── *.nix                    machinery (users, home, eval-modules, ...)
 ├── secrets/ + secrets.nix       agenix-encrypted secrets (safe to commit)
-├── scripts/                     host-adoption helper (adopt-harmonia.sh)
+├── scripts/                     host-adoption helper + harmonia warmth probe
 └── .github/workflows/ci.yml     eval-only flake check + standalone home builds
 ```
 

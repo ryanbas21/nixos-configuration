@@ -78,8 +78,14 @@ store, deliberately**: locally-built paths are unsigned, and `ssh-ng://`
 rejects them at the remote daemon ("lacks a signature by a trusted
 key"), while `ssh://` imports via `nix-store --import` as root.
 
-The hook runs as root (nix-daemon) and uses `/root/.ssh/id_ed25519`
-(authorized on the server as `desktop-nix-cache-push`). It is wrapped in
+The hook runs as root (nix-daemon) but authenticates with batman's
+`/home/batman/.ssh/harmonia` (`IdentityFile` in its `NIX_SSHOPTS`) —
+the shared 1Password key that `modules/system/distributed-builds.nix`
+also uses to offload builds to .82, authorized on the server as
+`framework-remote-build`. (This paragraph long claimed
+`/root/.ssh/id_ed25519` / `desktop-nix-cache-push`; that key stays
+authorized and still carries `sudo nixos-rebuild --target-host`
+deploys — nothing pushes with it anymore.) It is wrapped in
 a `writeShellScript` because nix spawns the hook as a single command
 line — inline quoting and shell operators like `||` don't survive that —
 and is best-effort (`|| true` inside the script) so a down cache server
@@ -104,8 +110,9 @@ sudo nixos-rebuild switch --flake .#harmonia --target-host root@192.168.1.82
 ```
 
 nixos-rebuild builds locally (substituting from this repo's caches,
-including this very cache) and copies the closure over ssh, riding the
-same root key the push hook uses. `nix flake check --no-build`
+including this very cache) and copies the closure over ssh as root via
+`/root/.ssh/id_ed25519` (`desktop-nix-cache-push` — a different key
+from the hook's, same authorized destination). `nix flake check --no-build`
 (= CI) eval-checks the host like any other.
 
 Recovery story once adopted: any fresh NixOS box + this repo + the
@@ -202,6 +209,24 @@ curl -sf http://192.168.1.82:5000/<that path's basename>.narinfo && echo PUSH WO
 (The manual `nix copy` surfaces errors the hook's `|| true` swallows —
 it doubles as the definitive check that the push path, unverified
 since the hook landed, actually works.)
+
+For the day-to-day "is it working" check — cache **warmth** against a
+real closure — `scripts/harmonia-warmth.sh` asks the server which of a
+closure's paths it can serve (any installable, default
+`/run/current-system`):
+
+```sh
+scripts/harmonia-warmth.sh
+# a to-be-deployed host toplevel: build (mostly substitution), then probe
+nix build /etc/nixos#nixosConfigurations.harmonia.config.system.build.toplevel
+scripts/harmonia-warmth.sh ./result
+```
+
+(Installables must already be realised — `nix path-info` cannot walk
+an unbuilt closure, so build first and probe the output path; store
+paths always work.) Calibration point, 2026-09-06: `/run/current-system`
+scored 4033/4033 HIT — the entire running desktop reconstructible
+from .82 alone.
 
 ### If the VM is ever recreated
 
