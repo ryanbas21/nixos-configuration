@@ -27,8 +27,8 @@
 # - the `framework-*`/`nixos-*`/`harmonia-*` PARTLABELs exist — the
 #   symlinks _hardware.nix addresses (the LUKS device by partition,
 #   the btrfs through /dev/mapper/cryptroot);
-# - the framework's root partition IS a LUKS2 container (isLuks) and
-#   the booted system holds it open as `cryptroot` — the format phase
+# - the framework's/nixos's root partitions ARE LUKS2 containers
+#   (isLuks) and the booted systems hold them open as `cryptroot` — the format phase
 #   unlocked with the harness-seeded /tmp/secret.key (disko
 #   lib/tests.nix), the exact file the bare-metal runbook in _disko.nix
 #   creates for luksFormat; the BOOT phase unlocks with the same file
@@ -81,12 +81,18 @@ in
             (_: m: { inherit (m) device fsType options; })
             hostConfig.fileSystems);
         expectedSwap = map (s: s.device) hostConfig.swapDevices;
-        # The framework's boot-phase unlock credential (see header): a
-        # keyfile slot standing in for the metal TPM slot. Scoped to
-        # framework — declaring cryptroot for nixos/harmonia would
+        # LUKS hosts: partition PARTLABEL per host, same fleet-wide
+        # mapper name. The boot-phase unlock credential (see header):
+        # a keyfile slot standing in for the metal TPM slot — scoped
+        # to these hosts, since declaring cryptroot for harmonia would
         # fabricate a crypttab entry for a LUKS device that never
-        # exists in those tests.
-        unlockConfig = lib.optionalAttrs (host == "framework") {
+        # exists in that test.
+        luksHosts = {
+          framework = "framework-root";
+          nixos = "nixos-root";
+        };
+        luksPart = luksHosts.${host} or null;
+        unlockConfig = lib.optionalAttrs (luksPart != null) {
           boot.initrd.luks.devices."cryptroot".keyFile = "/tmp/secret.key";
         };
       in
@@ -142,10 +148,14 @@ in
           # The LUKS contract (any host whose mounts live on a mapper):
           # the PARTLABEL partition must BE the LUKS container, and the
           # booted system must be holding it open under the mapper name
-          # the mounts resolve through.
-          if any(e['device'].startswith('/dev/mapper/') for e in expected.values()):
+          # the mounts resolve through. (The label splices in as a bare
+          # Nix string, NOT toJSON — a JSON string carries double
+          # quotes, and """ + "label" + """ is invalid Python; the
+          # False branch keeps the block parseable-but-dead for
+          # non-LUKS hosts.)
+          if ${if luksPart != null then "True" else "False"}:
               part = machine.succeed(
-                  "readlink -f /dev/disk/by-partlabel/framework-root").strip()
+                  "readlink -f /dev/disk/by-partlabel/${toString luksPart}").strip()
               machine.succeed(f"cryptsetup isLuks {shlex.quote(part)}")
               machine.succeed("cryptsetup status cryptroot")
         '';

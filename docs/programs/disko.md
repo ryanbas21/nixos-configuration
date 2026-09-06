@@ -86,16 +86,16 @@ against `_hardware.nix`. Run one locally with `nix build -L
 
 ## Future
 
-- **LUKS** landed on the framework with the 2026-09 rework
-  (`content.type = "luks"` wrapping the btrfs, TPM2 auto-unlock —
-  see `computers/framework/_disko.nix`'s header for the threat model,
-  runbooks and the CI story: the disko test unlocks with the
-  harness-seeded keyfile standing in for the metal TPM slot). The
-  live unencrypted disk converts IN PLACE via `cryptsetup
-  reencrypt --encrypt` (bootstrap.md's "Encrypting the live framework
-  disk in place" runbook — no wipe, no borg restore). The desktop
-  stays unencrypted (LAN-closet machine, its outage story is btrfs
-  + borg); the natural moment to revisit is its next reinstall.
+- **LUKS** landed fleet-wide with the 2026-09 rework — framework
+  first (`content.type = "luks"` wrapping the btrfs, TPM2
+  auto-unlock, converted in place; see
+  `computers/framework/_disko.nix`'s header for the threat model and
+  CI story: the disko tests unlock with the harness-seeded keyfile
+  standing in for the metal TPM slot), then the desktop (same
+  layout, TPM confirmed on the box; the extra driver there is
+  id_borg — the borg repo's decryption key — living on that disk).
+  The harmonia cache VM deliberately stays plaintext: no user
+  secrets, agenix-encrypted signing key.
 - The **framework laptop's** mirror landed 2026-09-06
   (`computers/framework/_disko.nix`, the fleet's first layout with
   btrfs subvolumes — and the first to use the modern

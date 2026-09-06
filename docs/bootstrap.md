@@ -460,6 +460,31 @@ if anything here goes sideways and borg has to earn its keep.
    partitions; if it balks at rereading the table, reboot: the table
    is already on disk, then run the cryptsetup/btrfs pair.)
 
+**Desktop deltas (nixos host):** the same runbook, with these
+substitutions.
+
+- **Partition numbers shift** (the live disk carries dead p1/p2
+  leftovers BEFORE the real ones): root is `/dev/nvme0n1p4`
+  (498G — roughly half the laptop's reencrypt duration), ESP mounts
+  from `/dev/nvme0n1p3`, and the reencrypt target stays
+  partlabel-driven (`/dev/disk/by-partlabel/nixos-root`).
+- **No swap partition** to shrink around or reclaim. The dead 1.3T
+  p2 leftover sits BEFORE the live partitions — nothing can grow
+  into it; only a future disko wipe clears it.
+- **Headless boot**: the box reboots unattended via WoL, so "type
+  the passphrase once at first boot" is not a plan. Do BOTH enrolls
+  (recovery key + `--tpm2-device=auto`) from the live session right
+  after step 4 — systemd-cryptenroll prompts for the passphrase at
+  the console, and the TPM it binds is the physical one this box
+  boots with — so the FIRST reboot is already prompt-free. If it
+  still prompts (some firmwares measure PCR7 differently across
+  boot paths), type the passphrase once at a keyboard and re-run
+  both enrolls from the installed system.
+- **Prep from the running desktop**, not the laptop: `cd /etc/nixos
+  && git pull` (the LUKS commit must be in the volume's own
+  checkout for the chroot rebuild), then `systemctl --user start
+  borgmatic` for a fresh safety net.
+
 ## Harmonia resurrection runbook (the cache VM)
 
 The cache server is a QEMU/KVM guest. Its *contents* (cached store

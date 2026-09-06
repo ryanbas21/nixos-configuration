@@ -4,22 +4,32 @@
 # the layout and the host's mount table (_hardware.nix) are independent
 # facts that meet at the partition labels.
 #
-# Fresh-metal flow (docs/bootstrap.md): boot the ISO, then
-#   nix run github:nix-community/disko -- -m destroy,format,mount \
-#     -f github:ryanbas21/nixos-configuration#nixos
-# which partitions /dev/nvme0n1 exactly as declared below and mounts
-# /, /boot, /home and /nix under /mnt for nixos-install.
+# LUKS rework (2026-09-06, framework first — see
+# computers/framework/_disko.nix for the full threat model, the
+# passwordFile/test-harness interplay and the enrollment runbooks).
+# Same shape here: ESP stays plaintext, the btrfs root moves inside a
+# LUKS2 container, mapper name `cryptroot` is the contract
+# _hardware.nix mounts through. The desktop's TPM was confirmed on the
+# box (2026-09-06, /dev/tpmrm0 — Intel PTT), so boot stays UNATTENDED
+# (the WoL suspend/wake flow in batman/ssh.nix depends on it).
+# The extra reason THIS box earns encryption despite never leaving
+# the house: it holds id_borg (the key that decrypts the borg repo —
+# plaintext-endpoint-plus-plaintext-repo-key would quietly undo the
+# framework's encryption) and the gated harmonia push identity.
 #
-# The explicit labels are the contract: _hardware.nix mounts by
-# /dev/disk/by-partlabel/nixos-{ESP,root}, and the live
-# (hand-partitioned) disk got the same labels set once in place
-# (sgdisk --change-name — see docs/bootstrap.md, "Adopting the existing
-# disk"), so a disko-formatted disk and the running disk satisfy the
-# identical mount config.
+# MIGRATION: the live disk is unencrypted and converts in place
+# (cryptsetup reencrypt — same runbook as the framework's, with the
+# desktop's partition-number deltas, in docs/bootstrap.md "Encrypting
+# the live framework disk in place"). One difference that matters:
+# the desktop reboots headless (WoL, nobody at a console), so BOTH
+# keyslot enrolls (recovery + TPM) happen from the live session
+# BEFORE the first reboot — see the runbook's desktop deltas.
 #
-# Mirrors the original hand layout: 2G ESP, btrfs root on the rest, no
-# swap. The current disk's p1/p2 are dead leftovers from a previous
-# install; a disko run wipes the whole disk and takes them with it.
+# NOTE the live disk does NOT match this layout's partition COUNT: it
+# carries dead p1/p2 leftovers from a previous install BEFORE the ESP
+# (p3) and root (p4). Those satisfy nothing and are wiped by any
+# disko run; they cannot be merged into root (wrong side of the
+# partition table).
 { ... }: {
   disko.devices = {
     disk.nvme0n1 = {
@@ -43,21 +53,26 @@
             label = "nixos-root";
             size = "100%";
             content = {
-              # Modern disko `type = "btrfs"` (required to declare
-              # subvolumes; the ESP above keeps the repo's older
-              # `type = "filesystem"` spelling, same as framework's):
-              # the filesystem TOP-LEVEL (subvolid 5) at /, with `nix`
-              # and `home` nested subvolumes mounted at their own
-              # paths — the fleet canonical layout, identical to
-              # framework/_disko.nix and to the live hand-partitioned
-              # disk this was unified with on 2026-09-06 (whose
-              # subvolumes were hand-created; a disko run makes them
-              # declaratively).
-              type = "btrfs";
-              mountpoint = "/";
-              subvolumes = {
-                "/nix" = { mountpoint = "/nix"; };
-                "/home" = { mountpoint = "/home"; };
+              type = "luks";
+              name = "cryptroot";
+              passwordFile = "/tmp/secret.key";
+              extraFormatArgs = [
+                "--type" "luks2"
+                "--pbkdf" "argon2id"
+              ];
+              settings = {
+                allowDiscards = true;
+              };
+              content = {
+                type = "btrfs";
+                # the filesystem TOP-LEVEL (subvolid 5) at /, with
+                # `nix` and `home` nested subvolumes — identical to
+                # the pre-LUKS layout, now behind the mapper.
+                mountpoint = "/";
+                subvolumes = {
+                  "/nix" = { mountpoint = "/nix"; };
+                  "/home" = { mountpoint = "/home"; };
+                };
               };
             };
           };

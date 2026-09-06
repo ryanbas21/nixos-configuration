@@ -127,15 +127,24 @@ that breaks boot: the ISO flow reinstalls from the repo — it is cheap
 now — and the boot menu's previous generations remain the first
 rollback stop.
 
-The desktop today: systemd-boot on UEFI, 2G ESP (`nixos-ESP`) + btrfs
-root (`nixos-root`), no swap, Intel CPU (`kvm-intel`), no LUKS. The
-harmonia host mirrors its layout (`harmonia-ESP` 1023M + ext4 root).
-The **framework laptop** is the fleet's only encrypted host (LUKS
-rework): 1G ESP (`framework-ESP`) + LUKS2 container
-(`framework-root`, mapper `cryptroot`) holding the btrfs top-level
-at `/` with `home` and `nix` subvolumes — unlocked unattended by a
-TPM2-sealed keyslot, no swap partition. The 2026-09-06 unencrypted
-disk converts in place (`cryptsetup reencrypt`, no wipe — see
-[bootstrap](bootstrap.md#encrypting-the-live-framework-disk-in-place-luks-without-a-wipe));
-the 67G installer swap partition it orphans has a reclaim runbook
-in the same section.
+The desktop today: systemd-boot on UEFI, 2G ESP (`nixos-ESP`, p3 on
+the live disk) + LUKS2 container (`nixos-root`, p4, mapper
+`cryptroot`) holding the btrfs top-level at `/` with `home` and
+`nix` subvolumes — no swap, Intel CPU (`kvm-intel`), TPM confirmed
+(2026-09-06, Intel PTT). The LUKS config landed 2026-09-06 with the
+fleet rework; the live disk's in-place conversion follows the
+[bootstrap runbook](bootstrap.md#encrypting-the-live-framework-disk-in-place-luks-without-a-wipe)
+(same flow, desktop deltas listed there — headless-boot enrollment
+from the live session). The dead 1.3T p2 leftover predates the
+layout and can only be cleared by a future disko wipe (it sits
+before the live partitions — nothing can grow into it). The
+harmonia host mirrors the desktop's shape (`harmonia-ESP` 1023M +
+ext4 root) and stays unencrypted: a single-purpose cache VM holding
+no user secrets — the signing key it does hold is agenix-encrypted
+to the box's own identity.
+
+The **framework laptop** is encrypted (converted in place
+2026-09-06, TPM-unlocked): 1G ESP (`framework-ESP`) + LUKS2
+container (`framework-root`, mapper `cryptroot`) with the same
+btrfs layout — the 67G installer swap partition it orphaned has a
+reclaim runbook in the bootstrap section above.

@@ -63,8 +63,8 @@
 #   generated host key matches no age recipient, so the decrypt unit
 #   would fail; the alerting scripts no-op on the missing secret file
 #   by design (the runtime consumers read it, tests never run them).
-# - the framework's LUKS declaration is dropped (mkForce {}): the
-#   crypttab entry points at a partition that exists only on metal,
+# - the framework/desktop LUKS declarations are dropped (mkForce {}):
+#   the crypttab entries point at partitions that exist only on metal,
 #   and a QEMU guest has no TPM either — stage-1 systemd-cryptsetup
 #   would sit waiting on both. Same environmental-mismatch
 #   neutralization as the dropped mounts above; the disko test
@@ -113,8 +113,8 @@ in
           # the agenix decrypt unit for the ntfy URL would fail — drop
           # the declaration entirely (harmonia's test does the same).
           age.secrets = lib.mkForce { };
-          # See header: metal-only LUKS device (framework) — the VM has
-          # neither the partition nor a TPM to unlock it with.
+          # See header: metal-only LUKS device (framework, desktop) —
+          # the VM has neither the partition nor a TPM to unlock with.
           boot.initrd.luks.devices = lib.mkForce { };
           # The throwaway identity must exist BEFORE home activation —
           # exactly like a real install, where the runbook restores
