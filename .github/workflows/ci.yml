@@ -9,16 +9,29 @@
 # each non-NixOS machine pulls — ryan-linux on an x86_64-linux runner,
 # ryan-intel-mac on GitHub's Intel macOS runners (the last x86_64 images
 # Actions offers) — catching build failures that evaluation cannot see.
-# The DESKTOP's NixOS toplevel stays unbuilt in CI: a full system build
-# on an unpersisted runner costs hours for little signal, and build
-# failures there surface at the desktop's `nixos-rebuild` anyway. The
-# harmonia host is the exception (build-harmonia): its closure is tiny
+# The NixOS toplevels are built too, but only inside the VM tests: bare
+# `nix build`s of them on unpersisted runners would cost hours for
+# little signal, while the test jobs' closures substitute almost
+# entirely from the caches AND add a boot proof on top. The harmonia
+# host additionally gets build-harmonia: its closure is tiny
 # and almost entirely substitutable from cache.nixos.org, so building
 # it costs minutes and warms nix-configs — every later `--target-host`
 # deploy substitutes instead of building. test-harmonia goes further:
 # it BOOTS the real harmonia module as a UEFI QEMU guest and proves
 # the cache serves signed narinfos (modules/computers/harmonia/
 # vm-test.nix) — the resurrection guarantee, on every push.
+#
+# test-hosts does the same for the two desktop-style hosts (nixos,
+# framework): boots each REAL host module as a UEFI QEMU guest
+# (modules/vm-tests.nix) and asserts a fresh boot reaches the state a
+# reinstall depends on — multi-user.target, the boot-path home-manager
+# activation, the batman account, core services, no failed units. That
+# automates the fresh-metal runbook's guarantee (docs/bootstrap.md) and
+# encodes the lesson of the 2026-09-05 laptop install, whose first
+# rebuild froze on llm-agents' node-gyp source builds: build breakage
+# an eval check cannot see surfaces on every push, not on bare metal.
+# Whatever the job builds lands in nix-configs, so bare-metal installs
+# substitute instead of compiling.
 #
 # CI never touches the harmonia server itself: it is LAN-only by
 # design (nftables subnet scoping), which GitHub runners cannot
@@ -232,3 +245,60 @@ jobs:
 
       - name: Boot the harmonia VM and verify the cache
         run: nix build -L .#checks.x86_64-linux."harmonia:vm-test"
+
+  test-hosts:
+    # Boots the REAL nixos / framework host modules as UEFI QEMU guests
+    # and asserts the fresh-boot contract (modules/vm-tests.nix):
+    # multi-user.target, the boot-path home-manager activation, the
+    # batman account, core services, no failed units. The closures are
+    # large but almost entirely substitutable (the repo's public set,
+    # minus the LAN-only harmonia server), the boots run under TCG
+    # (runners have no /dev/kvm), and whatever the job does build is
+    # pushed to nix-configs — so bare-metal reinstalls substitute
+    # instead of compiling.
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [nixos, framework]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      # Full desktop closures can outgrow the ~14GB free on stock
+      # ubuntu runners (same reason as build-homes).
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+        with:
+          # Same pin as flake-check: evaluator parity with the desktop.
+          install_url: https://releases.nixos.org/nix/nix-2.34.8/install
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+            # The repo's substituter set (modules/nixos/base.nix) minus
+            # the LAN-only harmonia server. cache.numtide.com /
+            # psysonic.cachix.org / vicinae.cachix.org carry the
+            # pinned-input packages (llm-agents tools, psysonic,
+            # vicinae) that otherwise compile from source.
+            substituters = https://nix-configs.cachix.org https://cache.nixos.org https://cache.numtide.com https://psysonic.cachix.org https://vicinae.cachix.org
+            trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA= vicinae.cachix.org-1:1kDrfienkGHPYbkpNj1mWTr7Fm1+zcenzgTizIcI3oc=
+
+      - name: Configure cachix
+        # Same env-routed skip as build-homes: `secrets` is not allowed
+        # in `if:` expressions, and fork PRs never see secrets.
+        env:
+          have_cachix_keys: ${{ secrets.CACHIX_AUTH_TOKEN != '' && secrets.CACHIX_SIGNING_KEY != '' }}
+        if: env.have_cachix_keys == 'true'
+        uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        with:
+          name: nix-configs
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
+          useDaemon: false
+
+      - name: Boot the ${{ matrix.host }} VM and assert the fresh-boot state
+        run: nix build -L .#checks.x86_64-linux."${{ matrix.host }}:vm-test"

@@ -30,6 +30,44 @@ not need to match in order. Notable entries:
 - The LAN harmonia URL is `trusted-substituters` too, so root-level
   builds can use it.
 
+## Installing with the caches (fresh metal / first rebuild)
+
+The repo's substituter set belongs to the **installed system**
+(`nix.settings`). The ISO's nix — and the plain NixOS a flash-drive
+install produces — know only `cache.nixos.org`, so installs that skip
+this section **compile every pinned-input package from source**: the
+llm-agents tools (pi and friends, built against their own nixpkgs pin
+and compiling node native modules via node-gyp) froze a laptop
+install **twice** on 2026-09-05, and even when it doesn't freeze it
+costs hours. Export the repo's set first — on the home LAN the full
+block (canonical copy = `modules/nixos/base.nix`):
+
+```sh
+export NIX_CONFIG='
+substituters = http://192.168.1.82:5000 https://nix-configs.cachix.org https://psysonic.cachix.org https://vicinae.cachix.org https://cache.numtide.com https://cache.nixos.org
+trusted-public-keys = nix-cache-1:SpVt1hjpAaEgQqnY1cIm5tjTETZbG5dQmGZ3rDbTyJc= nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA= vicinae.cachix.org-1:1kDrfienkGHPYbkpNj1mWTr7Fm1+zcenzgTizIcI3oc= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+'
+```
+
+Away from the LAN, drop the harmonia URL **and** its `nix-cache-1`
+key from the two lines — an unreachable first substituter just adds
+latency, and `nix-configs` still carries what CI builds (including,
+since the `test-hosts` job, the host closures themselves).
+
+Paste it through `sudo -E` where sudo is involved (`sudo -E
+nixos-install …`, `sudo -E nixos-rebuild …` — sudo scrubs the
+environment otherwise). The block is all **public** material, but
+keep it as a 1Password note (e.g. "nixos-install — substituters") so
+an install needs no repo checkout to hand-copy it from — that is the
+"bring the substituter keys down from 1Password" step of the
+[bootstrap runbooks](../bootstrap.md). After the first switch, the
+system's own `nix.settings` take over permanently — the export is
+install-time only.
+
+CI's `test-hosts` job builds and boots both desktop-style hosts and
+pushes what it builds to `nix-configs`, so both bare-metal paths
+above substitute in minutes.
+
 ## The harmonia post-build hook (warm the LAN cache)
 
 Every path this machine **builds** (as opposed to substitutes) is pushed

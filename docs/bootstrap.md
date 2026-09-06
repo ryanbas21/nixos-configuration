@@ -34,10 +34,19 @@ On `sudo nixos-rebuild switch --flake .#nixos`, activation also:
 |---|---|---|---|
 | `~/.ssh/id_borg` | 1Password | agenix decryption of **every** secret | **First rebuild fails** — home-manager activation cannot decrypt; restore before rebuilding |
 | `~/.ssh/git` | 1Password | pushes to GitHub (git-backup timer, manual pushes, `gh` over ssh) | Timer pushes fail; rebuild still succeeds |
-| `/root/.ssh/id_ed25519` | 1Password | the harmonia post-build-hook cache push (authorized as `desktop-nix-cache-push` on the cache server) | **Silently** degrades — builds succeed but nothing warms the LAN cache (`|| true` by design); no warning is printed |
+| `~/.ssh/harmonia` | 1Password | the harmonia post-build-hook cache push **and** distributed builds to .82 (one key shared by every NixOS host; authorized on the server alongside `id_borg`) | **Silently** degrades — builds succeed but nothing warms the LAN cache (`|| true` by design) and distributed builds fall back to local; no warning is printed |
 | `.82` ssh **host** key | nowhere yet — save to 1Password at adoption, or rely on the rekey path | the cache server's agenix identity (decrypts `harmonia-signing-key.age` on that box) | Nothing is lost: the [resurrection runbook](#harmonia-resurrection-runbook-the-cache-vm) generates a fresh key and rekeys the secret to it |
 
 Restore with correct permissions: `chmod 600`.
+
+One more 1Password item, **not** a key: the install-time substituter
+block — the `NIX_CONFIG` export that makes installs and first rebuilds
+substitute from the caches instead of compiling the pinned-input
+packages from source (all public material; see
+[nix caches → installing with the caches](programs/nix-caches.md#installing-with-the-caches-fresh-metal--first-rebuild)).
+Kept in 1Password so an install needs no repo checkout to copy it
+from — that is the "bring the harmonia key down from 1Password" step
+of both runbooks below.
 
 Everything else secret-shaped is already in the repo as `.age` files
 (see [secrets.md](secrets.md)) — the GPG key, the borg passphrase, the
@@ -46,8 +55,13 @@ brought under management) the cache's signing key.
 
 ### Rehearsing the runbook in a VM (optional, before a reinstall)
 
-The whole runbook can be walked end-to-end against a scratch disk
-before a real reinstall ever depends on it. The `-device nvme` trick
+The automated half already exists: every push boots the real host
+modules as VMs in CI (`test-hosts`, [modules/vm-tests.nix](../modules/vm-tests.nix)
+— `nix build -L .#checks.x86_64-linux."nixos:vm-test"` locally, or
+`."framework:vm-test"`; same for the harmonia host). What CI cannot
+rehearse is the interactive parts — the installer, the key restores,
+the first login — and that is what the manual rehearsal below covers.
+The `-device nvme` trick
 makes the guest see `/dev/nvme0n1`, the exact device the tracked
 layout pins, so no repo edits are needed:
 
@@ -76,7 +90,16 @@ partitioning or installer-menu steps:
    `nmtui` or plug in ethernet). Everything on the target disk is
    about to be wiped; borg first if anything matters.
 
-2. **Partition declaratively** — disko creates GPT + `nixos-ESP` (2G)
+2. **Point the ISO's nix at the caches** — the ISO's nix knows only
+   `cache.nixos.org`, and without this step the install compiles the
+   pinned-input packages from source (the llm-agents tools alone
+   froze a laptop install twice — the war story lives in
+   [nix caches](programs/nix-caches.md#installing-with-the-caches-fresh-metal--first-rebuild)).
+   Paste the 1Password note's `NIX_CONFIG` export (full block on the
+   LAN; drop the harmonia lines off-LAN) — it must ride through sudo
+   later, hence `sudo -E` in step 4.
+
+3. **Partition declaratively** — disko creates GPT + `nixos-ESP` (2G)
    + `nixos-root` (btrfs) and mounts them under `/mnt`:
 
    ```sh
@@ -89,13 +112,13 @@ partitioning or installer-menu steps:
    recent ISOs ship with them. If the repo is private, clone it first —
    https + token or USB stick — and pass `-f /path/to/clone#nixos`.)
 
-3. **Restore the keys onto the target**, so first-boot activation can
+4. **Restore the keys onto the target**, so first-boot activation can
    decrypt (the rebuild creates batman/UID 1000 itself — no manual user
    creation). First get each private key onto the ISO machine as a
    plain file — staged anywhere (/tmp, a mounted stick); the `install`
    below moves it to its final home on /mnt. Practical routes:
 
-   - **USB stick**: save the two private keys as files from 1Password
+   - **USB stick**: save the three private keys as files from 1Password
      on another device, then on the ISO `mount /dev/sdX1 /tmp/stick`;
    - **graphical ISO**: 1Password web vault in the browser → download
      the keys;
@@ -103,19 +126,21 @@ partitioning or installer-menu steps:
      showing the key.
 
    ```sh
-   install -D -m 600 /tmp/<id_borg> /mnt/home/batman/.ssh/id_borg
-   install -D -m 600 /tmp/<git>     /mnt/home/batman/.ssh/git
+   install -D -m 600 /tmp/<id_borg>   /mnt/home/batman/.ssh/id_borg
+   install -D -m 600 /tmp/<git>       /mnt/home/batman/.ssh/git
+   install -D -m 600 /tmp/<harmonia>  /mnt/home/batman/.ssh/harmonia
    ```
 
-4. **Install and fix ownership**:
+5. **Install and fix ownership** (`-E` keeps step 2's substituters;
+   `--option` only if the ISO's nix predates flakes):
 
    ```sh
-   sudo nixos-install --flake github:ryanbas21/nixos-configuration#nixos \
+   sudo -E nixos-install --flake github:ryanbas21/nixos-configuration#nixos \
      --option experimental-features "nix-command flakes"
    sudo nixos-enter -- chown -R batman: /home/batman/.ssh
    ```
 
-5. **Reboot**, remove the USB, and do the post-boot manual state
+6. **Reboot**, remove the USB, and do the post-boot manual state
    (interactive, cannot be declarative):
 
    - clone the repo into batman's home (so the user-level git-backup
@@ -133,8 +158,6 @@ partitioning or installer-menu steps:
    - sign in to 1Password (account, then biometric unlock —
      `OP_BIOMETRIC_UNLOCK` is already set in fish);
    - connect to Wi-Fi networks if any (NetworkManager state);
-   - optionally restore `/root/.ssh/id_ed25519` for harmonia cache
-     warming (see the key inventory above);
    - **restore data** with borgmatic — the repos live on
      `/mnt/nix-backups` (NFS, mounts on access); `Documents` (including
      the Obsidian vault) is the bulk of it.
@@ -142,7 +165,8 @@ partitioning or installer-menu steps:
    On this first-boot system the repo's config is already active
    (nixos-install activated it), so no separate first rebuild is
    needed — the next `git pull && sudo nixos-rebuild switch` is just
-   the steady state.
+   the steady state. The `harmonia` key restored in step 4 makes the
+   LAN cache warm from this machine's builds immediately.
 
 ## What the ISO install actually does
 
@@ -179,9 +203,12 @@ Two nuances worth knowing:
 
 - **The ISO's nix uses the ISO's substituters** (`cache.nixos.org`),
   not the repo's `nix.settings` — those belong to the *installed*
-  system. On the LAN, the install can be sped up by exporting the
-  repo's substituter set first (`NIX_CONFIG=... sudo -E nixos-install
-  ...`, keys from `modules/nixos/base.nix`).
+  system. That is why the runbook's step 2 exports the repo's
+  substituter set (`NIX_CONFIG`, kept as a 1Password note): without
+  it the install compiles the pinned-input packages from source, and
+  the llm-agents node-gyp builds froze a laptop install twice
+  (2026-09-05; see
+  [nix caches](programs/nix-caches.md#installing-with-the-caches-fresh-metal--first-rebuild)).
 - **No checkout survives the install**: `--flake github:...` leaves no
   `/etc/nixos` — hence the post-boot clone + symlink step in the
   runbook.
@@ -189,6 +216,72 @@ Two nuances worth knowing:
 Because the store is content-addressed, the closure that lands on the
 new disk is bit-for-bit what its hash says — the ISO was only ever the
 vehicle that built it.
+
+## Fresh laptop runbook (Framework, NixOS from the flash drive)
+
+The framework laptop landed 2026-09-05 the installer's way — **NixOS
+from the flash drive first, the flake taking over after** — because
+the host has no `_disko.nix` yet: the layout the installer made (ESP
++ btrfs with `root`/`nix`/`home` subvolumes + swap, mounted by UUID)
+is tracked in `modules/computers/framework/_hardware.nix`, but not as
+a declarative layout. Until a disko mirror lands (see
+[machines → hardware](machines.md#hardware)), this is the laptop's
+fresh-metal path — and the template for adopting any box when a
+`-m destroy` disko run is not what you want:
+
+1. **Flash drive → installer.** Write the NixOS ISO to a USB stick
+   (the same vehicle the desktop path boots), boot it, and install
+   NixOS the installer's own way: let it partition, create the user
+   **batman** (wheel), set a password, and reboot into the plain
+   installed system. Nothing repo-side has happened yet — this step
+   exists because "install straight from the flake" presumes a
+   `_disko.nix` to wipe with.
+2. **Restore the identity keys** from 1Password into `~/.ssh`
+   (`chmod 600`): `id_borg`, `git`, and `harmonia` — without the last
+   one this machine's builds silently stop warming the LAN cache and
+   distributed builds to .82 fall back to local (key inventory
+   above).
+3. **Get the repo as the system config.**
+
+   ```sh
+   sudo mv /etc/nixos /etc/nixos-generated   # the installer's config
+   git clone git@github.com:ryanbas21/nixos-configuration.git /etc/nixos
+   ```
+
+   (The framework's `/etc/nixos` **is** the checkout — a real
+   directory, not the desktop's symlink; the git-backup timer operates
+   on it directly.) If the box's hardware facts are not harvested
+   yet: `nixos-generate-config --show-hardware-config >
+   modules/computers/framework/_hardware.nix`, commit, push.
+
+4. **First rebuild — with the caches.** Export the 1Password note's
+   substituter block (full set on the LAN; minus the harmonia lines
+   off it — [nix caches](programs/nix-caches.md#installing-with-the-caches-fresh-metal--first-rebuild)),
+   then:
+
+   ```sh
+   sudo -E nixos-rebuild switch --flake .#framework
+   ```
+
+   This is the step that **froze the machine twice** when it skipped
+   the export: the fresh system's nix still knows only
+   `cache.nixos.org`, so the llm-agents tools (node-gyp node native
+   builds, their own nixpkgs pin) compiled for hours in a live Plasma
+   session until the box hard-locked. With the export everything
+   substitutes in minutes; after the switch, the system's own
+   `nix.settings` carry the substituters permanently.
+
+5. **Post-boot manual state** — same list as the desktop runbook's
+   step 6 (`gh auth login`, 1Password sign-in, Wi-Fi); data restores
+   from the laptop's own borg repo under `/mnt/nix-backups` — the
+   dedicated `nix-laptops` NFS export, NOT the desktop's repo (see
+   `modules/computers/framework.nix` for the why).
+
+**Debt, on purpose:** with no `_disko.nix`, a laptop reinstall repeats
+this runbook instead of the desktop's disko wipe. Mirroring the layout
+declaratively (ESP + btrfs subvolumes + swap, labels
+`framework-ESP`/`framework-root`, mounts by partlabel) restores the
+disko path and the labels contract.
 
 ## Adopting the existing disk (one-time) — completed 2026-09-02
 
@@ -367,9 +460,11 @@ Data and account state — restore or re-authenticate, don't expect Nix:
 
 ## Residual risks (known, accepted)
 
-- The NixOS toplevel is **eval**-checked in CI but not **built** there;
-  a broken upstream package surfaces at the desktop's
-  `nixos-rebuild` (see [operations](operations.md#ci-githubworkflowsciyml)).
+- The NixOS toplevels are now **boot**-tested in CI (`test-hosts`,
+  [modules/vm-tests.nix](../modules/vm-tests.nix)) — but with the
+  three 1Password-bound activation hooks neutralized (the VM has no
+  `id_borg`), so a breakage in those still surfaces only on real
+  metal. See [operations](operations.md#ci-githubworkflowsciyml).
 - The harmonia push hook fails silently when its key or the server is
   missing (by design, so a down NAS can't fail builds) — check
   `journalctl -u nix-daemon` after a big build if the cache seems cold.
@@ -398,6 +493,6 @@ silent reset. The risk it would structurally eliminate — configuration
 drift — is already covered by convention here (declarative config +
 lockfile), by borg (data), and by this runbook (fresh-machine recovery).
 The residual class it would uniquely catch — "works only because of an
-untracked file" — is the target of the planned fresh-boot VM smoke
-[CI test](operations.md#ci-githubworkflowsciyml) backlog item. Revisit
-only if that test proves insufficient.
+untracked file" — is the target of the fresh-boot VM smoke CI test
+(`test-hosts`, [modules/vm-tests.nix](../modules/vm-tests.nix)), which
+now runs on every push. Revisit only if that test proves insufficient.

@@ -182,7 +182,7 @@ Read the repo in this order:
 ├── flake.lock                   locked input revisions
 ├── LICENSE                      public domain
 ├── .gitignore                   result/, .direnv, test-driver history, key material
-├── .github/workflows/ci.yml     CI: eval-only flake check + standalone home builds
+├── .github/workflows/ci.yml     CI: eval check + home/host builds + VM boot tests
 ├── modules/
 │   ├── lib.nix                  mkModuleOption helper; unfree allowlist; cachixCache
 │   ├── eval-modules.nix         generic "wrap any eval-config" machinery
@@ -192,6 +192,8 @@ Read the repo in this order:
 │   ├── users.nix                users.<name>.* slots; declares batman
 │   ├── disko.nix                flake.diskoConfigurations — disk layouts
 │   │                            for the disko CLI (not in any host eval)
+│   ├── vm-tests.nix             flake.checks: fresh-boot VM tests that boot the
+│   │                            real nixos/framework modules (CI test-hosts)
 │   ├── time.nix                 ntpd-rs time sync (timeZone static in base.nix)
 │   ├── security.nix             paretosecurity posture checks (system service)
 │   ├── sudo.nix                 sudo-rs replaces classic sudo
@@ -204,14 +206,21 @@ Read the repo in this order:
 │   │                            quad9/cloudflare; opportunistic DoT
 │   ├── computers/
 │   │   ├── nixos.nix            the desktop host, as data (hostname, NFS mounts)
+│   │   ├── framework.nix        the laptop host, as data (its own NFS export)
 │   │   ├── harmonia.nix         the cache-server host: headless, own minimal
 │   │   │                        base, harmonia service + signing-key secret
 │   │   ├── nixos/
 │   │   │   ├── _hardware.nix    mounts (by partlabel) + kernel facts
 │   │   │   └── _disko.nix       declarative partition layout (disko CLI)
+│   │   ├── framework/
+│   │   │   ├── _hardware.nix    mounts (by UUID — installer-made layout; no
+│   │   │   │                    _disko.nix yet, see machines/hardware)
+│   │   │   └── _pam.nix         fprintd PAM integrations
 │   │   └── harmonia/
-│   │       └── _hardware.nix    the server's hardware scan (manual import;
-│   │                            placeholder until adoption — see nix-caches)
+│   │       ├── _hardware.nix    the server's hardware scan
+│   │       ├── _disko.nix       the server's layout mirror
+│   │       ├── _remote-builder.nix  distributed-build host config
+│   │       └── vm-test.nix      boots the real host module; proves the cache
 │   ├── nixos/
 │   │   ├── base.nix             host-agnostic system base (ex-configuration.nix)
 │   │   └── flake-source.nix     nixpkgs.flake.source + version metadata

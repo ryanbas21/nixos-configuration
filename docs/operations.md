@@ -19,9 +19,10 @@ committed here. The ritual, run on the desktop:
    badge on GitHub to before you committed.
 3. `sudo nixos-rebuild test --flake .#nixos` builds and activates without
    touching the boot entries; run `switch` once the machine has been
-   through a session you care about. CI builds the two standalone homes,
-   but the NixOS host itself is only eval-checked there — host build
-   failures (an upstream package breaking) still surface here.
+   through a session you care about. CI boots both NixOS hosts as VMs
+   on every push (`test-hosts`), but a local `test` still catches
+   breakage *before* the commit — and the activation parts CI cannot
+   see (the VM tests neutralize the 1Password-bound hooks).
 4. Commit the lock and push. The laptop and Mac need nothing: their
    one-liners read this repository's `flake.lock` straight from GitHub.
 
@@ -103,26 +104,42 @@ Caveats worth knowing:
 ## CI (.github/workflows/ci.yml)
 
 CI runs on every push to main (including the backup timer's automated
-commits) and on every pull request, in two jobs:
+commits) and on every pull request, in five jobs:
 
 - **flake-check** — a fast eval-only job (`nix flake check --no-build`)
-  covering every output: the NixOS host against its tracked hardware file,
-  both standalone homes, and the rest. Catches module/option breakage
-  after a `nix flake update` in ~1 minute.
+  covering every output: the NixOS hosts against their tracked hardware
+  files, both standalone homes, and the rest. Catches module/option
+  breakage after a `nix flake update` in ~1 minute.
 - **build-homes** — a matrix job that builds the exact `activationPackage`
   each standalone machine pulls: `ryan-linux` on an x86_64-linux runner,
   `ryan-intel-mac` on GitHub's Intel macOS runners (the last x86_64 images
-  Actions offers). Only the NixOS toplevel itself stays unbuilt in CI: a
-  full system build on an unpersisted runner costs hours for little
-  signal, and build failures there surface at the desktop's
-  `nixos-rebuild` anyway.
+  Actions offers).
+- **build-harmonia** — builds the cache server's small, almost fully
+  substitutable closure so every later `--target-host` deploy substitutes
+  instead of building (the full story in
+  [nix caches](programs/nix-caches.md)).
+- **test-harmonia** — boots the real harmonia module as a UEFI QEMU guest
+  and proves the cache serves signed narinfos
+  (`modules/computers/harmonia/vm-test.nix`) — the resurrection
+  guarantee, on every push.
+- **test-hosts** — boots the real `nixos` and `framework` modules as UEFI
+  QEMU guests and asserts the fresh-boot contract
+  ([modules/vm-tests.nix](../modules/vm-tests.nix)): multi-user.target,
+  the boot-path home-manager activation, the batman account, core
+  services, no failed units. The automation of the
+  [bootstrap](bootstrap.md) runbooks' guarantee — the lesson of the
+  2026-09-05 laptop install whose first rebuild froze compiling
+  llm-agents' node-gyp packages: build/boot breakage that an eval check
+  cannot see surfaces here, not on bare metal.
 
-The build jobs also push everything they build to the personal cachix
+The build jobs push everything they build to the personal cachix
 cache (`nix-configs`, self-signed with our own keypair), so later runs
-substitute instead of rebuilding — the full story, including the
-credentials provisioning and the war stories, is in
-[nix caches](programs/nix-caches.md).
+— and bare-metal installs — substitute instead of rebuilding; the full
+story, including the credentials provisioning and the war stories, is
+in [nix caches](programs/nix-caches.md).
 
-**Validation from anywhere, no hardware needed:** `nix flake check` (with
-or without `--no-build`) evaluates the host toplevel against the real
-tracked hardware file.
+**Validation from anywhere, no hardware needed:** `nix flake check`
+(with or without `--no-build`) evaluates the host toplevel against the
+real tracked hardware file, and `nix build -L
+.#checks.x86_64-linux."nixos:vm-test"` boots the host as a VM and
+asserts the fresh-boot state (same for `framework` and `harmonia`).
