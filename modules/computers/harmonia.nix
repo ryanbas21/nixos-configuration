@@ -151,13 +151,31 @@
       # the agenix identity (secrets.nix); only the public half ships
       # here — is the one unrestricted admin path, so plain
       # `ssh root@192.168.1.82` from the desktop works without sudo.
-      # This assignment REPLACES the file on every switch: new keys
-      # get added HERE, never on the box.
+      # NOTE: this writes /etc/ssh/authorized_keys.d/root — it does NOT
+      # touch /root/.ssh/authorized_keys (which sshd honors FIRST). The
+      # box's pre-adoption legacy file carried the old unrestricted
+      # keys past every switch, silently bypassing the gating above
+      # (found live 2026-09-06 during audit verification) — the
+      # activation script below archives it so this list is the only
+      # authority. New keys get added HERE, never on the box.
       users.users.root.openssh.authorizedKeys.keys = [
         "from=\"192.168.1.0/24\",no-pty,no-X11-forwarding,no-agent-forwarding,no-port-forwarding,command=\"${nixStoreServeOnly}\" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHfLjVoQb6UFKvs5mo4PdTBWILJksyQytl6/vjJWG01y framework-remote-build"
         "from=\"192.168.1.0/24\",no-X11-forwarding,no-agent-forwarding,no-port-forwarding ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIlMK7jt86TlHnzvths3bWymyEZfmfxJcUQ1PkuJ/HEJ desktop-nix-cache-push"
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIELiz8KiOJ2x7L1J2yx3X8RZkZ3bd/uHcsUH5rzVw8Cl batman@nixos"
       ];
+
+      # Single source of truth for root's keys: archive any legacy
+      # /root/.ssh/authorized_keys at activation (sshd reads it before
+      # the managed file, so an old unrestricted entry there would
+      # bypass the gating above). Idempotent — a no-op once archived;
+      # the dated copy stays for forensics.
+      system.activationScripts.harmoniaRootLegacyAuthorizedKeys =
+        lib.stringAfter [ "users" ] ''
+          if [ -f /root/.ssh/authorized_keys ]; then
+            mv /root/.ssh/authorized_keys /root/.ssh/authorized_keys.pre-managed
+            echo "harmonia: archived legacy /root/.ssh/authorized_keys — root keys are owned by /etc/ssh/authorized_keys.d/root" >&2
+          fi
+        '';
 
       # Adoption tripwire: an empty authorized_keys is not an eval error
       # by itself, so it is cross-locked against the hardware placeholder
