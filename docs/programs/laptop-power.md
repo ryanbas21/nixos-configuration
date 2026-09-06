@@ -15,6 +15,14 @@ every `power_supply` change (dock/AC hotplug recreates sysfs state).
 Raise to 100 (one number in the file) before an unplugged travel day;
 the tradeoff is battery wear.
 
+**Known gap (2026-09-05, framework on kernel 6.18):** BAT1 exposes no
+`charge_control_end_threshold` sysfs file, so the oneshot is a
+graceful no-op (`systemctl status framework-charge-threshold`
+shows active, journal shows an instant clean exit). Next step when
+it matters: the framework-control CLI sets the limit through the EC
+directly — if the sysfs knob doesn't appear after a BIOS/fwupd
+update, move the ceiling to a framework-tool invocation instead.
+
 ## Sleep
 
 `mem_sleep_default=s2idle` pinned: `deep`/S3 is broken on AMD

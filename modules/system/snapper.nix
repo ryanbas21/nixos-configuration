@@ -72,8 +72,13 @@ let
     description = "Ensure ${path}/.snapshots subvolume for snapper";
     wantedBy = [ "multi-user.target" ];
     serviceConfig.Type = "oneshot";
+    path = [ pkgs.util-linux pkgs.btrfs-progs ];
     script = ''
-      if [ "$(findmnt -n -o FSTYPE ${path})" = btrfs ] \
+      # Absolute paths: unit scripts run with a minimal PATH (the bare
+      # `findmnt` in v1 no-op'd silently — journal 2026-09-05,
+      # "findmnt: command not found" — and a failed guard looks exactly
+      # like a skipped one for a oneshot).
+      if [ "$(${pkgs.util-linux}/bin/findmnt -n -o FSTYPE ${path})" = btrfs ] \
         && ! ${lib.getExe' pkgs.btrfs-progs "btrfs"} subvolume show ${path}/.snapshots >/dev/null 2>&1; then
         ${lib.getExe' pkgs.btrfs-progs "btrfs"} subvolume create ${path}/.snapshots
       fi
