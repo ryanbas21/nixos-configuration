@@ -41,7 +41,7 @@ let
     if ! ${lib.getExe pkgs.curl} -sf -m 8 --retry 2 --retry-all-errors \
         -H "Title: $1" -H "Priority: $2" -H "Tags: warning" \
         -d "$3" "${ntfyUrl}/$(hostname)"; then
-      ${lib.getExe pkgs.util-linux}/bin/logger -t observability \
+      ${pkgs.util-linux}/bin/logger -t observability \
         "notify: delivery to ${ntfyUrl} failed — $1: $3"
     fi
     exit 0
@@ -119,7 +119,7 @@ let
     if ! ${lib.getExe pkgs.curl} -sf -m 10 --retry 2 --retry-all-errors \
         -H "Title: health digest" -H "Priority: low" -H "Tags: pill" \
         -d "$out" "${ntfyUrl}/$(hostname)"; then
-      ${lib.getExe pkgs.util-linux}/bin/logger -t health-digest \
+      ${pkgs.util-linux}/bin/logger -t health-digest \
         "delivery to ${ntfyUrl} failed"
     fi
     exit 0
