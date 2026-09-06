@@ -37,6 +37,7 @@
       imports = [
         ./framework/_hardware.nix
         ./framework/_pam.nix
+        ./framework/_mullvad.nix
         config.nixos.modules.base
         config.users.batman.nixos.base
       ];
