@@ -9,22 +9,29 @@ instead of waiting to be asked.
 ## Architecture
 
 ```
-any host failure ──OnFailure──▶ notify-failed@.service ──POST──▶ ntfy on harmonia
-any host weekly  ──timer──────▶ health-digest.service ──POST──▶ (same, port 6777)
+any host failure ──OnFailure──▶ notify-failed@.service ──POST──▶ the self-hosted ntfy
+any host weekly  ──timer──────▶ health-digest.service ──POST──▶ (URL: agenix secret)
                                               │
                                               ▼
-                        phone (ntfy app, on-LAN) subscribes /<hostname>
+                 phone (ntfy app) subscribes /<hostname> — anywhere, not just LAN
 ```
 
-- **Server**: ntfy on harmonia (`computers/harmonia.nix`), port 6777,
-  nftables-scoped to the home subnet exactly like sshd and the cache
-  port — the box stays dark off-LAN. The whole rack rides the UPS, so
-  the alert path itself survives mains events. No auth: topic secrecy
-  plus subnet scoping is the model; messages carry hostnames and
-  health summaries, nothing secret.
+- **Server**: the pre-existing self-hosted ntfy behind nginx —
+  deliberately NOT deployed by this repo (harmonia stays a pure cache
+  server; no port, no service). Internet-reachable, so phones get
+  instant push anywhere; the known trade is that the ntfy box does
+  not ride the rack UPS — a mains event takes alerts down with
+  everything else. The URL is the agenix secret
+  `secrets/ntfy-url.age` (recipients in secrets.nix): a personal
+  domain is not something the repo should broadcast. No publish auth
+  today; if that changes, extend the secret's plaintext with a token
+  line and teach the notify scripts to send it.
 - **Client half** (`modules/system/observability.nix`, both the base
   tier and harmonia directly): the `notify-failed@` template, the
-  digest service+timer, sysstat, and the journald cap.
+  digest service+timer, sysstat, and the journald cap. Scripts read
+  the URL from `/run/agenix/ntfy-url` at runtime and no-op (journal
+  note, never a failed unit) when it is absent — which is also what
+  keeps the VM boot tests clean, where no secret can decrypt.
 
 ## Failure hooks
 
@@ -67,8 +74,7 @@ Synology's job (DSM's UPS support).
   worth setting once: *restore AC power state = power on*, so an
   unattended outage ends with the desktop back up. UPS data on the
   desktop is forensics only — the digest's `ups (rack)` line answers
-  "why did I reboot at 14:02".
-- **Laptop**: the fleet's only outage survivor on its own battery.
+  "why did I reboot at 14:02".- **Laptop**: the fleet's only outage survivor on its own battery.
   `framework/_ups.nix` polls the Synology every 2 minutes and alerts
   on transitions only — `OB*` pages ("rack on battery, NAS on borrowed
   time"), back-to-`OL` notes the recovery. Unreachable (off-LAN, NAS
@@ -86,20 +92,19 @@ Synology's job (DSM's UPS support).
 
 ## Decided against, for now
 
-- **Tailscale (roaming delivery)**: phones only get pushes on-LAN
-  today; the ntfy upstream gateway (or a tailscale subnet router on
-  harmonia) would fix that, but both change the network posture of a
-  deliberately LAN-dark server. Revisit as a pair with the
-  roaming-access decision generally.
+- **ntfy auth**: anonymous publish on the secret URL; if the server
+  grows token auth, the secret gains a token line (see above).
 - **healthchecks.io-style dead-man service**: the digest's
   stop-arriving-is-the-signal covers the same need without an external
   dependency.
-- **ntfy auth**: LAN-scoped port + non-secret payloads.
+- **Deploying our own ntfy**: the existing server wins — one thing to
+  maintain, and it is already internet-reachable (roaming push for
+  free); harmonia keeps its minimal cache-only posture.
 
 ## Verifying
 
 ```
-ntfy app → server http://192.168.1.82:6777, topic = each hostname
+ntfy app → server = the secret URL, topic = each hostname
 sudo systemctl start health-digest      # a digest should arrive now
 sudo systemctl start notify-failed@test.service   # synthetic failure push
 journalctl -t observability             # delivery failures land here

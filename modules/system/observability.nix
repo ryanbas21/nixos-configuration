@@ -6,11 +6,13 @@
 # running) lands in a journal that no human opens on a headless box or
 # a lid-closed laptop. So the three halves here are:
 #
-#   1. The SERVER: ntfy on harmonia (computers/harmonia.nix, port
-#      6777, LAN-subnet-scoped like sshd and the cache). Phones
-#      subscribe with the ntfy app against
-#      http://192.168.1.82:6777/<hostname>. The whole rack rides the
-#      UPS, so the alert path itself survives mains events.
+#   1. The SERVER: the pre-existing self-hosted ntfy behind nginx
+#      (internet-reachable — so phones get push anywhere, not just
+#      on-LAN; that box being off-UPS is the known trade). Its URL is
+#      an agenix secret (secrets/ntfy-url.age): a personal domain is
+#      not something the repo should broadcast. Phones subscribe with
+#      the ntfy app against <that-server>/<hostname>, one topic per
+#      host.
 #   2. FAILURE HOOKS: a notify-failed@.service template that OnFailure
 #      wiring points at — a unit dying pages the phone within seconds.
 #      Wired: nix-gc, fstrim, snapper-timeline/-cleanup (base hosts);
@@ -26,23 +28,32 @@
 # Assigned twice (maintenance.nix pattern): the desktop-style hosts
 # eat nixos.modules.base, harmonia keeps its minimal base but still
 # needs its own alerts — and hosts the server everyone posts to.
-{ lib, inputs, ntfyServer, ... }:
+{ lib, inputs, ... }:
 
 let
   pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
-  ntfyUrl = "http://${ntfyServer.host}:${toString ntfyServer.port}";
 
   # Fire-and-forget push helper shared by every alerting path. NEVER
   # fails: an OnFailure hook that itself fails would recurse, and a
   # dead notification path must not take the notifying unit down with
-  # it. Delivery failures degrade to the journal.
+  # it. The server URL comes from the agenix secret
+  # secrets/ntfy-url.age (the pre-existing self-hosted ntfy behind
+  # nginx — see the header); unreadable/empty → journal note + exit 0,
+  # which is also what keeps the VM boot tests (no decryptable secret
+  # there) clean.
   notify = pkgs.writeShellScript "notify" ''
     # $1 title, $2 ntfy priority (low|default|high|urgent), $3 body
+    url=$(cat /run/agenix/ntfy-url 2>/dev/null || true)
+    if [ -z "$url" ]; then
+      ${pkgs.util-linux}/bin/logger -t observability \
+        "notify: /run/agenix/ntfy-url missing or empty — secret not decrypted?"
+      exit 0
+    fi
     if ! ${lib.getExe pkgs.curl} -sf -m 8 --retry 2 --retry-all-errors \
         -H "Title: $1" -H "Priority: $2" -H "Tags: warning" \
-        -d "$3" "${ntfyUrl}/$(hostname)"; then
+        -d "$3" "$url/$(hostname)"; then
       ${pkgs.util-linux}/bin/logger -t observability \
-        "notify: delivery to ${ntfyUrl} failed — $1: $3"
+        "notify: delivery failed — $1: $3"
     fi
     exit 0
   '';
@@ -118,16 +129,28 @@ let
 
     if ! ${lib.getExe pkgs.curl} -sf -m 10 --retry 2 --retry-all-errors \
         -H "Title: health digest" -H "Priority: low" -H "Tags: pill" \
-        -d "$out" "${ntfyUrl}/$(hostname)"; then
+        -d "$out" "$(cat /run/agenix/ntfy-url 2>/dev/null || true)/$(hostname)"; then
       ${pkgs.util-linux}/bin/logger -t health-digest \
-        "delivery to ${ntfyUrl} failed"
+        "delivery failed (empty/missing /run/agenix/ntfy-url counts)"
     fi
     exit 0
   '';
 
-  # The client half every NixOS host runs (the server half is
-  # computers/harmonia.nix).
+  # The client half every NixOS host runs. The server is the
+  # pre-existing self-hosted ntfy (nothing is deployed here).
   client = {
+    # The agenix NixOS module: harmonia already imports it in its host
+    # file, but the desktop-style hosts' secrets were all
+    # home-manager-level until this one — the first SYSTEM-level
+    # secret brings the module along. (Duplicate imports on harmonia
+    # are harmless; the module system dedupes.)
+    imports = [ inputs.agenix.nixosModules.default ];
+
+    # The server URL, decrypted at boot from secrets/ntfy-url.age
+    # (recipients in secrets.nix). Default agenix identityPaths (host
+    # ssh keys) do the decrypting.
+    age.secrets.ntfy-url.file = ../../secrets/ntfy-url.age;
+
     systemd.services."notify-failed@" = {
       description = "Push-notify that %i failed";
       # No wantedBy: only OnFailure ever pulls this template in.

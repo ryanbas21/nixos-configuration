@@ -59,6 +59,10 @@
 #   same environmental-mismatch neutralization as the dropped mounts
 #   above (on metal the root is btrfs and the timeline snapshots; see
 #   system/snapper.nix).
+# - system age.secrets are dropped (mkForce {}): a test VM's freshly
+#   generated host key matches no age recipient, so the decrypt unit
+#   would fail; the alerting scripts no-op on the missing secret file
+#   by design (the runtime consumers read it, tests never run them).
 { config, lib, inputs, ... }:
 let
   # Desktop-style hosts: full nixos.modules.base (Plasma + home-manager)
@@ -98,6 +102,10 @@ in
           };
           # See header: not btrfs in the test root.
           services.snapper.configs = lib.mkForce { };
+          # See header: a test VM's host key matches no recipient, so
+          # the agenix decrypt unit for the ntfy URL would fail — drop
+          # the declaration entirely (harmonia's test does the same).
+          age.secrets = lib.mkForce { };
           # The throwaway identity must exist BEFORE home activation —
           # exactly like a real install, where the runbook restores
           # ~/.ssh/id_borg onto the target before first boot. It cannot

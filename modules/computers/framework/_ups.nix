@@ -17,13 +17,12 @@
 # AND no reachability claim. The digest's UPS section
 # (observability.nix) is the weekly pull-side of this watcher.
 #
-# ntfy URL hardcoded (not lib.nix's ntfyServer): NixOS modules inside
-# the host eval do not receive the flake-level module args — keep in
-# sync with modules/lib.nix.
+# ntfy URL from the agenix secret secrets/ntfy-url.age at runtime
+# (same pattern as observability.nix — this file cannot import that
+# one's helper, so the read is restated).
 { pkgs, ... }:
 
 let
-  ntfyUrl = "http://192.168.1.82:6777";
   upsWatch = pkgs.writeShellScript "ups-watch" ''
     state=/var/lib/ups-watch/state
     mkdir -p "$(dirname "$state")"
@@ -38,20 +37,24 @@ let
     prev=$(cat "$state" 2>/dev/null || echo unknown)
 
     if [ "$cur" != "$prev" ] && [ "$prev" != unknown ]; then
-      if [ "$cur" = onbatt ]; then
+      ntfyUrl=$(cat /run/agenix/ntfy-url 2>/dev/null || true)
+      if [ -n "$ntfyUrl" ] && [ "$cur" = onbatt ]; then
         detail=$(timeout 3 ${pkgs.nut}/bin/upsc ups@192.168.1.30 2>/dev/null \
           | sed -n 's/^battery\.charge: /charge %; /p; s/^battery\.runtime: /runtime s/p' | tr -d '\n')
         ${pkgs.curl}/bin/curl -sf -m 8 --retry 2 --retry-all-errors \
           -H "Title: rack UPS on battery" -H "Priority: high" -H "Tags: electric_plug" \
           -d "rack UPS on battery (ups.status=$status; $detail) — NAS/router on borrowed time; the desktop is already down." \
-          "${ntfyUrl}/$(hostname)" \
-          || ${pkgs.util-linux}/bin/logger -t ups-watch "delivery to ${ntfyUrl} failed"
-      else
+          "$ntfyUrl/$(hostname)" \
+          || ${pkgs.util-linux}/bin/logger -t ups-watch "delivery failed"
+      elif [ -n "$ntfyUrl" ]; then
         ${pkgs.curl}/bin/curl -sf -m 8 --retry 2 --retry-all-errors \
           -H "Title: rack UPS back on mains" -H "Priority: default" -H "Tags: plug" \
           -d "rack UPS is back on line power." \
-          "${ntfyUrl}/$(hostname)" \
-          || ${pkgs.util-linux}/bin/logger -t ups-watch "delivery to ${ntfyUrl} failed"
+          "$ntfyUrl/$(hostname)" \
+          || ${pkgs.util-linux}/bin/logger -t ups-watch "delivery failed"
+      else
+        ${pkgs.util-linux}/bin/logger -t ups-watch \
+          "transition to $cur observed but /run/agenix/ntfy-url is missing"
       fi
     fi
     echo "$cur" > "$state"

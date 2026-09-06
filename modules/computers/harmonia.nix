@@ -83,30 +83,8 @@
       services.openssh.openFirewall = false;
       networking.nftables.enable = true;
       networking.firewall.extraInputRules = ''
-        ip saddr 192.168.1.0/24 tcp dport { 22, 5000, 6777 } accept
+        ip saddr 192.168.1.0/24 tcp dport { 22, 5000 } accept
       '';
-
-      # --- the push-notification server (observability's server half) ---
-      # ntfy for the whole fleet: every NixOS host's failure hooks and
-      # weekly digests POST here (modules/system/observability.nix; the
-      # URL constant lives in modules/lib.nix as ntfyServer — the listen
-      # spec below hardcodes the same port, see the sync note there).
-      # Same LAN-scoped posture as sshd/cache above: the port answers
-      # nowhere but the home subnet. Phones subscribe on-LAN with the
-      # ntfy app against http://192.168.1.82:6777/<hostname> (one topic
-      # per host). No auth: topic secrecy + subnet scoping is the model
-      # — messages carry hostnames and health summaries, nothing
-      # secret. Deliberate v1 gap: no instant push while off-LAN (the
-      # upstream ntfy.sh gateway is unconfigured); roaming delivery
-      # waits for a tailscale-or-gateway decision, documented in
-      # docs/programs/observability.md.
-      services.ntfy-sh = {
-        enable = true;
-        settings = {
-          listen-http = ":6777";
-          base-url = "http://192.168.1.82:6777";
-        };
-      };
       # Flakes for local nix ops on the box; remote rebuilds arrive as
       # ready closures from the desktop and don't even need this.
       nix.settings.experimental-features = [ "nix-command" "flakes" ];

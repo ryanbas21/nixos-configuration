@@ -15,6 +15,20 @@ let
   # only the comment field differs (root@nix-cache vs root@192.168.1.82).
   harmonia =
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINtxzFwIX6e97M/y8aeL0qdI1lM7IykhxS49fe99c0b0 root@192.168.1.82";
+
+  # The framework laptop's host key, read off the box itself
+  # (/etc/ssh/ssh_host_ed25519_key.pub — comment says root@amd) 2026-09-06.
+  framework-laptop =
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBogygVOqZK4YBXOiHufygez1wsXQVbomtuowXlLtdFL root@amd";
+
+  # TODO(desktop): the nixos desktop's host key is NOT yet a recipient
+  # below — "nixos" does not resolve from the laptop and no neighbor
+  # answered :22. Add it (cat /etc/ssh/ssh_host_ed25519.key.pub on the
+  # desktop — or ssh-keyscan it), then re-encrypt:
+  #   EDITOR=cat nix run github:ryantm/agenix -- -e secrets/ntfy-url.age
+  # Until then the desktop's alerting silently no-ops (see
+  # system/observability.nix — missing secret ≠ failed unit); the
+  # laptop and harmonia decrypt fine.
 in
 {
   # User-level secrets (home-manager agenix, identity ~/.ssh/id_borg).
@@ -42,4 +56,15 @@ in
   # server's host key (so the box decrypts it at boot). Verified at
   # extraction — the derived public half matches the base.nix pin.
   "secrets/harmonia-signing-key.age".publicKeys = [ batman harmonia ];
+
+  # The fleet's push-notification server URL: the pre-existing
+  # self-hosted ntfy behind nginx. A personal domain name is not
+  # something the repo should broadcast (scrapers correlate
+  # repo ↔ infrastructure), so the URL itself is the secret — the
+  # scripts in system/observability.nix read it at runtime from
+  # /run/agenix/ntfy-url and no-op (journal note, never a failed unit)
+  # when it is absent, which keeps the VM boot tests clean. If the
+  # server ever grows publish auth, extend the plaintext file with a
+  # token line and teach the notify scripts to send it.
+  "secrets/ntfy-url.age".publicKeys = [ batman harmonia framework-laptop ];
 }
