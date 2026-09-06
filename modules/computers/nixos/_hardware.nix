@@ -22,6 +22,27 @@
     fsType = "btrfs";
   };
 
+  # The `nix` and `home` subvolumes with their own mounts — the fleet
+  # canonical layout, identical to framework/_hardware.nix (unified
+  # 2026-09-06 after the unmounted-nested-subvol difference tripped
+  # snapper's ensure guard). Both subvolumes already existed on this
+  # disk (hand-created at the original install, subvolid 256/257 —
+  # the same ids the laptop's installer made), reachable through the
+  # top-level mount; these entries only give each a mount of its
+  # own. No data moves — the mount layers over the same subvolume
+  # the toplevel was already exposing at that path.
+  fileSystems."/nix" = {
+    device = "/dev/disk/by-partlabel/nixos-root";
+    fsType = "btrfs";
+    options = [ "subvol=nix" ];
+  };
+
+  fileSystems."/home" = {
+    device = "/dev/disk/by-partlabel/nixos-root";
+    fsType = "btrfs";
+    options = [ "subvol=home" ];
+  };
+
   fileSystems."/boot" = {
     device = "/dev/disk/by-partlabel/nixos-ESP";
     fsType = "vfat";

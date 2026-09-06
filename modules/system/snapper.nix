@@ -23,12 +23,13 @@
 # long even churn is retained twice.
 #
 # LAYOUT (identical on both hosts — verified on the running desktop
-# 2026-09-06): / is the filesystem TOP-LEVEL (subvolid 5), with `home`
-# and `nix` nested subvolumes (inode 256 on both boxes). One mount
-# difference: the laptop MOUNTS `home` at /home separately, the
-# desktop exposes it only through the toplevel mount — which is why
-# the ensure guard below must resolve the covering mount, not the
-# path's own mount entry. So the `root` config (SUBVOLUME=/)
+# 2026-09-06, mounts unified the same day): / is the filesystem
+# TOP-LEVEL (subvolid 5), with `home` and `nix` nested subvolumes,
+# each mounted at its own path. (The desktop briefly exposed `home`
+# only through the toplevel mount — the gap that tripped the ensure
+# guard below and taught it --target; the guard stays because
+# hand-adopted disks can always re-introduce unmounted subvols.) So
+# the `root` config (SUBVOLUME=/)
 # snapshots /etc, /var, /root — everything except the nested subvols,
 # which btrfs excludes from parent snapshots automatically: /home is
 # covered by its own config, /nix deliberately by none (the store is
@@ -83,14 +84,15 @@ let
       # "findmnt: command not found" — and a failed guard looks exactly
       # like a skipped one for a oneshot).
       # --target: resolve the deepest mount COVERING the path, not the
-      # mount AT it. The desktop's /home is a nested subvolume with no
-      # mount entry of its own, so a bare `findmnt /home` returned
-      # nothing there and this guard no-op'd — snapper-ensure-home
-      # never created /home/.snapshots, and snapper-timeline failed on
-      # the first run after that config landed (URGENT push 2026-09-06
-      # 12:00, errno:2). --target walks up to the covering / mount on
-      # that box, matches the laptop's own-mount case unchanged, and
-      # stays a no-op on the ext4 VM boot-test roots.
+      # mount AT it. Before the 2026-09-06 layout unification the
+      # desktop's /home was a nested subvolume with no mount entry of
+      # its own, so a bare `findmnt /home` returned nothing there and
+      # this guard no-op'd — snapper-ensure-home never created
+      # /home/.snapshots, and snapper-timeline failed on the first run
+      # after that config landed (URGENT push 2026-09-06 12:00,
+      # errno:2). --target walks up to the covering mount in that
+      # situation, matches a path's own mount unchanged, and stays a
+      # no-op on the ext4 VM boot-test roots.
       if [ "$(${pkgs.util-linux}/bin/findmnt -n -o FSTYPE --target ${path})" = btrfs ] \
         && ! ${lib.getExe' pkgs.btrfs-progs "btrfs"} subvolume show ${path}/.snapshots >/dev/null 2>&1; then
         ${lib.getExe' pkgs.btrfs-progs "btrfs"} subvolume create ${path}/.snapshots

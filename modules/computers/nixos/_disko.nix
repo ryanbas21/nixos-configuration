@@ -8,7 +8,7 @@
 #   nix run github:nix-community/disko -- -m destroy,format,mount \
 #     -f github:ryanbas21/nixos-configuration#nixos
 # which partitions /dev/nvme0n1 exactly as declared below and mounts
-# / and /boot under /mnt for nixos-install.
+# /, /boot, /home and /nix under /mnt for nixos-install.
 #
 # The explicit labels are the contract: _hardware.nix mounts by
 # /dev/disk/by-partlabel/nixos-{ESP,root}, and the live
@@ -43,9 +43,22 @@
             label = "nixos-root";
             size = "100%";
             content = {
-              type = "filesystem";
-              format = "btrfs";
+              # Modern disko `type = "btrfs"` (required to declare
+              # subvolumes; the ESP above keeps the repo's older
+              # `type = "filesystem"` spelling, same as framework's):
+              # the filesystem TOP-LEVEL (subvolid 5) at /, with `nix`
+              # and `home` nested subvolumes mounted at their own
+              # paths — the fleet canonical layout, identical to
+              # framework/_disko.nix and to the live hand-partitioned
+              # disk this was unified with on 2026-09-06 (whose
+              # subvolumes were hand-created; a disko run makes them
+              # declaratively).
+              type = "btrfs";
               mountpoint = "/";
+              subvolumes = {
+                "/nix" = { mountpoint = "/nix"; };
+                "/home" = { mountpoint = "/home"; };
+              };
             };
           };
         };
