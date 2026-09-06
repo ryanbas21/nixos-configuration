@@ -12,6 +12,17 @@
       # so host modules stay importable by the VM tests.
       networking.hostName = "nixos"; # Define your hostname.
 
+      # Self-waking ssh (client half in batman/ssh.nix): arm magic-
+      # packet wake on the wired NIC (enp6s0, Realtek RTL8125B on
+      # r8169). This only emits a udev .link (WakeOnLan=magic) —
+      # NetworkManager keeps managing the interface. wlo1 (WiFi,
+      # 192.168.1.183) is deliberately NOT armed: its MAC is randomized
+      # per connection, so a magic packet cannot target it. Hardware-
+      # side prerequisites this can't set: BIOS "Wake on PCI-E"/
+      # onboard LAN enabled and ErP/deep-sleep OFF, else the NIC has no
+      # standby power in S5 (S3 suspend wakes without ErP concerns).
+      networking.interfaces.enp6s0.wakeOnLan.enable = true;
+
       system.stateVersion = "26.05";
 
       # System-level agenix identities. ntfy-url.age (this host's only

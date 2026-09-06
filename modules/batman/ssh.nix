@@ -7,7 +7,27 @@
 # key. Home-manager backs the existing manual ~/.ssh/config up to *.bak
 # on first activation (backupFileExtension).
 { ... }: {
-  users.batman.home.pc = { ... }: {
+  users.batman.home.pc = { lib, pkgs, ... }: let
+    # "ssh desktop" self-wakes the box: probe :22 on the wired NIC,
+    # fire the magic packet if dark, connect when sshd answers
+    # (~5s from suspend, ~60s+ from full power-off/POST). The MAC is
+    # enp6s0's burned-in address (wlo1's is randomized per connection
+    # — untargetable); the server half arming the NIC lives in
+    # computers/nixos.nix. Runs from any machine using this config,
+    # including the desktop itself (probe succeeds, wol is skipped).
+    wakeDesktop = pkgs.writeShellScript "wake-desktop" ''
+      host=192.168.1.57
+      probe() { ${pkgs.bash}/bin/bash -c "exec 3<>/dev/tcp/$host/22" 2>/dev/null; }
+      if probe; then exec ${lib.getExe' pkgs.nmap "ncat"} "$host" 22; fi
+      ${pkgs.wol}/bin/wol -i 192.168.1.255 30:56:0f:42:22:00 >/dev/null 2>&1 || true
+      for _ in $(seq 1 120); do
+        if probe; then exec ${lib.getExe' pkgs.nmap "ncat"} "$host" 22; fi
+        sleep 1
+      done
+      echo "wake-desktop: $host:22 never came up within 120s of the magic packet" >&2
+      exit 1
+    '';
+  in {
     programs.ssh = {
       enable = true;
       # Opt out of home-manager's built-in default block (deprecated; it
@@ -78,10 +98,16 @@
           IdentitiesOnly = true;
         };
         "desktop" = {
-          HostName = "192.168.1.183";
+          # The wired NIC (enp6s0). Faster than wlo1, and the WoL target
+          # — see the wakeDesktop script above. The lease is DHCP: if it
+          # ever drifts from .57, pin a router reservation for
+          # 30:56:0f:42:22:00 (wired) — do NOT fall back to wlo1's .183,
+          # a suspend kills that NIC and ssh would hang again.
+          HostName = "192.168.1.57";
           User = "batman";
           IdentityFile = "~/.ssh/id_borg";
           IdentitiesOnly = true;
+          ProxyCommand = "${wakeDesktop}";
         };
         "ha" = {
           HostName = "192.168.1.41";
