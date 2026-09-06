@@ -1,4 +1,6 @@
-# SSH client config for batman's desktop. Declares what previously lived
+# SSH config for batman's machines — client half (the Host blocks in
+# home.pc below) and server half (id_borg in authorized_keys, via the
+# nixos.base block at the bottom). Declares what previously lived
 # in a hand-written ~/.ssh/config: GitHub auth is bound to ~/.ssh/git,
 # the dedicated push key (id_borg is the agenix identity only), so this
 # is desktop-only (home.pc) — the standalone exports don't carry the
@@ -75,7 +77,27 @@
           IdentityFile = "~/.ssh/id_borg";
           IdentitiesOnly = true;
         };
+        "desktop" = {
+          HostName = "192.168.1.183";
+          User = "batman";
+          IdentityFile = "~/.ssh/id_borg";
+          IdentitiesOnly = true;
+        };
       };
     };
+  };
+
+  # Server half: authorize id_borg for batman on every host importing
+  # this user's NixOS base — the desktop and the framework laptop
+  # (never the standalone exports; harmonia is root-only and gets its
+  # own authorized_keys in computers/harmonia.nix). With the client
+  # blocks above that closes the loop: `ssh desktop` / `ssh framework`
+  # from any machine holding id_borg. Granting batman's own fleet
+  # identity access to batman's own machines adds no new trust edge —
+  # it is the same boundary every agenix secret already rests on.
+  users.batman.nixos.base = {
+    users.users.batman.openssh.authorizedKeys.keys = [
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIELiz8KiOJ2x7L1J2yx3X8RZkZ3bd/uHcsUH5rzVw8Cl batman@nixos"
+    ];
   };
 }
