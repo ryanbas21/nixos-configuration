@@ -348,14 +348,12 @@ and wiped whenever a disko run happens.
 
 ## Encrypting the live framework disk in place (LUKS without a wipe)
 
-**Status: not yet run.** The LUKS rework (`_disko.nix`/`_hardware.nix`)
-is committed config; this is the runbook for converting the EXISTING
-laptop disk to match it — no disko wipe, no borg restore. The tool is
-`cryptsetup reencrypt --encrypt`: it converts the partition to LUKS2
-sector-by-sector in place (same partition table, same `framework-*`
-labels, same btrfs, same `/etc/nixos` checkout, same generations of
-data). The disko-wipe flow from the fresh runbook remains the fallback
-if anything here goes sideways and borg has to earn its keep.
+**Status: done — twice.** Framework converted 2026-09-06 (afternoon;
+TPM-unlocked same day), desktop 2026-09-06 17:15 (both slots enrolled
+from the live session per the desktop deltas below — the 1-second
+`systemd-cryptsetup` unlock in the boot journal is the TPM's
+signature). Retained as THE fleet runbook for any future
+plaintext→LUKS conversion.
 
 0. **Prep, from the running laptop.** Commit and push the LUKS config
    (the chroot rebuild in step 5 uses the checkout that rides along

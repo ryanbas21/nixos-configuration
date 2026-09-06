@@ -131,13 +131,14 @@ The desktop today: systemd-boot on UEFI, 2G ESP (`nixos-ESP`, p3 on
 the live disk) + LUKS2 container (`nixos-root`, p4, mapper
 `cryptroot`) holding the btrfs top-level at `/` with `home` and
 `nix` subvolumes — no swap, Intel CPU (`kvm-intel`), TPM confirmed
-(2026-09-06, Intel PTT). The LUKS config landed 2026-09-06 with the
-fleet rework; the live disk's in-place conversion follows the
+(2026-09-06, Intel PTT). Converted in place 2026-09-06 17:15 (the
 [bootstrap runbook](bootstrap.md#encrypting-the-live-framework-disk-in-place-luks-without-a-wipe)
-(same flow, desktop deltas listed there — headless-boot enrollment
-from the live session). The dead 1.3T p2 leftover predates the
+with its desktop deltas — headless-boot enrollment from the live
+session; the boot journal's 1-second cryptsetup unlock is the TPM
+working). The dead 1.3T p2 leftover predates the
 layout and can only be cleared by a future disko wipe (it sits
-before the live partitions — nothing can grow into it). The
+before the live partitions — nothing can grow into it; its stray
+`root` partlabel is inert, nothing mounts by it). The
 harmonia host mirrors the desktop's shape (`harmonia-ESP` 1023M +
 ext4 root) and stays unencrypted: a single-purpose cache VM holding
 no user secrets — the signing key it does hold is agenix-encrypted
