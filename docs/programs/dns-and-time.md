@@ -1,12 +1,12 @@
 # DNS & time
 
-[← program notes](index.md) · modules: `networking/dns.nix`, `time.nix`, `nixos/base.nix`
+[← program notes](index.md) · modules: `system/dns.nix`, `system/time.nix`, `system/base.nix`
 
 Small files, big gotchas.
 
 ## DNS (systemd-resolved)
 
-`networking/dns.nix` configures resolved with an explicit server list,
+`system/dns.nix` configures resolved with an explicit server list,
 LAN-first:
 
 1. `192.168.1.39` — the pihole (ad-blocking for the whole LAN);
@@ -25,13 +25,13 @@ setting ever seems to do nothing, check the casing first.
 
 ## Time sync (ntpd-rs)
 
-`time.nix` enables `services.ntpd-rs` with log-level `warn`. Replaces
+`system/time.nix` enables `services.ntpd-rs` with log-level `warn`. Replaces
 the default chronyd; nothing else configured — pool defaults apply.
 
 ## Timezone: static, and why (`America/Denver`)
 
 The timezone is a static `time.timeZone = "America/Denver"` in
-`nixos/base.nix`. It used to be dynamic — `automatic-timezoned` +
+`system/base.nix`. It used to be dynamic — `automatic-timezoned` +
 geoclue2 — and that entire chain was removed for a concrete reason:
 
 > beacondb (the geoclue WiFi-geolocation backend) has zero WiFi

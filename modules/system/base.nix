@@ -1,6 +1,10 @@
-# Base NixOS module for all hosts of this flake. Content formerly lived in
-# ./configuration.nix; user definitions moved to modules/users.nix and the
-# hardware scan import moved to the per-host module in modules/computers/.
+# The system tier's core: declares the nixos.modules.base option and
+# provides its host-agnostic content (ex-configuration.nix: bootloader,
+# nix settings, sshd, ...). Every file in modules/system/ assigns to that
+# option; the desktop-style hosts import it from computers/<name>.nix —
+# harmonia deliberately keeps its own minimal base instead.
+# User definitions moved to modules/users.nix and the hardware scan import
+# moved to the per-host module in modules/computers/.
 # Help is available in the configuration.nix(5) man page and in the NixOS
 # manual (accessible by running ‘nixos-help’).
 

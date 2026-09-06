@@ -1,12 +1,12 @@
 # The harmonia cache server (192.168.1.82 on the LAN): the binary cache
-# the desktop's post-build-hook warms (modules/nixos/base.nix) and the
+# the desktop's post-build-hook warms (modules/system/base.nix) and the
 # first substituter in its list.
 #
 # Headless and single-purpose, so it deliberately imports NEITHER the
 # desktop-heavy nixos.modules.base (no Plasma, no home-manager, no
 # backups) NOR a users.<name> slot (no batman): root is the only
 # account, and the box holds no user-level secrets. This is the slim
-# host variant the virtualization.nix comment describes — if a second
+# host variant the system/virtualization.nix comment describes — if a second
 # server-class host appears, promote the minimal base below to
 # nixos.modules.server (mkModuleOption + import from host files).
 #
@@ -66,7 +66,7 @@
       # hand-configured box (America/Denver).
       time.timeZone = "America/Denver";
       # Compressed RAM swap as an OOM cushion — same rationale as
-      # hardware.nix for the desktop, restated here because this host
+      # system/hardware.nix for the desktop, restated here because this host
       # skips nixos.modules.base (would move with it if a server tier
       # ever gets promoted, per the header comment).
       zramSwap.enable = true;

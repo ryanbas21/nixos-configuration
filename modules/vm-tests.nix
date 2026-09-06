@@ -159,7 +159,7 @@ in
           machine.succeed("ls /run/current-system/sw/share/wayland-sessions/ | grep -q .")
           # Fresh-boot health: nothing may fail except smartd — the one
           # environmental casualty of QEMU (no SMART devices behind
-          # virtio; services.smartd comes from modules/hardware.nix).
+          # virtio; services.smartd comes from modules/system/hardware.nix).
           failed = [
             line
             for line in machine.succeed(

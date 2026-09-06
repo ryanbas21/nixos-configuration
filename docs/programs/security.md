@@ -1,15 +1,15 @@
 # Security
 
-[← program notes](index.md) · modules: `sudo.nix`, `security.nix`, `nixos/base.nix` (sshd, known_hosts), `batman/ssh.nix`
+[← program notes](index.md) · modules: `system/sudo.nix`, `system/security.nix`, `system/base.nix` (sshd, known_hosts), `batman/ssh.nix`
 
-## sudo-rs (`sudo.nix`)
+## sudo-rs (`system/sudo.nix`)
 
 `security.sudo-rs.enable = true` — sudo-rs (the Rust rewrite) replaces
 classic sudo; the nixpkgs module disables `security.sudo` and asserts the
 two never coexist. batman's `wheel` membership is declared once,
 statically, in `modules/users.nix` — nothing to repeat here.
 
-## paretosecurity (`security.nix`)
+## paretosecurity (`system/security.nix`)
 
 `services.paretosecurity.enable = true` with `trayIcon = false` — local
 security-posture checks (disk encryption, firewall, updates, ...) run by
@@ -17,7 +17,7 @@ a system daemon, reported without a tray icon. Expect it to **flag the
 missing disk encryption** — the desktop's root is plain btrfs, no LUKS
 (see `_hardware.nix`). That finding is known and accepted.
 
-## sshd (`nixos/base.nix`)
+## sshd (`system/base.nix`)
 
 `services.openssh.enable = true` — the daemon is on, on every host that
 eats the shared base. The module's `openFirewall` default opens port 22;

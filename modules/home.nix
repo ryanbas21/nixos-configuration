@@ -34,7 +34,7 @@
           in
           import nixpkgsInput {
             system = homeArgs.config.system;
-            # Same unfree policy as modules/nixos/base.nix, applied at
+            # Same unfree policy as modules/system/base.nix, applied at
             # pkgs-import time because standalone entries import their
             # own package set.
             config = { allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) unfreeNames; } // extraConfig;

@@ -1,5 +1,5 @@
 # Hyprland for batman, living next to Plasma as an SDDM session choice
-# (enabled system-side in modules/nixos/base.nix).
+# (enabled system-side in modules/system/base.nix).
 #
 # home.pc (not home.base): a Wayland compositor config is desktop-only
 # and would drag the whole hyprland package into the standalone

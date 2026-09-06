@@ -11,7 +11,7 @@ and Mac all get the identical shell bundle:
 - **Plugins:** fzf-fish, autopair, sponge, done, colored-man-pages.
 - **Abbreviations:** `gco` = `git checkout`; `ns` = `nix shell nixpkgs#`
   (which depends on `nixpkgs.flake.source` being set — that's what
-  `modules/nixos/flake-source.nix` restores; see
+  `modules/system/flake-source.nix` restores; see
   [architecture](../architecture.md)).
 - **Environment set in `interactiveShellInit`:**
   - `fish_greeting` cleared;
@@ -70,7 +70,7 @@ below):
     messaging apps from this repo). `kate` was dropped from the fleet
     entirely — the desktop no longer installs a GUI editor from here.
   - `1password-cli` — on the `unfreeNames` allowlist; on NixOS the
-    setgid `op` wrapper from `modules/onepassword.nix` shadows any
+    setgid `op` wrapper from `modules/system/onepassword.nix` shadows any
     profile copy (`/run/wrappers/bin` precedes profiles in PATH), so
     this entry serves the standalone Linux laptop. The 1Password GUI
     itself is system-level, NixOS-only, and the Mac installs 1Password

@@ -67,15 +67,20 @@ Read the repo in this order:
 1. Feature files never import each other; they only assign to option
    namespaces:
 
-   | Namespace | Holds |
-   |---|---|
-   | `nixos.configurations.<name>` | per-host data, one submodule per host |
-   | `nixos.modules.base` | the shared system-level module, merged into every host |
-   | `homeManager.modules.base` | the shared home-manager module |
-   | `home.configurations.<name>` | per-machine data for the standalone home-manager exports |
-   | `users.<name>.nixos.base` | the NixOS-side module for a user |
-   | `users.<name>.home.base` | the home-manager-side module for a user, all machines |
-   | `users.<name>.home.pc` | home.base plus desktop-only extras (backups); NixOS hosts only |
+   | Namespace | Holds | Files |
+   |---|---|---|
+   | `nixos.configurations.<name>` | per-host data, one submodule per host | `computers/<name>.nix` |
+   | `nixos.modules.base` | the shared system-level module, merged into every host that imports it (the two desktop-style hosts; harmonia runs its own minimal base) | `system/*.nix` |
+   | `homeManager.modules.base` | the shared home-manager module | `home-manager.nix` |
+   | `home.configurations.<name>` | per-machine data for the standalone home-manager exports | `home.nix` |
+   | `users.<name>.nixos.base` | the NixOS-side module for a user | `users.nix` (slots), `batman/*.nix` |
+   | `users.<name>.home.base` | the home-manager-side module for a user, all machines | `batman/*.nix` |
+   | `users.<name>.home.pc` | home.base plus desktop-only extras (backups); NixOS hosts only | `batman/*.nix` |
+
+   A directory is a tier: `system/` holds system-tier features, `batman/`
+   user-tier features, `computers/` hosts. The top level holds only
+   machinery, wiring, and checks — the files that make the tiers exist,
+   not the features that fill them.
 
 1. `modules/nixos.nix` is machinery: each `nixos.configurations.<name>`
    wraps nixpkgs' `eval-config.nix` and exports, per host:
@@ -146,7 +151,7 @@ Read the repo in this order:
   `apply` wraps the result with a `key` so merge errors point at the right
   slot.
 - **`unfreeNames`** — the single allowlist behind every
-  `allowUnfreePredicate` in the repo (`modules/nixos/base.nix` and the
+  `allowUnfreePredicate` in the repo (`modules/system/base.nix` and the
   standalone exports in `modules/home.nix`). Verified against `meta.license`
   at the locked revisions: everything else in the fleet (ghostty, kodi,
   psysonic, rigup) is free-licensed. Names are per-derivation
@@ -196,16 +201,23 @@ Read the repo in this order:
 │   │                            in a VM (CI test-disko)
 │   ├── vm-tests.nix             flake.checks: fresh-boot VM tests that boot the
 │   │                            real nixos/framework modules (CI test-hosts)
-│   ├── time.nix                 ntpd-rs time sync (timeZone static in base.nix)
-│   ├── security.nix             paretosecurity posture checks (system service)
-│   ├── sudo.nix                 sudo-rs replaces classic sudo
-│   ├── maintenance.nix          GC + store optimisation + boot-entry caps
-│   │                            (both NixOS hosts; see programs/maintenance)
-│   ├── virtualization.nix       docker (rootless + socket-activated system daemon)
-│   │                            + VirtualBox host
-│   ├── networking/
-│   │   └── dns.nix              systemd-resolved: pihole first, then mullvad/
-│   │                            quad9/cloudflare; opportunistic DoT
+│   ├── system/                  the system tier: every file assigns to
+│   │                            nixos.modules.base, the shared layer the
+│   │                            desktop-style hosts import (harmonia does not)
+│   │   ├── base.nix             host-agnostic system base (ex-configuration.nix)
+│   │   ├── flake-source.nix     nixpkgs.flake.source + version metadata
+│   │   ├── time.nix             ntpd-rs time sync (timeZone static in base.nix)
+│   │   ├── dns.nix              systemd-resolved: pihole first, then mullvad/
+│   │   │                        quad9/cloudflare; opportunistic DoT
+│   │   ├── security.nix         paretosecurity posture checks (system service)
+│   │   ├── sudo.nix             sudo-rs replaces classic sudo
+│   │   ├── maintenance.nix      GC + store optimisation + boot-entry caps
+│   │   │                        (both NixOS hosts; see programs/maintenance)
+│   │   ├── hardware.nix         TRIM, btrfs scrub, zramSwap, smartd
+│   │   ├── virtualization.nix   docker (rootless + socket-activated system daemon)
+│   │   │                        + VirtualBox host
+│   │   ├── distributed-builds.nix  desktop builds on the harmonia server
+│   │   └── onepassword.nix      1Password GUI + CLI at system level (polkit)
 │   ├── computers/
 │   │   ├── nixos.nix            the desktop host, as data (hostname, NFS mounts)
 │   │   ├── framework.nix        the laptop host, as data (its own NFS export)
@@ -223,10 +235,7 @@ Read the repo in this order:
 │   │       ├── _disko.nix       the server's layout mirror
 │   │       ├── _remote-builder.nix  distributed-build host config
 │   │       └── vm-test.nix      boots the real host module; proves the cache
-│   ├── nixos/
-│   │   ├── base.nix             host-agnostic system base (ex-configuration.nix)
-│   │   └── flake-source.nix     nixpkgs.flake.source + version metadata
-│   └── batman/
+│   ├── batman/
 │       ├── fish.nix             fish + shell UX
 │       ├── fzf.nix              fzf with fd as the file finder
 │       ├── git.nix              git identity, signing, aliases
@@ -250,6 +259,9 @@ Read the repo in this order:
 │       ├── vicinae.nix          vicinae launcher (HM module + NixOS setcap)
 │       └── _nvf/
 │           └── default.nix      nvf settings module (manual import)
+│   └── vm-tests/                throwaway ed25519 identity + .age fixtures
+│                                the boot tests decrypt against (CI);
+│                                never real key material
 └── scripts/
     └── git-backup.sh            the script the backup timer runs
 ```
@@ -261,7 +273,7 @@ Notes on the machinery files that are not self-explanatory:
   accumulated module; `modules/nixos.nix` instantiates it with
   `import "${inputs.nixpkgs}/nixos/lib/eval-config.nix"` and
   `modules/home.nix` with `homeManagerConfiguration`.
-- `modules/nixos/flake-source.nix`: restores what
+- `modules/system/flake-source.nix`: restores what
   `nixpkgs.lib.nixosSystem` injects but plain eval-config loses:
   `nixpkgs.flake.source = mkDefault inputs.nixpkgs.outPath` (keeps
   `<nixpkgs>`/registry resolution working — the fish abbreviation

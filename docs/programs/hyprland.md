@@ -1,6 +1,6 @@
 # Hyprland
 
-[← program notes](index.md) · modules: `nixos/base.nix` (session enable), `batman/hyprland.nix` (everything else)
+[← program notes](index.md) · modules: `system/base.nix` (session enable), `batman/hyprland.nix` (everything else)
 
 **Hyprland as a second Wayland session next to Plasma.** SDDM gets a
 session picker entry; nothing is forced, Plasma stays the default. The
@@ -14,7 +14,7 @@ not consumed raw).
 
 ## The two files
 
-- **`nixos/base.nix`**: `programs.hyprland.enable` (session file,
+- **`system/base.nix`**: `programs.hyprland.enable` (session file,
   portal, security wrapper) plus the uwsm-session strip below.
 - **`batman/hyprland.nix`** (`home.pc`, desktop-only): the compositor
   settings, keybinds, window rules, and the whole session stack —

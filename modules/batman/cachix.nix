@@ -2,7 +2,7 @@
 #
 # CI (.github/workflows/ci.yml) pushes every path its build jobs create
 # to the nix-configs cachix cache; the desktop and the Mac substitute
-# from it (modules/nixos/base.nix on the NixOS side, the xdg.configFile
+# from it (modules/system/base.nix on the NixOS side, the xdg.configFile
 # below on the Mac). This file makes the cache's credentials part of the
 # repository instead of machine state:
 #

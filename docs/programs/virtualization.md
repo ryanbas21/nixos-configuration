@@ -1,6 +1,6 @@
 # Virtualization
 
-[← program notes](index.md) · module: `virtualization.nix`
+[← program notes](index.md) · module: `system/virtualization.nix`
 
 ## Docker: rootless + socket-activated system daemon
 

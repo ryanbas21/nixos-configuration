@@ -121,5 +121,5 @@ NixOS module, not home-manager): its signing key decrypts with the
 so the server needs no user identity. The host's public key is a
 recipient in `secrets.nix` (keyscan'd from the LAN), and the real
 signing secret is encrypted to it — verified at extraction to derive
-exactly the public half pinned in `modules/nixos/base.nix`. See
+exactly the public half pinned in `modules/system/base.nix`. See
 [nix caches](programs/nix-caches.md#the-server-82--tracked-in-this-repo).

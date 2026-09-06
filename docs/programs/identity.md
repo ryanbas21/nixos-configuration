@@ -42,7 +42,7 @@ The GPG **private key itself is in the repo**, encrypted
 |---|---|---|---|
 | `~/.ssh/id_borg` | agenix identity — decrypts every secret | `batman/backup.nix` (identityPaths), `secrets.nix` (recipient) | 1Password |
 | `~/.ssh/git` | GitHub pushes (git + gh over ssh) | `batman/ssh.nix` | 1Password |
-| `/root/.ssh/id_ed25519` | harmonia cache push (runs as root) | `nixos/base.nix` post-build-hook comment | 1Password |
+| `/root/.ssh/id_ed25519` | harmonia cache push (runs as root) | `system/base.nix` post-build-hook comment | 1Password |
 
 Why `id_borg` and `git` are separate: the agenix identity only ever
 needs to decrypt on this machine; the push key is the one that

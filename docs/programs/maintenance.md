@@ -1,6 +1,6 @@
 # Store maintenance (GC & boot entries)
 
-[← program notes](index.md) · module: `maintenance.nix`
+[← program notes](index.md) · module: `system/maintenance.nix`
 
 ## What and why
 

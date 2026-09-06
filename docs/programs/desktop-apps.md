@@ -1,8 +1,8 @@
 # Desktop apps
 
-[← program notes](index.md) · modules: `nixos/base.nix` (the desktop stack), `batman/{ghostty,obsidian,kodi,screen-capture,time-of-day-gamma}.nix`
+[← program notes](index.md) · modules: `system/base.nix` (the desktop stack), `batman/{ghostty,obsidian,kodi,screen-capture,time-of-day-gamma}.nix`
 
-## The system desktop stack (`nixos/base.nix`)
+## The system desktop stack (`system/base.nix`)
 
 Host-agnostic, every NixOS host gets it:
 
@@ -89,7 +89,7 @@ Screen recorder, one line: `home.packages = [ pkgs.kooha ]`. Desktop-only
 ### 1Password
 
 The desktop runs BOTH halves at the **system level**
-(`modules/onepassword.nix`) because the CLI↔app integration is a
+(`modules/system/onepassword.nix`) because the CLI↔app integration is a
 five-layer chain — each layer with its own failure signature, all
 derived the hard way on 2026-09-02:
 

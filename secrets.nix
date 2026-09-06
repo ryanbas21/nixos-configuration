@@ -36,7 +36,7 @@ in
   "secrets/cachix-signing-key.age".publicKeys = [ batman ];
 
   # The harmonia cache server's signing key: the secret half of the
-  # nix-cache-1:... pair (modules/nixos/base.nix pins the public half).
+  # nix-cache-1:... pair (modules/system/base.nix pins the public half).
   # System-level secret (modules/computers/harmonia.nix), encrypted to
   # both recipients: batman (so the desktop can edit it) and the
   # server's host key (so the box decrypts it at boot). Verified at

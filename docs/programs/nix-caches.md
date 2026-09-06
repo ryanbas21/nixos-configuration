@@ -1,13 +1,13 @@
 # Nix caches
 
-[← program notes](index.md) · modules: `batman/cachix.nix`, `modules/nixos/base.nix` (nix.settings), `modules/computers/harmonia.nix`, `modules/lib.nix` (cachixCache)
+[← program notes](index.md) · modules: `batman/cachix.nix`, `modules/system/base.nix` (nix.settings), `modules/computers/harmonia.nix`, `modules/lib.nix` (cachixCache)
 
 Four caches in play: the canonical `cache.nixos.org`, the personal
 cachix cache **nix-configs**, a LAN harmonia server, and upstream caches
 for inputs with their own nixpkgs pins. The goal: no machine (and no CI
 runner) should ever build what something else already built.
 
-## Substituter order (desktop, `modules/nixos/base.nix`)
+## Substituter order (desktop, `modules/system/base.nix`)
 
 ```
 http://192.168.1.82:5000      LAN harmonia (everything this desktop builds)
@@ -40,7 +40,7 @@ llm-agents tools (pi and friends, built against their own nixpkgs pin
 and compiling node native modules via node-gyp) froze a laptop
 install **twice** on 2026-09-05, and even when it doesn't freeze it
 costs hours. Export the repo's set first — on the home LAN the full
-block (canonical copy = `modules/nixos/base.nix`):
+block (canonical copy = `modules/system/base.nix`):
 
 ```sh
 export NIX_CONFIG='
