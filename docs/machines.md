@@ -115,7 +115,7 @@ changed:
 | RAM, most USB peripherals | nothing — no config tracks them |
 | GPU (same vendor class) | usually nothing; an NVIDIA card would need the driver + an unfree-allowlist entry (none today) |
 | CPU/motherboard (same arch) | harvest fresh kernel facts into `_hardware.nix` (`kvm-amd` vs `kvm-intel`, microcode, initrd modules); the box still boots on the generic modules, so rebuild in place |
-| Disk swapped/replaced | the ISO flow — `_disko.nix` is size-agnostic (ESP 2G + 100% rest), a bigger/new disk needs no layout edit; then borg restores the data. (Or clone the disk — the partlabels ride along.) |
+| Disk swapped/replaced | the ISO flow — `_disko.nix` is size-agnostic (fixed ESP + 100% rest), a bigger/new disk needs no layout edit; then borg restores the data. (Or clone the disk — the partlabels ride along.) On the framework, a disko wipe re-formats LUKS and loses the TPM enrollment — re-run the enrollment runbook in `_disko.nix`'s header after restore |
 | Second disk added | a `fileSystems` entry in `_hardware.nix` — do NOT add data disks to the disko layout unless `-m destroy` should wipe them too |
 | Whole platform change (e.g. ARM) | also `nixpkgs.hostPlatform`, plus the `system` pins in `modules/nixos.nix` (per-host `args`) and `outputs.nix` (`systems`) |
 
@@ -130,10 +130,12 @@ rollback stop.
 The desktop today: systemd-boot on UEFI, 2G ESP (`nixos-ESP`) + btrfs
 root (`nixos-root`), no swap, Intel CPU (`kvm-intel`), no LUKS. The
 harmonia host mirrors its layout (`harmonia-ESP` 1023M + ext4 root).
-The **framework laptop** mirrors its installer-made layout since
-2026-09-06: 1G ESP (`framework-ESP`) + btrfs root
-(`framework-root`, the filesystem top-level at `/` with `home` and
-`nix` subvolumes) + 67G swap (`framework-swap`) — the labels were
-renamed on the live installer disk in place (see
-[bootstrap](bootstrap.md#adopting-the-existing-disk-one-time--completed-2026-09-02)),
-so the disko wipe and the running disk are interchangeable there too.
+The **framework laptop** is the fleet's only encrypted host (LUKS
+rework): 1G ESP (`framework-ESP`) + LUKS2 container
+(`framework-root`, mapper `cryptroot`) holding the btrfs top-level
+at `/` with `home` and `nix` subvolumes — unlocked unattended by a
+TPM2-sealed keyslot, no swap partition. The 2026-09-06 unencrypted
+disk converts in place (`cryptsetup reencrypt`, no wipe — see
+[bootstrap](bootstrap.md#encrypting-the-live-framework-disk-in-place-luks-without-a-wipe));
+the 67G installer swap partition it orphans has a reclaim runbook
+in the same section.

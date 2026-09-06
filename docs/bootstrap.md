@@ -226,15 +226,18 @@ vehicle that built it.
 
 **Superseded for fresh metal:** since 2026-09-06 the framework's
 layout is repo state (`modules/computers/framework/_disko.nix` —
-ESP + btrfs with the top-level at `/` plus `home`/`nix` subvolumes +
-swap), and the live installer disk got the `framework-*` partition
-labels renamed in place — a laptop reinstall is now the **same disko
-wipe as the desktop**, just with `#framework` (and the
+ESP + LUKS2 wrapping the btrfs top-level at `/` plus `home`/`nix`
+subvolumes), and the live installer disk got the `framework-*`
+partition labels renamed in place — a laptop reinstall is now the
+**same disko wipe as the desktop**, just with `#framework` (and the
 [disko validation trick](programs/disko.md#validating-a-layout-change-without-touching-a-disk)
-was run before anything shipped). The runbook below is retained
-verbatim: it is how the laptop actually landed 2026-09-05 (before the
-mirror existed), and it remains the template for **adopting any box
-without wiping it** — which is sometimes exactly what you want:
+was run before anything shipped). Converting the LIVE disk to the
+LUKS layout needs no wipe at all:
+[the in-place reencrypt runbook below](#encrypting-the-live-framework-disk-in-place-luks-without-a-wipe).
+The runbook below is retained verbatim: it is how the laptop actually
+landed 2026-09-05 (before the mirror existed), and it remains the
+template for **adopting any box without wiping it** — which is
+sometimes exactly what you want:
 
 1. **Flash drive → installer.** Write the NixOS ISO to a USB stick
    (the same vehicle the desktop path boots), boot it, and install
@@ -342,6 +345,120 @@ switch --flake .#nixos`. Rebuilding before labeling leaves `/` and
 generation, but avoid it — labeling takes five seconds). The disk's
 p1/p2 are dead leftovers from a previous install; harmless, ignored,
 and wiped whenever a disko run happens.
+
+## Encrypting the live framework disk in place (LUKS without a wipe)
+
+**Status: not yet run.** The LUKS rework (`_disko.nix`/`_hardware.nix`)
+is committed config; this is the runbook for converting the EXISTING
+laptop disk to match it — no disko wipe, no borg restore. The tool is
+`cryptsetup reencrypt --encrypt`: it converts the partition to LUKS2
+sector-by-sector in place (same partition table, same `framework-*`
+labels, same btrfs, same `/etc/nixos` checkout, same generations of
+data). The disko-wipe flow from the fresh runbook remains the fallback
+if anything here goes sideways and borg has to earn its keep.
+
+0. **Prep, from the running laptop.** Commit and push the LUKS config
+   (the chroot rebuild in step 5 uses the checkout that rides along
+   inside the volume — there is no network-key path for `git pull`
+   as chroot-root), then take a fresh backup:
+   `systemctl --user start borgmatic` — the NAS repo is the safety
+   net for the whole operation. Plug in the AC adapter; the
+   reencryption itself should never see a dead battery (see the
+   resume note in step 3).
+
+1. **Boot the NixOS ISO** (the same USB vehicle as the fresh runbook)
+   and get a root shell (`sudo -i`). The installer environment ships
+   `cryptsetup` and `btrfs-progs`; everything below is offline, with
+   the laptop's partitions NOT mounted by the live session.
+
+2. **Shrink the btrfs away from the partition tail.** In-place
+   encryption consumes the last 32M of the partition for the LUKS2
+   reencryption machinery (`--reduce-device-size`, man
+   cryptsetup-reencrypt — "the last size sectors on the original
+   device will be lost"); the filesystem must not extend into them:
+
+   ```sh
+   mount /dev/nvme0n1p2 /mnt
+   btrfs filesystem usage /mnt        # sanity: some free space
+   btrfs filesystem resize -1g /mnt  # 32M + margin, cheap
+   umount /mnt
+   ```
+
+3. **Encrypt in place.** Enter the chosen passphrase twice — this is
+   the fallback slot the on-metal config keeps forever:
+
+   ```sh
+   cryptsetup reencrypt --encrypt --reduce-device-size 32M \
+     /dev/disk/by-partlabel/framework-root
+   ```
+
+   Reads and rewrites every sector (~800G — expect tens of minutes
+   on this NVMe, progress printed). Interruptions are a non-event:
+   rerun the same command and it resumes where it stopped (the
+   reencryption state lives in the LUKS2 header); an abrupt power
+   loss self-recovers on the next `open`. Do NOT Ctrl-C halfway and
+   abandon it.
+
+4. **Open and regrow.** The mapper is now slightly smaller than the
+   partition (header offset + the reduced tail); grow the btrfs back
+   into its final home:
+
+   ```sh
+   cryptsetup open /dev/disk/by-partlabel/framework-root cryptroot
+   mount /dev/mapper/cryptroot /mnt
+   btrfs filesystem resize max /mnt
+   umount /mnt
+   ```
+
+5. **Install the LUKS-aware generation.** Every EXISTING boot entry
+   is now unbootable by construction — their initrds mount the
+   partition raw — so the new generation must be built before the
+   first reboot (order matters, the same lesson as the label
+   adoption):
+
+   ```sh
+   mount /dev/mapper/cryptroot /mnt                  # subvolid 5 = /
+   mount -o subvol=home /dev/mapper/cryptroot /mnt/home
+   mount -o subvol=nix  /dev/mapper/cryptroot /mnt/nix
+   mount /dev/nvme0n1p1 /mnt/boot                    # framework-ESP
+   nixos-enter --root /mnt
+   cd /etc/nixos
+   nixos-rebuild boot --flake .#framework   # boot, not switch: no
+   exit                                      # systemd to switch in a chroot
+   ```
+
+   (If the build insists on compiling the world instead of
+   substituting, the fresh-runbook's step-4 freeze lesson applies
+   here too — export the 1Password substituter block and retry.)
+
+6. **Reboot.** The new generation prompts for the passphrase once
+   (TPM not enrolled yet), then straight into SDDM as always. Enroll
+   the recovery key + TPM per the runbook in
+   `modules/computers/framework/_disko.nix`'s header — after that,
+   zero prompts at boot, ever.
+
+7. **Verify, then reclaim (optional).** `sudo systemd-cryptenroll
+   /dev/disk/by-partlabel/framework-root` lists the passphrase,
+   recovery and tpm2 slots; a second reboot should sail past stage 1
+   with no prompt; Pareto Security's disk-encryption check goes
+   green. The old pre-LUKS boot entries age out via the 10-entry cap
+   on later rebuilds (or force it: `sudo nix-collect-garbage -d`).
+   The 67G `framework-swap` partition is now dead weight nothing
+   mounts — leave it, or reclaim it into the root from the running
+   system:
+
+   ```sh
+   lsblk -o NAME,PARTLABEL,SIZE /dev/nvme0n1   # confirm p2=root, p3=swap-last
+   sudo parted /dev/nvme0n1 rm 3               # GPT-header "Fix" prompt: Fix
+   sudo parted /dev/nvme0n1 resizepart 2 100%  # grows INTO freed tail space
+   sudo cryptsetup resize cryptroot            # mapper follows the partition
+   sudo btrfs filesystem resize max /
+   ```
+
+   (Growing a mounted partition into space AFTER it is the online-
+   safe direction — the kernel only refuses shrinking in-use
+   partitions; if it balks at rereading the table, reboot: the table
+   is already on disk, then run the cryptsetup/btrfs pair.)
 
 ## Harmonia resurrection runbook (the cache VM)
 

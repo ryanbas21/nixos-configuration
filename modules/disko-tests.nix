@@ -14,21 +14,32 @@
 # switch-to-configuration into the ESP the layout just created, and
 # boot the result. Upstream examples: disko's tests/*.nix.
 #
-# Scratch-disk sizing matters: `emptyDiskImages` defaults to 4G per
-# disk in the harness, but the framework layout pins `end = "-67G"` for
-# the root partition — sgdisk cannot place that end on a disk smaller
-# than the swap it reserves, so framework gets an 80G *sparse* qcow2
-# (qcow2 only allocates written blocks; the 67G swap partition is
-# metadata-cheap). nixos/harmonia fit the 4G default.
+# Scratch-disk sizing: `emptyDiskImages` defaults to 4G per disk in
+# the harness, which every layout now fits — the framework layout's
+# old `end = "-67G"` root (reserving a 67G swap partition) used to
+# demand an 80G sparse qcow2; the LUKS rework dropped the swap
+# (zramSwap + earlyoom are the deliberate memory story), and a 100%
+# root formats fine in 4G.
 #
 # What each test proves, end to end:
-# - the generated sgdisk/mkfs/btrfs-subvolume scripts run cleanly
-#   (destroy,format,mount — twice, for idempotency);
+# - the generated sgdisk/mkfs/btrfs-subvolume/luksFormat scripts run
+#   cleanly (destroy,format,mount — twice, for idempotency);
 # - the `framework-*`/`nixos-*`/`harmonia-*` PARTLABELs exist — the
-#   symlinks _hardware.nix mounts through;
+#   symlinks _hardware.nix addresses (the LUKS device by partition,
+#   the btrfs through /dev/mapper/cryptroot);
+# - the framework's root partition IS a LUKS2 container (isLuks) and
+#   the booted system holds it open as `cryptroot` — the format phase
+#   unlocked with the harness-seeded /tmp/secret.key (disko
+#   lib/tests.nix), the exact file the bare-metal runbook in _disko.nix
+#   creates for luksFormat; the BOOT phase unlocks with the same file
+#   seeded into the initrd (extraSystemConfig below), standing in for
+#   the TPM-sealed slot that does this job on metal — a QEMU guest has
+#   no TPM device, so tpm2-device=auto would fall through to a prompt
+#   there; same crypttab entry, second credential;
 # - a system installed onto the layout BOOTs (systemd-boot into the
 #   layout's own ESP) with every mount from `_hardware.nix` resolving:
-#   device by partlabel, fsType, subvol (via FSROOT), fmask/dmask;
+#   device by partlabel or mapper name, fsType, subvol (via FSROOT),
+#   fmask/dmask;
 # - swap partitions are typed and mkswap'd where the layout has them.
 { config, lib, inputs, ... }:
 let
@@ -43,11 +54,12 @@ let
     qemu-common = import "${inputs.nixpkgs}/nixos/lib/qemu-common.nix";
   };
 
-  # host -> scratch-disk size in MiB (see header for why framework's
-  # is 80G).
+  # host -> scratch-disk size in MiB (see header: all fit the harness
+  # 4G default now; kept explicit so a future layout that needs more
+  # has the knob one line away).
   hosts = {
     nixos = 4096;
-    framework = 81920;
+    framework = 4096;
     harmonia = 4096;
   };
 in
@@ -58,14 +70,25 @@ in
       let
         hostConfig = config.nixos.configurations.${host}.configuration.config;
         # The contract under test: everything _hardware.nix mounts from
-        # the disk (partlabel devices only — NFS automounts are not
-        # disk facts), plus its swap devices.
+        # the disk — partlabel devices directly, plus the framework's
+        # /dev/mapper/cryptroot mounts (the dm NAME is the stable disk
+        # fact the host tracks; readlink -f would collapse it to the
+        # host-internal /dev/dm-N). NFS automounts are not disk facts.
         expectedMounts = lib.filterAttrs
-          (_: m: lib.hasPrefix "/dev/disk/by-partlabel/" m.device)
+          (_: m: lib.hasPrefix "/dev/disk/by-partlabel/" m.device
+            || lib.hasPrefix "/dev/mapper/" m.device)
           (lib.mapAttrs
             (_: m: { inherit (m) device fsType options; })
             hostConfig.fileSystems);
         expectedSwap = map (s: s.device) hostConfig.swapDevices;
+        # The framework's boot-phase unlock credential (see header): a
+        # keyfile slot standing in for the metal TPM slot. Scoped to
+        # framework — declaring cryptroot for nixos/harmonia would
+        # fabricate a crypttab entry for a LUKS device that never
+        # exists in those tests.
+        unlockConfig = lib.optionalAttrs (host == "framework") {
+          boot.initrd.luks.devices."cryptroot".keyFile = "/tmp/secret.key";
+        };
       in
       diskoLib.testLib.makeDiskoTest {
         inherit pkgs;
@@ -73,6 +96,7 @@ in
         disko-config = import ./computers/${host}/_disko.nix;
         extraInstallerConfig.virtualisation.emptyDiskImages =
           lib.mkForce [ scratchMiB ];
+        extraSystemConfig = unlockConfig;
         # Runs after the install+boot phases, against the machine that
         # BOOTED from the disko-formatted disk: its mounts are the
         # layout's, at the real paths — compare them to the host's
@@ -85,7 +109,13 @@ in
 
           for mp, e in sorted(expected.items()):
               src = machine.succeed(f"findmnt -rn -o SOURCE {mp}").strip()
-              real = machine.succeed(f"readlink -f {shlex.quote(e['device'])}").strip()
+              if e['device'].startswith('/dev/mapper/'):
+                  # dm devices: the mapper NAME is the identity the host
+                  # config pins; readlink -f would resolve it to the
+                  # host-internal /dev/dm-N and never match.
+                  real = e['device']
+              else:
+                  real = machine.succeed(f"readlink -f {shlex.quote(e['device'])}").strip()
               # btrfs subvol mounts show as /dev/vdaN[/subvol]
               assert src.split("[")[0] == real, (mp, src, real)
               fst = machine.succeed(f"findmnt -rn -o FSTYPE {mp}").strip()
@@ -108,6 +138,16 @@ in
               real = machine.succeed(f"readlink -f {shlex.quote(dev)}").strip()
               out = machine.succeed(f"blkid {shlex.quote(real)}")
               assert 'TYPE="swap"' in out, (dev, out)
+
+          # The LUKS contract (any host whose mounts live on a mapper):
+          # the PARTLABEL partition must BE the LUKS container, and the
+          # booted system must be holding it open under the mapper name
+          # the mounts resolve through.
+          if any(e['device'].startswith('/dev/mapper/') for e in expected.values()):
+              part = machine.succeed(
+                  "readlink -f /dev/disk/by-partlabel/framework-root").strip()
+              machine.succeed(f"cryptsetup isLuks {shlex.quote(part)}")
+              machine.succeed("cryptsetup status cryptroot")
         '';
       }))
     hosts;

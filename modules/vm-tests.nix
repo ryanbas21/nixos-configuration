@@ -43,7 +43,7 @@
 # No fileSystems/swapDevices overrides are needed (unlike the harmonia
 # test's): the test framework's `useDefaultFilesystems` supplies its own
 # root disk + 9p store share and drops the physical mounts — both
-# hosts' by-partlabel entries, the framework's swap partition, and
+# hosts' by-partlabel entries, the framework's /dev/mapper mounts, and
 # the noauto NFS automounts — automatically.
 # Likewise neutralized, with reasons inline:
 # - node.pkgsReadOnly = false: testers pins a shared read-only pkgs per
@@ -63,6 +63,13 @@
 #   generated host key matches no age recipient, so the decrypt unit
 #   would fail; the alerting scripts no-op on the missing secret file
 #   by design (the runtime consumers read it, tests never run them).
+# - the framework's LUKS declaration is dropped (mkForce {}): the
+#   crypttab entry points at a partition that exists only on metal,
+#   and a QEMU guest has no TPM either — stage-1 systemd-cryptsetup
+#   would sit waiting on both. Same environmental-mismatch
+#   neutralization as the dropped mounts above; the disko test
+#   (disko-tests.nix) exercises the REAL unlock path on a REAL
+#   LUKS-formatted disk instead.
 { config, lib, inputs, ... }:
 let
   # Desktop-style hosts: full nixos.modules.base (Plasma + home-manager)
@@ -106,6 +113,9 @@ in
           # the agenix decrypt unit for the ntfy URL would fail — drop
           # the declaration entirely (harmonia's test does the same).
           age.secrets = lib.mkForce { };
+          # See header: metal-only LUKS device (framework) — the VM has
+          # neither the partition nor a TPM to unlock it with.
+          boot.initrd.luks.devices = lib.mkForce { };
           # The throwaway identity must exist BEFORE home activation —
           # exactly like a real install, where the runbook restores
           # ~/.ssh/id_borg onto the target before first boot. It cannot

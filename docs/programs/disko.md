@@ -86,13 +86,21 @@ against `_hardware.nix`. Run one locally with `nix build -L
 
 ## Future
 
-- **LUKS** would be declared in the layout (`content.type = "luks"`
-  wrapping the btrfs) — the natural moment is the next reinstall,
-  which the [bootstrap runbook](../bootstrap.md#fresh-desktop-runbook-same-hardware) now makes cheap.
+- **LUKS** landed on the framework with the 2026-09 rework
+  (`content.type = "luks"` wrapping the btrfs, TPM2 auto-unlock —
+  see `computers/framework/_disko.nix`'s header for the threat model,
+  runbooks and the CI story: the disko test unlocks with the
+  harness-seeded keyfile standing in for the metal TPM slot). The
+  live unencrypted disk converts IN PLACE via `cryptsetup
+  reencrypt --encrypt` (bootstrap.md's "Encrypting the live framework
+  disk in place" runbook — no wipe, no borg restore). The desktop
+  stays unencrypted (LAN-closet machine, its outage story is btrfs
+  + borg); the natural moment to revisit is its next reinstall.
 - The **framework laptop's** mirror landed 2026-09-06
   (`computers/framework/_disko.nix`, the fleet's first layout with
-  btrfs subvolumes and a swap partition — and the first to use the
-  modern `type = "btrfs"` spelling, required for subvolumes). The
-  labels were renamed on the live installer disk in place; the same
-  eval trick below verified the generated devices match
-  `_hardware.nix` before anything shipped.
+  btrfs subvolumes — and the first to use the modern
+  `type = "btrfs"` spelling, required for subvolumes), then became
+  the fleet's first LUKS layout (2026-09 rework; the mirror's swap
+  partition went with it). The labels were renamed on the live
+  installer disk in place; the same eval trick below verified the
+  generated devices match `_hardware.nix` before anything shipped.

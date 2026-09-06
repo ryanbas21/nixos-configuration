@@ -237,8 +237,9 @@ Read the repo in this order:
 │   │   │   ├── _hardware.nix    mounts (by partlabel) + kernel facts
 │   │   │   └── _disko.nix       declarative partition layout (disko CLI)
 │   │   ├── framework/
-│   │   │   ├── _hardware.nix    mounts (by partlabel) + kernel facts
-│   │   │   ├── _disko.nix       declarative layout (btrfs subvols + swap)
+│   │   │   ├── _hardware.nix    mounts (partlabel + /dev/mapper/cryptroot),
+│   │   │   │                    LUKS/TPM unlock policy, kernel facts
+│   │   │   ├── _disko.nix       declarative layout (LUKS2 + btrfs subvols)
 │   │   │   ├── _pam.nix         fprintd PAM integrations
 │   │   │   ├── _power.nix       charge ceiling, p-p-d, framework-control,
 │   │   │   │                    s2idle pin (see programs/laptop-power)
