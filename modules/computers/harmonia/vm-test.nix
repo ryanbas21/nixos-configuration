@@ -64,6 +64,10 @@ in
         machine.wait_for_unit("multi-user.target")
         # harmonia is socket-activated; the socket listens at boot.
         machine.wait_for_open_port(5000)
+        # observability: the fleet's push server must come up too
+        # (ntfy, LAN-scoped port; the alerting path every host posts
+        # to — system/observability.nix).
+        machine.wait_for_open_port(6777)
         info = machine.succeed("curl -sf http://localhost:5000/nix-cache-info")
         assert "StoreDir: /nix/store" in info, info
         # The reproducibility proof: the box serves SIGNED narinfos for

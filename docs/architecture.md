@@ -215,6 +215,14 @@ Read the repo in this order:
 │   │   ├── sudo.nix             sudo-rs replaces classic sudo
 │   │   ├── maintenance.nix      GC + store optimisation + boot-entry caps
 │   │   │                        (both NixOS hosts; see programs/maintenance)
+│   │   ├── observability.nix    ntfy failure hooks + weekly health digest
+│   │   │                        + sysstat + journald cap (both NixOS hosts;
+│   │   │                        see programs/observability)
+│   │   ├── oom.nix              earlyoom proactive OOM killer (both hosts)
+│   │   ├── snapper.nix          btrfs timeline snapshots, bounded retention
+│   │   │                        (see programs/snapshots)
+│   │   ├── locate.nix           plocate index + daily updatedb
+│   │   ├── wifi-privacy.nix     per-SSID stable MACs (NetworkManager)
 │   │   ├── hardware.nix         TRIM, btrfs scrub, zramSwap, smartd
 │   │   ├── virtualization.nix   docker (rootless + socket-activated system daemon)
 │   │   │                        + VirtualBox host
@@ -231,7 +239,12 @@ Read the repo in this order:
 │   │   ├── framework/
 │   │   │   ├── _hardware.nix    mounts (by partlabel) + kernel facts
 │   │   │   ├── _disko.nix       declarative layout (btrfs subvols + swap)
-│   │   │   └── _pam.nix         fprintd PAM integrations
+│   │   │   ├── _pam.nix         fprintd PAM integrations
+│   │   │   ├── _power.nix       charge ceiling, p-p-d, framework-control,
+│   │   │   │                    s2idle pin (see programs/laptop-power)
+│   │   │   ├── _ups.nix         rack-UPS watcher → ntfy (see laptop-power)
+│   │   │   └── _usbguard.nix    NOT IMPORTED: policy template + runbook
+│   │   │                        (generate policy on the laptop first)
 │   │   └── harmonia/
 │   │       ├── _hardware.nix    the server's hardware scan
 │   │       ├── _disko.nix       the server's layout mirror

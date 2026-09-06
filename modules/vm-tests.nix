@@ -53,6 +53,12 @@
 # - the agenix user services (age.secrets) are left registered but
 #   never run: they decrypt at session start (Linger=no), and a boot
 #   test starts no login session.
+# - snapper configs are dropped (mkForce {}): the test root from
+#   useDefaultFilesystems is not btrfs, so a timeline fire that
+#   happened to land inside the test window would just fail — the
+#   same environmental-mismatch neutralization as the dropped mounts
+#   above (on metal the root is btrfs and the timeline snapshots; see
+#   system/snapper.nix).
 { config, lib, inputs, ... }:
 let
   # Desktop-style hosts: full nixos.modules.base (Plasma + home-manager)
@@ -90,6 +96,8 @@ in
             memorySize = 4096;
             cores = 2;
           };
+          # See header: not btrfs in the test root.
+          services.snapper.configs = lib.mkForce { };
           # The throwaway identity must exist BEFORE home activation —
           # exactly like a real install, where the runbook restores
           # ~/.ssh/id_borg onto the target before first boot. It cannot

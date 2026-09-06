@@ -33,4 +33,15 @@
     url = "https://nix-configs.cachix.org";
     publicKey = "nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw=";
   };
+
+  # The LAN push-notification server: ntfy on harmonia, port 6777.
+  # The server half lives in computers/harmonia.nix (listen-http), the
+  # client half in system/observability.nix (every alerting curl);
+  # harmonia.nix hardcodes the same port in its listen spec — keep the
+  # three in sync (the flake-level module args do not reach inside the
+  # NixOS evals, so the listen spec cannot consume this attr).
+  _module.args.ntfyServer = {
+    host = "192.168.1.82";
+    port = 6777;
+  };
 }

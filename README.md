@@ -163,6 +163,14 @@ program does, why it is there, and the war stories:
   bundle, model routing, the ZAI key.
 - [Identity](docs/programs/identity.md) — git signing, GPG auto-import,
   the SSH key inventory, gh.
+- [Observability](docs/programs/observability.md) — the ntfy push server
+  on harmonia, failure hooks, the weekly health digest, earlyoom, sysstat,
+  journald cap, and the rack-UPS watcher.
+- [Snapshots](docs/programs/snapshots.md) — snapper timelines on the btrfs
+  subvols with bounded retention; the local leg of the recovery story.
+- [Laptop power](docs/programs/laptop-power.md) — the framework's charge
+  ceiling, power-profiles, the s2idle pin, wifi MAC privacy, and the
+  USBGuard runbook (present but not enabled).
 
 ## Quick orientation
 

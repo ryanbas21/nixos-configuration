@@ -38,6 +38,8 @@
         ./framework/_hardware.nix
         ./framework/_pam.nix
         ./framework/_mullvad.nix
+        ./framework/_power.nix
+        ./framework/_ups.nix
         config.nixos.modules.base
         config.users.batman.nixos.base
       ];
