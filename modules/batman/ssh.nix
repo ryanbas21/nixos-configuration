@@ -39,19 +39,43 @@
         # authorized. Desktop-only, same as github.com: id_borg is the
         # desktop's agenix identity and does not ride along on the
         # standalone exports.
-        "192.168.1.82" = {
+        "harmonia" = {
           HostName = "192.168.1.82";
           User = "root";
           IdentityFile = "~/.ssh/id_borg";
           IdentitiesOnly = true;
         };
+        "media" = {
+          HostName = "192.168.1.33";
+          User = "ryan";
+          IdentityFile = "~/.ssh/id_borg";
+          IdentitiesOnly = true;
+        };
+        "utils" = {
+          HostName = "192.168.1.39";
+          User = "ryan";
+          IdentityFile = "~/.ssh/id_borg";
+          IdentitiesOnly = true;
+        };
+        "n8n" = {
+          HostName = "192.168.1.39";
+          User = "ryan";
+          IdentityFile = "~/.ssh/id_borg";
+          IdentitiesOnly = true;
+        };
+        "nas" = {
+          HostName = "192.168.1.30";
+          User = "ryan";
+          IdentityFile = "~/.ssh/id_borg";
+          IdentitiesOnly = true;
+        };
+        "framework" = {
+          HostName = "192.168.1.52";
+          User = "batman";
+          IdentityFile = "~/.ssh/id_borg";
+          IdentitiesOnly = true;
+        };
       };
-      extraConfig = ''
-        Host 192.168.1.82
-          User root
-          IdentityFile /home/batman/.ssh/id_borg
-          IdentitiesOnly yes
-      '';
     };
   };
 }
