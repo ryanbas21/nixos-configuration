@@ -46,8 +46,10 @@
       # Extension config goes under settings.providers."<entrypoint-id>"
       # — get the id from the installed-extensions menu → ctrl+k →
       # "copy author and ID". Secrets never go in settings (world-
-      # readable store): use programs.vicinae.settingOverrides with an
-      # agenix-generated file.
+      # readable store), and the homeassistant provider takes that
+      # further: its whole preferences block (URL + token) rides the
+      # agenix override file in the home.pc block below, so a fresh
+      # install needs zero in-app setup.
       # Declarative extensions. Raycast-compat extensions build from the
       # github.com/raycast/extensions monorepo via the vicinae flake's
       # mkRayCastExtension (npm deps resolved by importNpmLock, so only
@@ -74,6 +76,47 @@
       # then add e.g. inputs.vicinae-extensions.packages.${system}.nix
       # to the list above.
     };
+  };
+
+  # Secret homeassistant runtime prefs: the ENTIRE provider config
+  # (instance URL + long-lived API token) lives in one agenix file,
+  # so the extension is fully declarative — no in-app setup step, and
+  # no hostname in the world-readable store. home.pc, not home.base:
+  # agenix's home-manager module is imported there (agenix.nix), and
+  # the darwin standalone export evaluates home.base alone — a
+  # config.age.secrets reference there would break its eval. The .age
+  # plaintext is a vicinae config JSON document (settingOverrides
+  # files are deep-merged over the user config). A password-type
+  # preference present in the merged config BEATS the GUI's sqlite
+  # secret store (root-item-manager.cpp only falls back to it when
+  # the key is absent), so this stays declarative forever.
+  users.batman.home.pc = { config, lib, ... }: {
+    age.secrets.vicinae-homeassistant = {
+      file = ../../secrets/vicinae-homeassistant.age;
+      # Absolute, uid-pinned: the path is baked into the wrapped
+      # binary's VICINAE_OVERRIDES in the nix store, so no ${...}
+      # expansion exists at all here (same lesson as borg-passphrase:
+      # agenix's default "${XDG_RUNTIME_DIR}/agenix/..." literal).
+      # agenix.service decrypts to this same option.
+      path = "/run/user/1000/agenix/vicinae-homeassistant";
+    };
+
+    programs.vicinae.settingOverrides =
+      [ config.age.secrets.vicinae-homeassistant.path ];
+
+    # The daemon reads VICINAE_OVERRIDES files once, at startup — a
+    # missing file is a qWarning, not a crash, so Restart=always would
+    # never recover from racing agenix.service (oneshot WantedBy
+    # default.target, otherwise unordered against the graphical
+    # session). mkAfter appends to the module's own
+    # After=[graphical-session.target]; Wants pulls the decrypt in.
+    systemd.user.services.vicinae =
+      lib.mkIf config.programs.vicinae.systemd.enable {
+        Unit = {
+          After = lib.mkAfter [ "agenix.service" ];
+          Wants = [ "agenix.service" ];
+        };
+      };
   };
 
   # NixOS side: the input-server security wrapper. Imported here rather

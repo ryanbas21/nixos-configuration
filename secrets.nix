@@ -40,6 +40,15 @@ in
   # activation by modules/batman/hypnotix.nix.
   "secrets/hypnotix-providers.age".publicKeys = [ batman ];
 
+  # Vicinae launcher's homeassistant extension (runtime prefs via
+  # programs.vicinae.settingOverrides — modules/batman/vicinae.nix).
+  # The plaintext is a vicinae config JSON document carrying the
+  # provider's ENTIRE preferences block — instance URL + long-lived
+  # API token under providers."@tonka3000/homeassistant".preferences
+  # (NOT a bare token string — the daemon deep-merges the whole file
+  # over the user config).
+  "secrets/vicinae-homeassistant.age".publicKeys = [ batman ];
+
   # nix-configs cachix credentials. The signing key is the BARE secret
   # exactly as `cachix generate-keypair nix-configs` stores it in
   # cachix.dhall — NO `name:` prefix (a prefixed key fails server-side

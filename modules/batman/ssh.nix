@@ -83,6 +83,12 @@
           IdentityFile = "~/.ssh/id_borg";
           IdentitiesOnly = true;
         };
+        "ha" = {
+          HostName = "192.168.1.41";
+          User = "ryan";
+          IdentityFile = "~/.ssh/id_borg";
+          IdentitiesOnly = true;
+        };
       };
     };
   };
