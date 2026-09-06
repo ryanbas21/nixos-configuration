@@ -192,6 +192,8 @@ Read the repo in this order:
 │   ├── users.nix                users.<name>.* slots; declares batman
 │   ├── disko.nix                flake.diskoConfigurations — disk layouts
 │   │                            for the disko CLI (not in any host eval)
+│   ├── disko-tests.nix          flake.checks: execute+boot every _disko.nix
+│   │                            in a VM (CI test-disko)
 │   ├── vm-tests.nix             flake.checks: fresh-boot VM tests that boot the
 │   │                            real nixos/framework modules (CI test-hosts)
 │   ├── time.nix                 ntpd-rs time sync (timeZone static in base.nix)

@@ -104,7 +104,7 @@ Caveats worth knowing:
 ## CI (.github/workflows/ci.yml)
 
 CI runs on every push to main (including the backup timer's automated
-commits) and on every pull request, in five jobs:
+commits) and on every pull request, in six jobs:
 
 - **flake-check** — a fast eval-only job (`nix flake check --no-build`)
   covering every output: the NixOS hosts against their tracked hardware
@@ -131,6 +131,14 @@ commits) and on every pull request, in five jobs:
   2026-09-05 laptop install whose first rebuild froze compiling
   llm-agents' node-gyp packages: build/boot breakage that an eval check
   cannot see surfaces here, not on bare metal.
+- **test-disko** — executes every `_disko.nix` for real in VMs
+  ([modules/disko-tests.nix](../modules/disko-tests.nix), built on
+  disko's own `makeDiskoTest` harness): scratch disk →
+  destroy,format,mount (idempotency checked) → minimal NixOS installed
+  onto it → that system **booted** as a second VM → every mounted
+  filesystem compared against the host's tracked `_hardware.nix`
+  mount table. The labels contract — "a disko-formatted disk and the
+  live disk satisfy the identical config" — as a test, on every push.
 
 The build jobs push everything they build to the personal cachix
 cache (`nix-configs`, self-signed with our own keypair), so later runs
@@ -140,6 +148,9 @@ in [nix caches](programs/nix-caches.md).
 
 **Validation from anywhere, no hardware needed:** `nix flake check`
 (with or without `--no-build`) evaluates the host toplevel against the
-real tracked hardware file, and `nix build -L
+real tracked hardware file; `nix build -L
 .#checks.x86_64-linux."nixos:vm-test"` boots the host as a VM and
-asserts the fresh-boot state (same for `framework` and `harmonia`).
+asserts the fresh-boot state (same for `framework` and `harmonia`);
+and `nix build -L .#checks.x86_64-linux."disko:framework"` partitions,
+formats, installs onto, and BOOTS the disk layout (same for the other
+hosts).

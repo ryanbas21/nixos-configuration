@@ -33,6 +33,13 @@
 # Whatever the job builds lands in nix-configs, so bare-metal installs
 # substitute instead of compiling.
 #
+# test-disko executes every host's _disko.nix FOR REAL in VMs
+# (modules/disko-tests.nix, built on disko's own makeDiskoTest
+# harness): destroy→format→mount (idempotency checked), a minimal
+# NixOS installed onto the formatted disk, that system BOOTED as a
+# second VM, and the booted mounts diffed against the tracked
+# _hardware.nix tables — the labels contract as a test, on every push.
+#
 # CI never touches the harmonia server itself: it is LAN-only by
 # design (nftables subnet scoping), which GitHub runners cannot
 # reach — and tunneling runners into the home LAN to warm a cache
@@ -302,3 +309,49 @@ jobs:
 
       - name: Boot the ${{ matrix.host }} VM and assert the fresh-boot state
         run: nix build -L .#checks.x86_64-linux."${{ matrix.host }}:vm-test"
+
+  test-disko:
+    # Executes each host's _disko.nix for real in a VM (three matrix
+    # entries; modules/disko-tests.nix wraps disko's own makeDiskoTest
+    # harness): scratch disk -> destroy,format,mount (twice, for
+    # idempotency) -> minimal NixOS installed onto it -> BOOTED as a
+    # second VM -> every mounted filesystem compared against the
+    # host's tracked _hardware.nix mount table (devices by partlabel,
+    # fsTypes, subvols, fmask/dmask, swap typing). The framework
+    # layout needs an 80G sparse scratch disk (its root partition ends
+    # at -67G for the swap). Under TCG these are the slowest jobs —
+    # two boots plus an install phase each — hence the generous
+    # timeout; makeDiskoTest's baked-in meta.timeout is not enforced by
+    # nix build, only Hydra.
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [nixos, framework, harmonia]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+        with:
+          # Same pin as flake-check: evaluator parity with the desktop.
+          install_url: https://releases.nixos.org/nix/nix-2.34.8/install
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+            substituters = https://nix-configs.cachix.org https://cache.nixos.org
+            trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+
+      - name: Configure cachix
+        env:
+          have_cachix_keys: ${{ secrets.CACHIX_AUTH_TOKEN != '' && secrets.CACHIX_SIGNING_KEY != '' }}
+        if: env.have_cachix_keys == 'true'
+        uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        with:
+          name: nix-configs
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
+          useDaemon: false
+
+      - name: Execute and boot the ${{ matrix.host }} disk layout
+        run: nix build -L .#checks.x86_64-linux."disko:${{ matrix.host }}"

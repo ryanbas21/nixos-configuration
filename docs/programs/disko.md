@@ -76,6 +76,14 @@ in { root = ev.config.fileSystems."/".device;
 (A bare `lib.evalModules` is not enough — disko's module defines
 NixOS-level options like `assertions` and `boot`.)
 
+This trick is the quick local diff; the full validation is automated:
+the `disko:*` flake checks ([modules/disko-tests.nix](../../modules/disko-tests.nix),
+CI's `test-disko` job) execute each layout for real in a VM —
+partition, format, mount (idempotency checked), install a minimal
+NixOS onto it, boot it as a second VM, and compare every booted mount
+against `_hardware.nix`. Run one locally with `nix build -L
+.#checks.x86_64-linux."disko:framework"`.
+
 ## Future
 
 - **LUKS** would be declared in the layout (`content.type = "luks"`

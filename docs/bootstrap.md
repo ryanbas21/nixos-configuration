@@ -58,7 +58,11 @@ brought under management) the cache's signing key.
 The automated half already exists: every push boots the real host
 modules as VMs in CI (`test-hosts`, [modules/vm-tests.nix](../modules/vm-tests.nix)
 — `nix build -L .#checks.x86_64-linux."nixos:vm-test"` locally, or
-`."framework:vm-test"`; same for the harmonia host). What CI cannot
+`."framework:vm-test"`; same for the harmonia host) — and the disk
+layouts one level deeper (`test-disko`,
+[modules/disko-tests.nix](../modules/disko-tests.nix): each `_disko.nix`
+partitions a scratch VM disk, gets a minimal NixOS installed onto it,
+and boots). What CI cannot
 rehearse is the interactive parts — the installer, the key restores,
 the first login — and that is what the manual rehearsal below covers.
 The `-device nvme` trick
@@ -293,9 +297,13 @@ without wiping it** — which is sometimes exactly what you want:
    ```
 
    Then (order matters — labels before rebuild) the first `switch`
-   picks up the partlabel mounts. Both landed 2026-09-06; a box
-   adopted this way is thereafter indistinguishable from a
-   disko-installed one.
+   picks up the partlabel mounts. Expect one cosmetic wrinkle on that
+   first live switch: systemd cannot stop/start-cycle `home.mount`
+   while a session holds it, so the switch ends with `Failed to
+   restart home.mount` (exit 4) — the mount underneath is the same
+   partition+subvol, `systemctl --failed` stays empty, and a reboot
+   settles the spelling. Both landed 2026-09-06; a box adopted this
+   way is thereafter indistinguishable from a disko-installed one.
 
 ## Adopting the existing disk (one-time) — completed 2026-09-02
 

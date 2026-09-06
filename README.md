@@ -79,6 +79,10 @@ Both host configurations are **boot-tested in CI** on every push
 `framework` modules boot as UEFI VMs and must reach multi-user.target
 with the full home-manager activation — the fresh-install guarantee,
 automated ([integration-testing pattern](https://nix.dev/tutorials/nixos/integration-testing-using-virtual-machines)).
+The **disk layouts** are tested one level deeper (`modules/disko-tests.nix`
+→ the `test-disko` job): every `_disko.nix` is executed against a
+scratch VM disk and the result is booted — the labels contract as a
+test.
 
 ## Documentation
 
