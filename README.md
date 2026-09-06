@@ -35,6 +35,41 @@ rebuild (everything else is in this repo).
 
 The vehicle is always a **flash drive with the NixOS ISO** — it boots
 a live NixOS that runs the install (get online with `nmtui` first).
+
+**Step zero — install with the caches.** The ISO's (and the fresh
+install's) nix only knows `cache.nixos.org`, so a naive install
+**compiles the pinned-input packages from source** — the llm-agents
+tools alone (pi and friends build node native modules via node-gyp)
+froze a laptop install twice. Paste this **once**, before running any
+command below (home LAN; also kept as a 1Password note,
+"nixos-install — substituters"):
+
+```sh
+export NIX_CONFIG='
+substituters = http://192.168.1.82:5000 https://nix-configs.cachix.org https://psysonic.cachix.org https://vicinae.cachix.org https://cache.numtide.com https://cache.nixos.org
+trusted-public-keys = nix-cache-1:SpVt1hjpAaEgQqnY1cIm5tjTETZbG5dQmGZ3rDbTyJc= nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA= vicinae.cachix.org-1:1kDrfienkGHPYbkpNj1mWTr7Fm1+zcenzgTizIcI3oc= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+'
+```
+
+Three rules:
+
+- **`sudo` scrubs the environment** — that is why the commands below
+  carry `sudo -E`; without it the export dies at the sudo boundary and
+  the install is back to compiling from source.
+- **Off the LAN?** Delete the `192.168.1.82:5000` URL and the
+  `nix-cache-1:` key — an unreachable first substituter only adds
+  latency, and `nix-configs` still carries what CI builds.
+- **ISO's nix predates flakes** (disko / `nix run` errors about
+  experimental features)? Add one more line to the same export:
+  `experimental-features = nix-command flakes`. Recent official ISOs
+  ship with it enabled, and the installed system sets it permanently
+  (`modules/system/base.nix`) — this line is install-time only.
+
+With the export in place, the closure substitutes from
+harmonia/nix-configs/numtide in minutes; the full story (why, the CI
+cache pushes, the post-build hooks) is in
+[nix caches](docs/programs/nix-caches.md#installing-with-the-caches-fresh-metal--first-rebuild).
+
 From there, two paths (details, the mental model, and the post-boot
 layer in [bootstrap](docs/bootstrap.md)):
 
@@ -63,40 +98,6 @@ partitioning is declarative, no manual steps, ever):
   the flash drive the installer's own way, restore the keys, clone
   the repo, and switch to the flake —
   [fresh laptop runbook](docs/bootstrap.md#fresh-laptop-runbook-framework-nixos-from-the-flash-drive).
-
-**Whatever the path: install with the caches.** The ISO's (and the
-fresh install's) nix only knows `cache.nixos.org`, so a naive install
-**compiles the pinned-input packages from source** — the llm-agents
-tools alone (pi and friends build node native modules via node-gyp)
-froze a laptop install twice. Paste this **once**, in the same shell
-you run disko / `nixos-install` from (home LAN; also kept as a
-1Password note, "nixos-install — substituters"):
-
-```sh
-export NIX_CONFIG='
-substituters = http://192.168.1.82:5000 https://nix-configs.cachix.org https://psysonic.cachix.org https://vicinae.cachix.org https://cache.numtide.com https://cache.nixos.org
-trusted-public-keys = nix-cache-1:SpVt1hjpAaEgQqnY1cIm5tjTETZbG5dQmGZ3rDbTyJc= nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA= vicinae.cachix.org-1:1kDrfienkGHPYbkpNj1mWTr7Fm1+zcenzgTizIcI3oc= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
-'
-```
-
-Then three rules:
-
-- **`sudo` scrubs the environment** — that is why the commands above
-  carry `sudo -E`; without it the export dies at the sudo boundary and
-  the install is back to compiling from source.
-- **Off the LAN?** Delete the `192.168.1.82:5000` URL and the
-  `nix-cache-1:` key — an unreachable first substituter only adds
-  latency, and `nix-configs` still carries what CI builds.
-- **ISO's nix predates flakes** (disko / `nix run` errors about
-  experimental features)? Add one more line to the same export:
-  `experimental-features = nix-command flakes`. Recent official ISOs
-  ship with it enabled, and the installed system sets it permanently
-  (`modules/system/base.nix`) — this line is install-time only.
-
-With the export in place, the closure substitutes from
-harmonia/nix-configs/numtide in minutes. The full story — why, the CI
-cache pushes, the post-build hooks — is in
-[nix caches](docs/programs/nix-caches.md#installing-with-the-caches-fresh-metal--first-rebuild).
 
 Both host configurations are **boot-tested in CI** on every push
 (`modules/vm-tests.nix` → the `test-hosts` job): the real `nixos` and
