@@ -1,6 +1,7 @@
 # The harmonia cache server (192.168.1.82 on the LAN): the binary cache
-# the desktop's post-build-hook warms (modules/system/base.nix) and the
-# first substituter in its list.
+# the desktop-style hosts' post-build-hooks warm (modules/system/base.nix
+# — in practice the desktop contributes nearly everything) and the first
+# substituter in their lists.
 #
 # Headless and single-purpose, so it deliberately imports NEITHER the
 # desktop-heavy nixos.modules.base (no Plasma, no home-manager, no
@@ -82,9 +83,10 @@
       # the VM console.
       services.openssh.enable = true;
       services.openssh.settings.PasswordAuthentication = false;
-      # Local time for logs and the weekly GC timer; base sets this but
-      # is skipped here, so carry it explicitly. Parity with the
-      # hand-configured box (America/Denver).
+      # Local time for logs and the timers that remain (digest, sysstat;
+      # the GC timer is deliberately absent — see the assertions below);
+      # base sets this but is skipped here, so carry it explicitly.
+      # Parity with the hand-configured box (America/Denver).
       time.timeZone = "America/Denver";
       # Compressed RAM swap as an OOM cushion — same rationale as
       # system/hardware.nix for the desktop, restated here because this host
@@ -199,6 +201,18 @@
             lib.hasInfix "REPLACE-ME" config.fileSystems."/".device
             || config.users.users.root.openssh.authorizedKeys.keys != [ ];
           message = "harmonia: root authorized_keys is empty — a switch would replace the server's key file and lock out remote access. Paste the desktop push key (docs/programs/nix-caches.md, adoption runbook).";
+        }
+        {
+          # The cache host must never auto-collect: every cached path
+          # is unreachable by definition, so any nix-collect-garbage
+          # sweeps the cache itself (--delete-older-than gates
+          # generations, not the sweep). The first weekly run after
+          # adoption deleted 7,304 paths / 38.4 GiB on 2026-09-07.
+          # Retention without the collector ships via
+          # system/maintenance.nix; disk pressure is guarded by min-free
+          # in harmonia/_remote-builder.nix.
+          assertion = !config.nix.gc.automatic;
+          message = "harmonia: nix.gc.automatic is on — a collector on the LAN cache host deletes the cache itself (2026-09-07: 7,304 paths / 38.4 GiB). See modules/system/maintenance.nix.";
         }
       ];
     };

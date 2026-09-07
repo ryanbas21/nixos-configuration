@@ -7,10 +7,10 @@ cachix cache **nix-configs**, a LAN harmonia server, and upstream caches
 for inputs with their own nixpkgs pins. The goal: no machine (and no CI
 runner) should ever build what something else already built.
 
-## Substituter order (desktop, `modules/system/base.nix`)
+## Substituter order (desktop-style hosts, `modules/system/base.nix`)
 
 ```
-http://192.168.1.82:5000      LAN harmonia (everything this desktop builds)
+http://192.168.1.82:5000      LAN harmonia (everything the desktop-style hosts build)
 https://nix-configs.cachix.org personal cachix (what CI builds)
 https://psysonic.cachix.org   psysonic flake input (own nixpkgs pin)
 https://vicinae.cachix.org    vicinae flake input (gcc15Stdenv, own pin)
@@ -71,8 +71,12 @@ substitute in minutes.
 
 ## The harmonia post-build hook (warm the LAN cache)
 
-Every path this machine **builds** (as opposed to substitutes) is pushed
-to the cache server's nix store after the build. Harmonia 3.x serves
+Every path a host **builds** (as opposed to substitutes) is pushed
+to the cache server's nix store after the build. The hook lives in
+the shared base tier, so **both** `nixos` and `framework` fire it — in
+practice the desktop contributes nearly everything, because the
+framework substitutes most of what CI and the desktop have already
+built and its local build delta is small. Harmonia 3.x serves
 that store over HTTP (signing on the fly) but its HTTP upload route is
 gone, so pushes go over ssh — and specifically the **legacy `ssh://`
 store, deliberately**: locally-built paths are unsigned, and `ssh-ng://`
@@ -97,8 +101,12 @@ a `writeShellScript` because nix spawns the hook as a single command
 line — inline quoting and shell operators like `||` don't survive that —
 and is best-effort (`|| true` inside the script) so a down cache server
 can never fail a build. **Which also means a missing key or down server
-fails silently** — if the cache seems cold, check
-`journalctl -u nix-daemon` after a build.
+fails silently** — the hook's output rides the invoking command's
+stderr (watch the rebuild itself), not the daemon journal. To see
+pushes after the fact, read the server side: `ssh root@192.168.1.82
+'journalctl -u sshd'` shows the accepted `framework-remote-build`
+connections, and `just warmth` probes how much of a closure .82 can
+serve.
 
 ## The server (.82) — tracked in this repo
 
@@ -126,7 +134,15 @@ from the hook's, same authorized destination). `nix flake check --no-build`
 
 Recovery story once adopted: any fresh NixOS box + this repo + the
 host-key recipient in `secrets.nix` re-creates the server; cache
-*contents* are derived data that re-accumulates as clients rebuild.
+*contents* are derived data that re-accumulates as clients rebuild —
+which is why the cache host itself runs **no garbage collector**
+(`system/maintenance.nix`, with an eval assertion in harmonia.nix
+enforcing it): every cached path is unreachable by definition, so any
+collect sweeps the cache. The first weekly run after adoption deleted
+7,304 paths / 38.4 GiB (2026-09-07); the desktop's next build then
+re-pushed the lot — exactly the "full push took an hour" failure mode
+that rule now prevents. Disk pressure stays guarded by `min-free` in
+`harmonia/_remote-builder.nix`.
 
 ### Bringing .82 under management (one-time)
 

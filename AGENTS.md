@@ -69,8 +69,12 @@ architecture.
   it exists); the long story goes in `docs/programs/<topic>.md`. A
   change without its doc is incomplete.
 - CI pushes what it builds to cachix `nix-configs`; the LAN harmonia
-  server is warmed only by the desktop's post-build-hook. Runners
-  cannot reach the LAN (by design) — don't try.
+  server is warmed by the desktop-style hosts' post-build-hooks (the
+  desktop does the bulk). Runners cannot reach the LAN (by design) —
+  don't try. **Never enable `nix.gc` on harmonia**: every cached path
+  is unreachable, so any collect sweeps the cache (a weekly timer ate
+  38.4 GiB before the eval assertion in `computers/harmonia.nix`
+  landed).
 - `flake.lock` is the reproducibility anchor: updates are deliberate
   commits, never side effects.
 

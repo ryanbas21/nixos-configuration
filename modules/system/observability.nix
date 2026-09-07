@@ -19,8 +19,9 @@
 #      token's user.
 #   2. FAILURE HOOKS: a notify-failed@.service template that OnFailure
 #      wiring points at — a unit dying pages the phone within seconds.
-#      Wired: nix-gc, fstrim, snapper-timeline/-cleanup (base hosts);
-#      nix-gc (harmonia). NOT wired: btrfs-scrub (its unit names are
+#      Wired: nix-gc, fstrim, snapper-timeline/-cleanup (base hosts
+#      only — the harmonia cache host runs no collector at all, see
+#      system/maintenance.nix). NOT wired: btrfs-scrub (its unit names are
 #      generated per-filesystem; the digest's scrub-status section
 #      covers it) and borgmatic (a home-manager USER unit — the
 #      system-level template cannot see it; the digest reports its
@@ -300,14 +301,11 @@ in
     }
   ];
 
-  # harmonia skips nixos.modules.base but still needs its own alerts —
-  # and its GC failures matter as much as anyone's. (fstrim/snapper
-  # wiring would materialize phantom stub units here: its minimal base
-  # has neither.)
-  nixos.configurations.harmonia.module = lib.mkMerge [
-    client
-    {
-      systemd.services.nix-gc.unitConfig.OnFailure = "notify-failed@%n.service";
-    }
-  ];
+  # harmonia skips nixos.modules.base but still needs its own alerts.
+  # No nix-gc OnFailure: the cache host runs no collector — any collect
+  # would sweep the cache itself (system/maintenance.nix; the eval
+  # assertion in harmonia.nix keeps the knob off) — so there is nothing
+  # to alert on. (fstrim/snapper wiring would materialize phantom stub
+  # units here: its minimal base has neither.)
+  nixos.configurations.harmonia.module = client;
 }

@@ -54,7 +54,9 @@
 # reach — and tunneling runners into the home LAN to warm a cache
 # cachix already covers would trade the firewall posture for nothing.
 # The split is deliberate: CI warms the public cache (nix-configs),
-# the desktop's post-build-hook warms the LAN cache (harmonia).
+# the desktop-style hosts' post-build-hooks warm the LAN cache
+# (harmonia) — which itself runs no garbage collector (any collect
+# would sweep the unreachable cache; modules/system/maintenance.nix).
 #
 # The build job's substituters are the repo's set (modules/system/base.nix)
 # minus the LAN harmonia server, which GitHub runners cannot reach;

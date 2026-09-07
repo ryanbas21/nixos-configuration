@@ -62,6 +62,13 @@ in
       testScript = ''
         machine.start()
         machine.wait_for_unit("multi-user.target")
+        # The cache must not collect itself: no nix-gc timer active on
+        # the cache host (system/maintenance.nix — every cached path is
+        # unreachable, so any collect sweeps the cache; 2026-09-07 lost
+        # 38.4 GiB to the weekly timer). The eval assertion in
+        # harmonia.nix holds the config knob; this proves the booted
+        # system runs no collector.
+        machine.fail("systemctl is-active --quiet nix-gc.timer")
         # harmonia is socket-activated; the socket listens at boot.
         machine.wait_for_open_port(5000)
         info = machine.succeed("curl -sf http://localhost:5000/nix-cache-info")

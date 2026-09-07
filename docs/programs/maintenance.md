@@ -4,8 +4,9 @@
 
 ## What and why
 
-Three guardrails against unbounded growth, on both NixOS hosts
-(desktop + harmonia server):
+Three guardrails against unbounded growth on the desktop-style hosts —
+with one deliberate exception on the cache host (see
+[below](#which-hosts-and-how)):
 
 | Setting | Effect |
 |---|---|
@@ -43,13 +44,24 @@ filling disk.
 
 ## Which hosts, and how
 
-The module assigns the same `retention` attrset twice: to
-`nixos.modules.base` (the desktop eats the shared base) and directly to
-`nixos.configurations.harmonia.module` — the server runs its own minimal
-base but still gains a generation per remote `--target-host` deploy, so
-it needs the same pruning. If a `nixos.modules.server` tier is ever
-promoted out of the harmonia host file, fold the second assignment into
-it.
+The module assigns twice: `nixos.modules.base` gets the full retention
+set, collector included (the desktop-style hosts eat the shared base).
+`nixos.configurations.harmonia.module` gets only the
+optimise/boot-entry slice — **the cache host runs no `nix.gc`**.
+
+Why the exception: every path in a binary cache is unreachable (that is
+what being cached means), so any `nix-collect-garbage` — including
+`--delete-older-than`, which gates *generations*, not the sweep —
+treats the entire cache as garbage. Found live 2026-09-07: the box's
+first weekly run after adoption deleted **7,304 paths / 38.4 GiB** of
+pushed cache, and the desktop's next build re-pushed all of it over
+the LAN. `harmonia.nix` carries an eval assertion keeping
+`nix.gc.automatic` off, and the harmonia VM test asserts no collector
+is active at boot. The box's disk guard is `nix.settings.min-free` in
+`harmonia/_remote-builder.nix` — an in-daemon trigger that fires only
+when the store disk is nearly full. If a `nixos.modules.server` tier
+is ever promoted out of the harmonia host file, fold the second
+assignment into it — carrying the no-GC rule with it.
 
 ## First run after deploying this
 
@@ -58,4 +70,5 @@ dead store paths (run `nix path-info --all | wc -l` before/after if
 curious — 61k paths at last count), and the **next rebuild** prunes the
 ESP menu from 109 entries to 10. Subsequent weekly runs are boring.
 
-Schedule check: `systemctl list-timers nix-gc.timer`.
+Schedule check: `systemctl list-timers nix-gc.timer` (base hosts only —
+harmonia has no collector by design).
