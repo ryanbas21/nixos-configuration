@@ -111,11 +111,11 @@ in
             # the nixos host (which does not) is an eval error, not a
             # neutralization.
             ++ lib.optionals (host == "framework") [
-              {
-                boot.lanzaboote.enable = lib.mkForce false;
-                boot.loader.systemd-boot.enable = lib.mkForce true;
-              }
-            ];
+            {
+              boot.lanzaboote.enable = lib.mkForce false;
+              boot.loader.systemd-boot.enable = lib.mkForce true;
+            }
+          ];
           # systemd-boot requires UEFI on real metal, so boot UEFI here
           # too. The generous memory/cores: the Plasma-era closure runs
           # under TCG emulation on CI runners (no /dev/kvm there), and
@@ -127,6 +127,10 @@ in
           };
           # See header: not btrfs in the test root.
           services.snapper.configs = lib.mkForce { };
+
+          # clamav
+          services.clamav.daemon.enable = lib.mkForce false;
+          services.clamav.updater.enable = lib.mkForce false;
           # See header: a test VM's host key matches no recipient, so
           # the agenix decrypt unit for the ntfy URL would fail — drop
           # the declaration entirely (harmonia's test does the same).

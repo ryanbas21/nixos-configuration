@@ -1,0 +1,12 @@
+# vulnix whitelist — accepted-risk / false-positive CVEs ONLY.
+# Format: https://github.com/nix-community/vulnix (doc/vulnix.1.md, "WHITELISTING")
+#
+# [package-name-version]
+# cve = ["CVE-YYYY-NNNNN", "CVE-YYYY-MMMMM"]
+# comment = "why this specific finding is accepted, and by whom/when"
+# until = "YYYY-MM-DD"   # optional expiry — re-review after this date
+#
+# Empty on purpose: nothing has been triaged as accepted risk yet.
+# The CI job (`vulnix`, .github/workflows/ci.yml) fails on ANY
+# unwhitelisted finding, so every entry added here is a deliberate,
+# reviewed exception — not a way to make CI quiet.

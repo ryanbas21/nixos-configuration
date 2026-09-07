@@ -1,3 +1,4 @@
+---
 # CI: evaluate the whole flake and build both standalone homes.
 #
 # flake-check evaluates every output the flake exports — the NixOS host
@@ -70,24 +71,20 @@
 # skipped while either secret is absent, so the workflow is green both
 # before and without the cache.
 name: CI
-
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
-
 permissions:
   contents: read
-
 jobs:
   flake-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
       - name: Install Nix
-        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24  # v31
         with:
           # Pin the evaluator — nix itself is otherwise an unpinned input.
           # 2.35 changed flake check's eval-context realization: on a fresh
@@ -109,7 +106,6 @@ jobs:
             # fails outright (2.35).
             substituters = https://nix-configs.cachix.org https://cache.nixos.org
             trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
-
       - name: Warm eval-context sources
         # flake check --no-build cannot realize eval-context sources on a
         # cold store: vicinae's mkRayCastExtension filters the raycast
@@ -120,10 +116,8 @@ jobs:
         # everything else substitutes from nix-configs. Same caveat for
         # any fresh machine: build before the first flake check.
         run: nix build --no-link .#homeConfigurations.ryan-linux.activationPackage
-
       - name: Evaluate all flake outputs
         run: nix flake check --no-build
-
   build-homes:
     strategy:
       # A darwin failure should not cancel the linux build (or vice versa).
@@ -137,7 +131,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
 
       # The ryan-linux closure (nvf, ghostty, discord, obsidian, ...) plus
       # toolchains can outgrow the ~14GB free on stock ubuntu runners.
@@ -146,9 +140,8 @@ jobs:
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
           df -h /
-
       - name: Install Nix
-        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24  # v31
         with:
           # Same pin as flake-check (see comment there): evaluator parity
           # with the desktop and freedom from 2.35's eval-context change.
@@ -157,7 +150,6 @@ jobs:
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
             substituters = https://nix-configs.cachix.org https://cache.nixos.org https://cache.numtide.com https://psysonic.cachix.org
             trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA=
-
       - name: Configure cachix
         # Skipped until both cachix secrets exist (auth token + the
         # self-owned signing key), so CI was green before the cache
@@ -167,14 +159,14 @@ jobs:
         env:
           have_cachix_keys: ${{ secrets.CACHIX_AUTH_TOKEN != '' && secrets.CACHIX_SIGNING_KEY != '' }}
         if: env.have_cachix_keys == 'true'
-        uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866  # v17
         with:
           name: nix-configs
           # Self-signing mode: the keypair is ours, not cachix's — the
           # secret half lives in CACHIX_SIGNING_KEY, the public half is
           # registered at cachix and in modules/system/base.nix.
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          signingKey: ${{ secrets.CACHIX_SIGNING_KEY }}
           # useDaemon: false — the daemon's post-build-hook push path
           # does not inherit the signing key; uploads go unsigned and
           # every batch 400s server-side while the step still reports
@@ -191,10 +183,8 @@ jobs:
           # nixpkgs, which throws "dropped support for x86_64-darwin"
           # on the Intel macOS runner.
           useDaemon: false
-
       - name: Build the ${{ matrix.home }} activation package
         run: nix build .#homeConfigurations.${{ matrix.home }}.activationPackage
-
   build-hosts:
     # The REAL toplevel of every NixOS host, built and pushed to
     # nix-configs. The VM tests (test-hosts / test-harmonia) prove the
@@ -221,7 +211,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
 
       # Full desktop closures can outgrow the ~14GB free on stock
       # ubuntu runners (same reason as build-homes / test-hosts).
@@ -229,9 +219,8 @@ jobs:
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
           df -h /
-
       - name: Install Nix
-        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24  # v31
         with:
           # Same pin as flake-check: evaluator parity with the desktop.
           install_url: https://releases.nixos.org/nix/nix-2.34.8/install
@@ -243,23 +232,20 @@ jobs:
             # otherwise compile from source.
             substituters = https://nix-configs.cachix.org https://cache.nixos.org https://cache.numtide.com https://psysonic.cachix.org https://vicinae.cachix.org
             trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA= vicinae.cachix.org-1:1kDrfienkGHPYbkpNj1mWTr7Fm1+zcenzgTizIcI3oc=
-
       - name: Configure cachix
         # Same env-routed skip as build-homes: `secrets` is not allowed
         # in `if:` expressions, and fork PRs never see secrets.
         env:
           have_cachix_keys: ${{ secrets.CACHIX_AUTH_TOKEN != '' && secrets.CACHIX_SIGNING_KEY != '' }}
         if: env.have_cachix_keys == 'true'
-        uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866  # v17
         with:
           name: nix-configs
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          signingKey: ${{ secrets.CACHIX_SIGNING_KEY }}
           useDaemon: false
-
       - name: Build the ${{ matrix.host }} system closure
         run: nix build --no-link .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel
-
   test-harmonia:
     # Boots the REAL harmonia host module as a UEFI QEMU guest and
     # verifies the cache serves signed narinfos
@@ -271,10 +257,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
       - name: Install Nix
-        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24  # v31
         with:
           # Same pin as flake-check: evaluator parity with the desktop.
           install_url: https://releases.nixos.org/nix/nix-2.34.8/install
@@ -282,10 +267,8 @@ jobs:
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
             substituters = https://nix-configs.cachix.org https://cache.nixos.org
             trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
-
       - name: Boot the harmonia VM and verify the cache
         run: nix build -L .#checks.x86_64-linux."harmonia:vm-test"
-
   test-hosts:
     # Boots the REAL nixos / framework host modules as UEFI QEMU guests
     # and asserts the fresh-boot contract (modules/vm-tests.nix):
@@ -303,7 +286,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
 
       # Full desktop closures can outgrow the ~14GB free on stock
       # ubuntu runners (same reason as build-homes).
@@ -311,9 +294,8 @@ jobs:
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
           df -h /
-
       - name: Install Nix
-        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24  # v31
         with:
           # Same pin as flake-check: evaluator parity with the desktop.
           install_url: https://releases.nixos.org/nix/nix-2.34.8/install
@@ -326,23 +308,20 @@ jobs:
             # vicinae) that otherwise compile from source.
             substituters = https://nix-configs.cachix.org https://cache.nixos.org https://cache.numtide.com https://psysonic.cachix.org https://vicinae.cachix.org
             trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA= vicinae.cachix.org-1:1kDrfienkGHPYbkpNj1mWTr7Fm1+zcenzgTizIcI3oc=
-
       - name: Configure cachix
         # Same env-routed skip as build-homes: `secrets` is not allowed
         # in `if:` expressions, and fork PRs never see secrets.
         env:
           have_cachix_keys: ${{ secrets.CACHIX_AUTH_TOKEN != '' && secrets.CACHIX_SIGNING_KEY != '' }}
         if: env.have_cachix_keys == 'true'
-        uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866  # v17
         with:
           name: nix-configs
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          signingKey: ${{ secrets.CACHIX_SIGNING_KEY }}
           useDaemon: false
-
       - name: Boot the ${{ matrix.host }} VM and assert the fresh-boot state
         run: nix build -L .#checks.x86_64-linux."${{ matrix.host }}:vm-test"
-
   test-disko:
     # Executes each host's _disko.nix for real in a VM (three matrix
     # entries; modules/disko-tests.nix wraps disko's own makeDiskoTest
@@ -363,10 +342,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
       - name: Install Nix
-        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24  # v31
         with:
           # Same pin as flake-check: evaluator parity with the desktop.
           install_url: https://releases.nixos.org/nix/nix-2.34.8/install
@@ -374,17 +352,84 @@ jobs:
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
             substituters = https://nix-configs.cachix.org https://cache.nixos.org
             trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
-
       - name: Configure cachix
         env:
           have_cachix_keys: ${{ secrets.CACHIX_AUTH_TOKEN != '' && secrets.CACHIX_SIGNING_KEY != '' }}
         if: env.have_cachix_keys == 'true'
-        uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866  # v17
         with:
           name: nix-configs
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          signingKey: ${{ secrets.CACHIX_SIGNING_KEY }}
           useDaemon: false
-
       - name: Execute and boot the ${{ matrix.host }} disk layout
         run: nix build -L .#checks.x86_64-linux."disko:${{ matrix.host }}"
+  vulnix:
+    # CVE scan of every host's REAL toplevel, via nix-community/vulnix
+    # (modules/vulnix.nix explains why this is a flake PACKAGE run with
+    # `nix run`, not a `nix flake check` derivation — vulnix needs live
+    # network access to refresh its NVD feed cache, which a sandboxed
+    # Nix build cannot have). `needs: build-hosts` so this job pays only
+    # for the scan: the closure it scans is already built and sitting in
+    # nix-configs by the time this runs. Fails the workflow on any
+    # unwhitelisted finding (vulnix exit code 2) — see
+    # security/vulnix-whitelist.toml to accept/document a specific CVE
+    # after triage; do not add entries just to make a red job green.
+    needs: build-hosts
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [nixos, framework, harmonia]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
+      - name: Install Nix
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24  # v31
+        with:
+          # Same pin as flake-check: evaluator parity with the desktop.
+          install_url: https://releases.nixos.org/nix/nix-2.34.8/install
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+            substituters = https://nix-configs.cachix.org https://cache.nixos.org
+            trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+      - name: Configure cachix
+        # Same env-routed skip as build-homes/build-hosts: `secrets` is
+        # not allowed in `if:` expressions, and fork PRs never see
+        # secrets. This job only substitutes (build-hosts already
+        # pushed), so the skip just means slower substitution, not a
+        # rebuild.
+        env:
+          have_cachix_keys: ${{ secrets.CACHIX_AUTH_TOKEN != '' && secrets.CACHIX_SIGNING_KEY != '' }}
+        if: env.have_cachix_keys == 'true'
+        uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866  # v17
+        with:
+          name: nix-configs
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          signingKey: ${{ secrets.CACHIX_SIGNING_KEY }}
+          useDaemon: false
+      - name: Resolve the ${{ matrix.host }} toplevel store path
+        id: toplevel
+        run: |
+          path=$(nix build --no-link --print-out-paths .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel)
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Week number for cache key
+        id: date
+        run: echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
+      - name: Cache the vulnix NVD feed
+        # vulnix re-downloads/parses the NIST NVD feeds into
+        # ~/.cache/vulnix on a cold cache — several minutes and several
+        # hundred MB. Keyed by week-of-year so it refreshes regularly
+        # without re-fetching on every push.
+        # TODO: pin to a commit SHA, matching every other `uses:` in
+        # this file — left on the floating tag because the exact
+        # release SHA could not be verified from this environment.
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/vulnix
+          key: vulnix-nvd-${{ steps.date.outputs.week }}
+      - name: Scan for known CVEs (vulnix)
+        run: >-
+          nix run .#vulnix-scan --
+          -w security/vulnix-whitelist.toml
+          "${{ steps.toplevel.outputs.path }}"
