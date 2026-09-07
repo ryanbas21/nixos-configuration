@@ -1,6 +1,6 @@
 # Security
 
-[← program notes](index.md) · modules: `system/sudo.nix`, `system/security.nix`, `system/apparmor.nix`, `system/kernel-hardening.nix`, `system/base.nix` (sshd, known_hosts), `batman/ssh.nix`
+[← program notes](index.md) · modules: `system/sudo.nix`, `system/security.nix`, `system/apparmor.nix`, `system/kernel-hardening.nix`, `system/network-hardening.nix`, `system/base.nix` (sshd, known_hosts), `batman/ssh.nix`
 
 ## sudo-rs (`system/sudo.nix`)
 
@@ -38,6 +38,32 @@ stubbed with `install … /bin/false` — a plain blacklist stops manual
 the module; the stubs close that path. Zero users on this fleet (VPN
 is WireGuard, no IPsec, no AFS), pure attack-surface removal —
 Dirty-Frag-class LPEs have landed in exactly these forgotten modules.
+
+## Kernel-image protection + sysctl floors (`system/kernel-hardening.nix`)
+
+`security.protectKernelImage = true` — in **this** nixpkgs it does
+exactly two things: `nohibernate` on the kernel command line and
+`kernel.kexec_load_disabled` (a loaded kernel image can no longer be
+swapped in without a reboot). Older folklore credits it kptr_restrict
+and friends — this tree does not. `nohibernate` is free: sleep is
+s2idle, never S4. Alongside it, the strong kernel values the fleet
+was already running on (kptr_restrict 1, dmesg_restrict 1,
+unprivileged_bpf_disabled 2, yama ptrace_scope 1,
+perf_event_paranoid 2 — verified live 2026-09-07) are now **pinned**
+in the repo: they were inherited kernel defaults, and an upstream
+default change would have silently regressed them.
+
+## Network sysctls (`system/network-hardening.nix`)
+
+ICMP redirects die at both layers (`all` **and** `default`, v4+v6,
+plus `secure_redirects` and `send_redirects`): the kernel takes the
+max of the `all` and per-interface values, and interfaces created
+after boot (every wlan association, docker bridges, VPN interfaces)
+inherit `default` — which was permissive, so a host roaming onto
+hostile wifi accepted redirects from it. Source routing stays pinned
+off; `rp_filter` is deliberately **loose** (2) — martian sources drop,
+asymmetric routing (docker bridges, Mullvad's fwmark tunnels)
+survives; strict is one edit away. Martians log to the journal.
 
 ## sshd (`system/base.nix`)
 
