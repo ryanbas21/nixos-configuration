@@ -127,6 +127,28 @@
         inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.rtk
       ];
 
+      # Release-age cooldown for the node/bun toolchain this module
+      # installs: npm and bun both refuse package versions published
+      # less than 7 days ago — the supply-chain blast-radius window
+      # behind Pareto Security's "Package managers delay new releases"
+      # check, which reads exactly these two files. Units differ: npm's
+      # min-release-age is Number, hint '<days>' (npm ≥ 11.14 enforces
+      # it; nixpkgs ships 11.17); bun's minimumReleaseAge is seconds,
+      # hence 604800. Side effect: installing a version published
+      # inside the window errors (npm ETARGET / bun "no matching
+      # version") — pi's runtime extension installs included; exempt
+      # names via `min-release-age-exclude` (npm) or
+      # `minimumReleaseAgeExcludes` (bun) if a too-fresh release ever
+      # genuinely can't wait a week.
+      home.file.".npmrc".text = ''
+        min-release-age=7
+      '';
+      home.file.".bunfig.toml".text = ''
+        [install]
+        # 7 days, in seconds — bun's unit
+        minimumReleaseAge = 604800
+      '';
+
       home.file.".pi/agent/settings.json".text =
         builtins.toJSON piSettings;
       home.file.".pi/agent/model-router.json".text =

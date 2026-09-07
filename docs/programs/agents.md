@@ -65,6 +65,18 @@ Net effect: on the desktop the key is available to any interactive
 process; on the laptop/Mac pi runs without it (only local/offline
 flows).
 
+## Release-age cooldown (npm and bun)
+
+`~/.npmrc` sets `min-release-age=7` and `~/.bunfig.toml` sets
+`minimumReleaseAge = 604800` (seconds — bun's unit): both refuse
+package versions published inside the last 7 days, the
+supply-chain blast-radius window behind Pareto Security's "Package
+managers delay new releases" check. Side effect: installing a
+brand-new release errors (npm ETARGET / bun "no matching version")
+— pi runtime-extension installs included; exempt a genuinely
+can't-wait name via `min-release-age-exclude` (npm) /
+`minimumReleaseAgeExcludes` (bun).
+
 ## Editing
 
 Everything above is plain Nix data → change and rebuild; there is no
