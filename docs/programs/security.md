@@ -15,7 +15,12 @@ statically, in `modules/users.nix` — nothing to repeat here.
 security-posture checks (disk encryption, firewall, updates, ...) run by
 a system daemon, reported without a tray icon. Expect it to **flag the
 missing disk encryption** — the desktop's root is plain btrfs, no LUKS
-(see `_hardware.nix`). That finding is known and accepted.
+(see `_hardware.nix`). That finding is known and accepted. The RPC
+check's port-111 finding is closed in config (2026-09-07): every NFS
+mount is nfs4 and `services.rpcbind.enable = mkForce false` (the nfs
+module turns rpcbind on unconditionally while
+`boot.supportedFilesystems` includes nfs) — live-verified on the
+framework (port 111 shut); lands on the desktop with its next switch.
 
 ## AppArmor beachhead (`system/apparmor.nix`)
 

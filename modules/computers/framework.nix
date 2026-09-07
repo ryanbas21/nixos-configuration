@@ -1,4 +1,4 @@
-{ config, inputs, ... }:
+{ config, inputs, lib, ... }:
 
 {
   nixos.configurations.framework = {
@@ -41,7 +41,9 @@
 
       fileSystems."/mnt/nix-backups" = {
         device = "192.168.1.30:/volume1/Backups/nix-laptops";
-        fsType = "nfs";
+        # nfs4, not v3: v3 is what dragged rpcbind (port 111) onto this
+        # host — see services.rpcbind below.
+        fsType = "nfs4";
         options = [
           "x-systemd.automount" # Mounts on demand when accessed
           "noauto" # Skips mounting during boot so boot doesn't hang if NAS is off
@@ -50,6 +52,16 @@
           "user" # Allows your user to trigger it
         ];
       };
+
+      # Port 111 was this host's only "File Sharing" listener (Pareto
+      # Security's check flagged RPC): the nixpkgs nfs module
+      # unconditionally enables rpcbind while boot.supportedFilesystems.nfs
+      # is set (modules/tasks/filesystems/nfs.nix), so closing it takes an
+      # explicit mkForce. nfs4 does not need rpcbind or statd — mounting
+      # and locking run in-protocol over 2049 — and the NAS already
+      # serves nfs4 to the fleet (the desktop's media/notes mounts are
+      # nfs4), so nothing is lost by dropping v3 entirely.
+      services.rpcbind.enable = lib.mkForce false;
 
       imports = [
         ./framework/_hardware.nix
