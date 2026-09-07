@@ -89,8 +89,16 @@
       # Compressed RAM swap as an OOM cushion — same rationale as
       # system/hardware.nix for the desktop, restated here because this host
       # skips nixos.modules.base (would move with it if a server tier
-      # ever gets promoted, per the header comment).
+      # ever gets promoted, per the header comment). The sysctl
+      # quartet there rides along for the same reason: swap here is
+      # zram-only, and the disk-swap defaults fight in-memory devices.
       zramSwap.enable = true;
+      boot.kernel.sysctl = {
+        "vm.swappiness" = 180;
+        "vm.watermark_boost_factor" = 0;
+        "vm.watermark_scale_factor" = 125;
+        "vm.page-cluster" = 0;
+      };
       # harmonia itself. Both listeners are LAN-only concerns — the
       # desktop's substituter hits 192.168.1.82:5000 and deploys arrive
       # over ssh from the same subnet — so instead of the module-default

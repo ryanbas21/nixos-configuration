@@ -1,6 +1,6 @@
 # Security
 
-[← program notes](index.md) · modules: `system/sudo.nix`, `system/security.nix`, `system/base.nix` (sshd, known_hosts), `batman/ssh.nix`
+[← program notes](index.md) · modules: `system/sudo.nix`, `system/security.nix`, `system/apparmor.nix`, `system/kernel-hardening.nix`, `system/base.nix` (sshd, known_hosts), `batman/ssh.nix`
 
 ## sudo-rs (`system/sudo.nix`)
 
@@ -16,6 +16,28 @@ security-posture checks (disk encryption, firewall, updates, ...) run by
 a system daemon, reported without a tray icon. Expect it to **flag the
 missing disk encryption** — the desktop's root is plain btrfs, no LUKS
 (see `_hardware.nix`). That finding is known and accepted.
+
+## AppArmor beachhead (`system/apparmor.nix`)
+
+`security.apparmor.enable = true` with **zero policies** — the LSM is
+on the boot list, nothing is confined, nothing changes behavior.
+Deliberate prerequisite: it clears the reboot-able LSM step out of the
+way so per-app profiles can land later, one feature file each, every
+one starting in **complain mode** (violations log to `journalctl -k`,
+never block) and promoting to enforce only after a stable period —
+the rollout pattern from ryan4yin/nix-config's `hardening/`. The VM
+boot tests prove each step stays bootable. First candidates when the
+time comes: the browser and the chat clients (Firefox, Signal,
+Discord) — the apps that read the whole home today.
+
+## Kernel module blacklist (`system/kernel-hardening.nix`)
+
+`esp4`/`esp6` (IPsec ESP) and `rxrpc` (kAFS) are blacklisted **and**
+stubbed with `install … /bin/false` — a plain blacklist stops manual
+`modprobe` but a socket() with the right family can still autoload
+the module; the stubs close that path. Zero users on this fleet (VPN
+is WireGuard, no IPsec, no AFS), pure attack-surface removal —
+Dirty-Frag-class LPEs have landed in exactly these forgotten modules.
 
 ## sshd (`system/base.nix`)
 
