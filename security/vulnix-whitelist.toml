@@ -1,12 +1,632 @@
 # vulnix whitelist — accepted-risk / false-positive CVEs ONLY.
 # Format: https://github.com/nix-community/vulnix (doc/vulnix.1.md, "WHITELISTING")
 #
-# [package-name-version]
-# cve = ["CVE-YYYY-NNNNN", "CVE-YYYY-MMMMM"]
-# comment = "why this specific finding is accepted, and by whom/when"
-# until = "YYYY-MM-DD"   # optional expiry — re-review after this date
+# The CI job (`vulnix`, .github/workflows/ci.yml) scans each host's REAL
+# toplevel *runtime closure* (vulnix -C, baked into the `.#vulnix-scan`
+# wrapper) and fails on any finding not covered below. Sections must be
+# the exact derivation name-version (case-sensitive) and every entry
+# lists its CVEs explicitly: never drop the cve list, or the section
+# would silently suppress *future* vulnerabilities in that package.
 #
-# Empty on purpose: nothing has been triaged as accepted risk yet.
-# The CI job (`vulnix`, .github/workflows/ci.yml) fails on ANY
-# unwhitelisted finding, so every entry added here is a deliberate,
-# reviewed exception — not a way to make CI quiet.
+# Every entry below was triaged against the NVD CPE data vulnix itself
+# used (the by-product dump of its cached feed), not just by name:
+#
+#   FP:    false positive — the NVD product is a different product that
+#          shares the derivation's name (vendor given in the comment),
+#          or the derivation's version is not in the affected range
+#          (date-bounded CPEs, name artifacts like `dbus-1`).
+#   Real:  genuinely affected at the pinned version, with no fix in the
+#          pinned nixpkgs (dc5d91f, 2026-09-07) at triage time —
+#          accepted risk with a re-review note. Most "Real" entries
+#          retire themselves: their sections are version-pinned, so the
+#          next `nixpkgs` bump makes them stop matching and surfaces the
+#          new versions for fresh triage instead.
+#
+# Do not add entries just to make a red job green: triage first.
+#
+# Triaged 2026-09-11 against nixpkgs 26.11.20260907.dc5d91f.
+
+["Diff-1.0.2"]
+cve = ["CVE-2024-13278"]
+comment = "FP: NVD `diff_project:diff` is the Drupal Diff module; this is the Haskell Diff library (via HLS)."
+
+["ada-3.4.4"]
+cve = ["CVE-2024-9410"]
+comment = "FP: NVD `ada:ada` is Ada.cx's SaaS platform (SSRF in their Sentry setup); this is the ada URL parser."
+
+["ada-4.0.0"]
+cve = ["CVE-2024-9410"]
+comment = "FP: NVD `ada:ada` is Ada.cx's SaaS platform (SSRF in their Sentry setup); this is the ada URL parser."
+
+["async-2.2.6"]
+cve = ["CVE-2021-43138"]
+comment = "FP: NVD `async_project:async` is the Node.js async library; this is the Haskell async (via HLS)."
+
+["avahi-0.8"]
+cve = [
+  "CVE-2021-26720",
+  "CVE-2025-59529",
+]
+comment = "CVE-2021-26720 FP: flaw is in Debian's avahi-daemon-check-dns.sh (NVD node is the Debian package `<=0.8-4`), not shipped in nixpkgs. CVE-2025-59529 real: fixed in the 0.9 line; nixpkgs maintains 0.8 with an extensive CVE backport stack (19 patches, incl. CVE-2026-24401/34933) but had no backport for this one as of the pin. Re-review on the next nixpkgs bump."
+
+["binutils-2.46"]
+cve = [
+  "CVE-2025-69649",
+  "CVE-2025-69650",
+  "CVE-2025-69651",
+  "CVE-2025-69652",
+  "CVE-2026-6846",
+]
+comment = "Real, affects readelf/gas on attacker-crafted inputs through 2.46; dev-tool exposure (ships at runtime via hyprland's binutils-wrapper). No fixed release in the pin. Re-review on the next nixpkgs bump."
+
+["bison-3.8.2"]
+cve = [
+  "CVE-2026-56389",
+  "CVE-2026-56390",
+]
+comment = "Real, affects exactly 3.8.2 — arbitrary program execution during HTML report generation from attacker-written grammar files. Ships at runtime via kio-extras-kf5; parsing hostile grammars is not a normal desktop flow. Re-review on the next nixpkgs bump."
+
+["busybox-1.37.0"]
+cve = ["CVE-2025-46394"]
+comment = "Real through 1.37.0: tar applet hides filenames via terminal escape sequences (low, 3.2). busybox ships in the initrd of every host. Re-review on the next nixpkgs bump."
+
+["cjson-1.7.19"]
+cve = [
+  "CVE-2026-16554",
+  "CVE-2026-67215",
+  "CVE-2026-67216",
+  "CVE-2026-67217",
+]
+comment = "Real through 1.7.19 (32-bit integer overflow, recursion DoS on RFC 6902 patches). Reaches the runtime closure via gst-plugins-bad. Re-review on the next nixpkgs bump."
+
+["coreutils-9.11"]
+cve = [
+  "CVE-2026-56391",
+  "CVE-2026-56392",
+]
+comment = "Real, affects uniq -w on multibyte input and unexpand heap overflow through 9.11. Re-review on the next nixpkgs bump."
+
+["cups-2.4.19"]
+cve = ["CVE-2022-26691"]
+comment = "FP: fixed in 2.4.2; the only matching NVD node is apple:cups `<499.4` (Apple's internal cups numbering, matches everything)."
+
+["cups-filters-2.0.1"]
+cve = ["CVE-2025-64524"]
+comment = "Real, low (3.3). Re-review on the next nixpkgs bump."
+
+["dash-0.5.13.5"]
+cve = ["CVE-2024-21485"]
+comment = "FP: NVD `plotly:dash` is Plotly Dash (Python); this is the dash shell."
+
+["dbus-1"]
+cve = [
+  "CVE-2022-42010",
+  "CVE-2022-42011",
+  "CVE-2022-42012",
+]
+comment = "FP: name artifact — this derivation's name parses as version `1`, numerically below the 2022 fix versions; the actual dbus in the closure is newer than all of them (1.12.24/1.14.4/1.15.2)."
+
+["dhcpcd-10.3.2"]
+cve = [
+  "CVE-2026-56113",
+  "CVE-2026-56114",
+  "CVE-2026-56116",
+  "CVE-2026-56117",
+]
+comment = "Real through 10.3.2 (heap UAF, one-byte OOB write, memleak; fixes are upstream commits, no release yet). Runs on every host. Re-review on the next nixpkgs bump."
+
+["ffmpeg-6.1.6"]
+cve = [
+  "CVE-2023-49502",
+  "CVE-2023-50007",
+  "CVE-2023-50008",
+  "CVE-2023-50009",
+  "CVE-2023-50010",
+  "CVE-2024-31578",
+  "CVE-2024-31582",
+  "CVE-2024-31585",
+  "CVE-2025-10256",
+  "CVE-2025-12343",
+  "CVE-2025-1373",
+  "CVE-2025-1594",
+  "CVE-2025-25468",
+  "CVE-2025-25469",
+  "CVE-2026-30997",
+  "CVE-2026-30998",
+  "CVE-2026-30999",
+  "CVE-2026-40962",
+  "CVE-2026-64830",
+  "CVE-2026-64832",
+  "CVE-2026-64833",
+  "CVE-2026-64834",
+  "CVE-2026-64835",
+  "CVE-2026-65703",
+  "CVE-2026-65704",
+  "CVE-2026-65705",
+  "CVE-2026-65706",
+  "CVE-2026-66036",
+  "CVE-2026-66037",
+  "CVE-2026-66038",
+  "CVE-2026-66039",
+  "CVE-2026-66040",
+  "CVE-2026-70628",
+  "CVE-2026-70629",
+  "CVE-2026-70630",
+  "CVE-2026-70631",
+  "CVE-2026-70632",
+]
+comment = "kodi's pinned ffmpeg_6. CVE-2025-25468/25469 are the date-bound `<2025-01-13` entries (fix predates 6.1.6 — comparison artifact); the rest are real heap overflows/UAF in demuxers and filters. The 6.x branch is unmaintained upstream; this retires when kodi moves to a maintained ffmpeg. Re-review on the next nixpkgs bump."
+
+["ffmpeg-7.1.5"]
+cve = [
+  "CVE-2025-10256",
+  "CVE-2025-12343",
+  "CVE-2025-25468",
+  "CVE-2025-25469",
+  "CVE-2026-30997",
+  "CVE-2026-30998",
+  "CVE-2026-30999",
+  "CVE-2026-40962",
+  "CVE-2026-64830",
+  "CVE-2026-64832",
+  "CVE-2026-64833",
+  "CVE-2026-64834",
+  "CVE-2026-64835",
+  "CVE-2026-65703",
+  "CVE-2026-65704",
+  "CVE-2026-65705",
+  "CVE-2026-65706",
+  "CVE-2026-66036",
+  "CVE-2026-66037",
+  "CVE-2026-66038",
+  "CVE-2026-66039",
+  "CVE-2026-66040",
+  "CVE-2026-66041",
+  "CVE-2026-70628",
+  "CVE-2026-70629",
+  "CVE-2026-70630",
+  "CVE-2026-70631",
+  "CVE-2026-70632",
+]
+comment = "nixpkgs' default ffmpeg. CVE-2025-25468/25469 are date-bound comparison artifacts (see ffmpeg-6.1.6); the rest are real, mostly fixed in 8.1.3+/9.0. Re-review on the next nixpkgs bump."
+
+["ffmpeg-9.0.1"]
+cve = [
+  "CVE-2025-25468",
+  "CVE-2025-25469",
+]
+comment = "FP: both CVEs are the date-bound `ffmpeg <2025-01-13` entries (git-master before a 2025 fix commit); 9.0.1 postdates the fix — vulnix compares `9.0.1` < `2025-01-13` numerically."
+
+["focus-1.0.3.2"]
+cve = [
+  "CVE-2023-29533",
+  "CVE-2023-29535",
+  "CVE-2023-29536",
+  "CVE-2023-29537",
+  "CVE-2023-29538",
+  "CVE-2023-29539",
+  "CVE-2023-29540",
+  "CVE-2023-29541",
+  "CVE-2023-29543",
+  "CVE-2023-29544",
+  "CVE-2023-29547",
+  "CVE-2023-29548",
+  "CVE-2023-29549",
+  "CVE-2023-29550",
+  "CVE-2023-29551",
+  "CVE-2026-11799",
+]
+comment = "FP: NVD `mozilla:focus` is Firefox Focus for iOS; this is the Haskell focus library (via HLS)."
+
+["gcc-15.2.0"]
+cve = ["CVE-2023-4039"]
+comment = "FP: NVD bounds the affected set by date (`gnu:gcc <2023-09-12`, pre-fix git snapshots); released 15.x/16.x postdate it and compare numerically below it. The advisory itself is DISPUTED and AArch64-only — the fleet is x86_64."
+
+["gcc-15.3.0"]
+cve = ["CVE-2023-4039"]
+comment = "FP: NVD bounds the affected set by date (`gnu:gcc <2023-09-12`, pre-fix git snapshots); released 15.x/16.x postdate it and compare numerically below it. The advisory itself is DISPUTED and AArch64-only — the fleet is x86_64."
+
+["gcc-16.2.0"]
+cve = ["CVE-2023-4039"]
+comment = "FP: NVD bounds the affected set by date (`gnu:gcc <2023-09-12`, pre-fix git snapshots); released 15.x/16.x postdate it and compare numerically below it. The advisory itself is DISPUTED and AArch64-only — the fleet is x86_64."
+
+["git-2.55.0"]
+cve = [
+  "CVE-2021-21684",
+  "CVE-2022-30947",
+  "CVE-2022-36882",
+  "CVE-2022-36883",
+  "CVE-2022-36884",
+  "CVE-2022-38663",
+]
+comment = "FP: NVD `jenkins:git` is the Jenkins Git *plugin*, not git itself."
+
+["git-2.55.0-fish-completions"]
+cve = [
+  "CVE-2021-21684",
+  "CVE-2022-30947",
+  "CVE-2022-36882",
+  "CVE-2022-36883",
+  "CVE-2022-36884",
+  "CVE-2022-38663",
+]
+comment = "FP: NVD `jenkins:git` is the Jenkins Git *plugin*, not git itself."
+
+["glibc-2.42-67"]
+cve = [
+  "CVE-2025-15281",
+  "CVE-2026-4046",
+  "CVE-2026-4437",
+  "CVE-2026-4438",
+  "CVE-2026-5435",
+  "CVE-2026-5450",
+  "CVE-2026-5928",
+  "CVE-2026-6238",
+]
+comment = "Real (wordexp, iconv, resolver, deprecated resolver-printing, scanf %mc — NVD ranges put 2.42 inside every one); fixes ship in glibc 2.43+, which nixpkgs 26.11 has not picked up yet. This is the 32-bit (i686) compat glibc for the x86_64 desktops. Retire both glibc entries on the next lock bump."
+
+["glibc-2.42-84"]
+cve = [
+  "CVE-2025-15281",
+  "CVE-2026-4046",
+  "CVE-2026-4437",
+  "CVE-2026-4438",
+  "CVE-2026-5435",
+  "CVE-2026-5450",
+  "CVE-2026-5928",
+  "CVE-2026-6238",
+]
+comment = "Real (same set as glibc-2.42-67: wordexp, iconv, resolver, scanf %mc, ...); fixes ship in glibc 2.43+, not yet in nixpkgs 26.11. Retire both glibc entries on the next lock bump."
+
+["gpsd-3.27.5"]
+cve = ["CVE-2026-58459"]
+comment = "Real through 3.27.5: command injection in gpsprof. Ships via KDE Plasma geolocation (kscreen/plasma5support). Re-review on the next nixpkgs bump."
+
+["gstreamer-1.28.4"]
+cve = [
+  "CVE-2026-18295",
+  "CVE-2026-18296",
+  "CVE-2026-18297",
+  "CVE-2026-18298",
+  "CVE-2026-18299",
+  "CVE-2026-73433",
+  "CVE-2026-73434",
+]
+comment = "Real: five ZDI parser RCEs fixed in 1.28.5 plus two avidemux flaws fixed in 1.28.6/1.28.7. Pulled at runtime by the psysonic gst stack. Re-review on the next nixpkgs bump."
+
+["gstreamer-1.28.6"]
+cve = ["CVE-2026-73433"]
+comment = "Real: avidemux FUJIFILM metadata flaw (CVE-2026-73433), fixed after 1.28.6. Re-review on the next nixpkgs bump."
+
+["gzip-1.14"]
+cve = [
+  "CVE-2026-41991",
+  "CVE-2026-41992",
+]
+comment = "Real through 1.14 (gzexe temp-file handling; LZH global buffer overflow). Re-review on the next nixpkgs bump."
+
+["jbig2dec-0.20"]
+cve = ["CVE-2023-46361"]
+comment = "NVD CPE pins exactly 0.20 (jbig2_error SEGV). 0.20 is the 2024 release — verify whether the advisory predates it; keep until NVD/the range is corrected or a patched release lands. Reached via mupdf."
+
+["jq-1.8.2"]
+cve = [
+  "CVE-2026-33948",
+  "CVE-2026-39979",
+  "CVE-2026-44777",
+]
+comment = "Real through 1.8.2 (fixes are post-1.8.2 commits / 1.9). Re-review on the next nixpkgs bump."
+
+["jq-1.8.2-fish-completions"]
+cve = [
+  "CVE-2026-33948",
+  "CVE-2026-39979",
+]
+comment = "Same findings as jq-1.8.2 (completions output of the same build). Re-review on the next nixpkgs bump."
+
+["kcoreaddons-5.116.0"]
+cve = ["CVE-2026-41526"]
+comment = "Real: KShell::quoteArgs unsafe quoting, fixed in KF 6.25. The kf5 branch will not get the fix; arrives via kio-extras-kf5. Accepted until that package moves to kf6."
+
+["libmicrohttpd-1.0.5"]
+cve = [
+  "CVE-2025-59777",
+  "CVE-2025-62689",
+]
+comment = "FP: the advisory limits the flaw to v1.0.2 and earlier (fixed in commit ff13abc, which 1.0.5/1.0.6 carry); NVD's CPE uses a lazy `<2025-09-16` date bound instead."
+
+["libmicrohttpd-1.0.6"]
+cve = [
+  "CVE-2025-59777",
+  "CVE-2025-62689",
+]
+comment = "FP: the advisory limits the flaw to v1.0.2 and earlier (fixed in commit ff13abc, which 1.0.5/1.0.6 carry); NVD's CPE uses a lazy `<2025-09-16` date bound instead."
+
+["libmpeg2-0.5.1"]
+cve = ["CVE-2022-37416"]
+comment = "Real: Ittiam fixed the overlapping-memcpy flaw in-tree on 2022-07-27 but has cut no release since 0.5.1 (2010), and nixpkgs carries no backport. Reached via VLC/GStreamer dvd playback."
+
+["libraw-0.22.1"]
+cve = [
+  "CVE-2026-20884",
+  "CVE-2026-20911",
+  "CVE-2026-21413",
+  "CVE-2026-24450",
+]
+comment = "Real: two 9.8 heap overflows plus two integer overflows in DNG loading paths, all against exactly 0.22.0/0.22.1. Re-review on the next nixpkgs bump."
+
+["libsndfile-1.2.2"]
+cve = [
+  "CVE-2024-50612",
+  "CVE-2024-50613",
+  "CVE-2025-52194",
+  "CVE-2025-56226",
+  "CVE-2026-37555",
+]
+comment = "Real through 1.2.2 (vorbis OOB read, reachable assertion, IRCAM buffer overflow, L3 encoder leak, IMA ADPCM). Re-review on the next nixpkgs bump."
+
+["libssh-0.12.0"]
+cve = ["CVE-2026-59847"]
+comment = "Real, affects exactly 0.12.0: incorrect AES-GCM finalization checks with the OpenSSL backend can drop integrity protection. Re-review on the next nixpkgs bump."
+
+["libssh2-1.11.1"]
+cve = [
+  "CVE-2025-15661",
+  "CVE-2026-55199",
+  "CVE-2026-55200",
+  "CVE-2026-58050",
+  "CVE-2026-58051",
+  "CVE-2026-66032",
+  "CVE-2026-66033",
+  "CVE-2026-66034",
+  "CVE-2026-66035",
+  "CVE-2026-7598",
+]
+comment = "Real through 1.11.1: ten flaws, several pre-auth and reachable from any client that fetches ssh: URLs (git over ssh, cargo, ...). Fixes are upstream commits/1.11.2. Re-review on the next nixpkgs bump."
+
+["libxml2-2.15.3"]
+cve = ["CVE-2026-11979"]
+comment = "Real through 2.15.3: stack overflows in `xmlcatalog --shell` mode. Re-review on the next nixpkgs bump."
+
+["lua-5.2.4"]
+cve = ["CVE-2021-43519"]
+comment = "Real: lua_resume stack overflow (5.1.0–5.3.5). The 5.2 branch never received a fixed release; ships inside libvlc for VLC's embedded scripting. Re-review on the next nixpkgs bump."
+
+["lua-5.2.4-env"]
+cve = ["CVE-2021-43519"]
+comment = "Same build as lua-5.2.4 (env-wrapped output). Re-review on the next nixpkgs bump."
+
+["malcontent-0.13.1"]
+cve = [
+  "CVE-2026-24845",
+  "CVE-2026-28407",
+]
+comment = "FP: NVD `chainguard:malcontent` is Chainguard's supply-chain analysis tool; this is the GNOME parental-controls library."
+
+["mupdf-1.27.2"]
+cve = ["CVE-2026-7233"]
+comment = "Real, low (3.3): font subsetting flaw, fixed in 1.28.0. Re-review on the next nixpkgs bump."
+
+["network-3.2.8.0"]
+cve = [
+  "CVE-2021-35047",
+  "CVE-2021-35048",
+  "CVE-2021-35049",
+  "CVE-2021-35050",
+  "CVE-2022-0486",
+  "CVE-2022-0997",
+  "CVE-2022-24388",
+  "CVE-2022-24389",
+  "CVE-2022-24390",
+  "CVE-2022-24391",
+  "CVE-2022-24392",
+  "CVE-2022-24393",
+  "CVE-2022-24394",
+]
+comment = "FP: NVD `fidelissecurity:network` is Fidelis Network (security appliance); this is the Haskell network library (via HLS)."
+
+["nghttp2-1.69.0"]
+cve = ["CVE-2026-58055"]
+comment = "The flaw (CVE-2026-58055) is in nghttpx, the reverse-proxy binary; these hosts ship only the library. Track upstream and drop when a fixed release lands."
+
+["obsidian-1.13.4"]
+cve = ["CVE-2023-24044"]
+comment = "FP: NVD `plesk:obsidian` is the Plesk Obsidian hosting panel; this is the Obsidian note app."
+
+["obsidian-1.13.4-fish-completions"]
+cve = ["CVE-2023-24044"]
+comment = "FP: NVD `plesk:obsidian` is the Plesk Obsidian hosting panel; this is the Obsidian note app."
+
+["openexr-3.4.11"]
+cve = [
+  "CVE-2026-44663",
+  "CVE-2026-45696",
+]
+comment = "Real: two flaws fixed in 3.4.12. Re-review on the next nixpkgs bump."
+
+["opentelemetry-0.8.0"]
+cve = [
+  "CVE-2023-43810",
+  "CVE-2023-45142",
+  "CVE-2023-47108",
+  "CVE-2025-58460",
+  "CVE-2026-39882",
+  "CVE-2026-40894",
+  "CVE-2026-41078",
+  "CVE-2026-41178",
+  "CVE-2026-44967",
+  "CVE-2026-54285",
+]
+comment = "FP: NVD `opentelemetry` entries are the OTel Go/.NET/C++/JS SDKs and a Jenkins plugin; this is the Haskell opentelemetry library (via HLS)."
+
+["openvpn-2.6.21"]
+cve = ["CVE-2026-11604"]
+comment = "FP: CVE-2026-11604 is in ovpn-dco-win, OpenVPN's *Windows* kernel driver — not shipped here."
+
+["orc-0.4.42"]
+cve = ["CVE-2025-47436"]
+comment = "FP: NVD `apache:orc` is the Apache ORC column store; this is the Oil Runtime Compiler used by GStreamer."
+
+["patch-2.8"]
+cve = [
+  "CVE-2026-56288",
+  "CVE-2026-56289",
+]
+comment = "Real through 2.8.0 (NULL deref and hunk-offset DoS on crafted patches). Re-review on the next nixpkgs bump."
+
+["patch-2.8_fish-completions"]
+cve = [
+  "CVE-2026-56288",
+  "CVE-2026-56289",
+]
+comment = "Same build as patch-2.8 (completions output). Re-review on the next nixpkgs bump."
+
+["perl-5.42.0"]
+cve = [
+  "CVE-2026-13221",
+  "CVE-2026-4176",
+  "CVE-2026-57432",
+]
+comment = "Real: CVE-2026-4176 (bundled Compress::Raw::Zlib, fixed in 5.42.2) plus the regex-alternation and pack/unpack flaws affecting the whole 5.42/5.43 line. 5.42.0 reaches the runtime closure only via hspell (mass-rebuild lag); it disappears when nixpkgs rebuilds it against 5.42.3. Re-review on the next nixpkgs bump."
+
+["perl-5.42.3"]
+cve = [
+  "CVE-2026-13221",
+  "CVE-2026-57432",
+  "CVE-2026-8376",
+]
+comment = "Real: regex-alternation and pack/unpack flaws (fixed in 5.42.4+/5.44); CVE-2026-8376 is 32-bit-only — not applicable on this x86_64 fleet, listed for completeness. Re-review on the next nixpkgs bump."
+
+["perl-5.42.3-env"]
+cve = [
+  "CVE-2026-13221",
+  "CVE-2026-57432",
+  "CVE-2026-8376",
+]
+comment = "Same build as perl-5.42.3 (env-wrapped output). Re-review on the next nixpkgs bump."
+
+["regex-1.1.0.2"]
+cve = ["CVE-2022-24713"]
+comment = "FP: NVD `rust-lang:regex` is the Rust regex crate; this is the Haskell regex library (via HLS)."
+
+["safe-0.3.21"]
+cve = [
+  "CVE-2021-33594",
+  "CVE-2021-33595",
+  "CVE-2021-33596",
+  "CVE-2021-40834",
+  "CVE-2021-40835",
+  "CVE-2021-44751",
+  "CVE-2022-28868",
+  "CVE-2022-28869",
+  "CVE-2022-28870",
+  "CVE-2022-28872",
+  "CVE-2022-28873",
+  "CVE-2022-38163",
+  "CVE-2022-38164",
+  "CVE-2022-47524",
+]
+comment = "FP: NVD `f-secure:safe` is F-Secure SAFE Browser; this is the Haskell safe library (via HLS)."
+
+["samba-4.23.10"]
+cve = ["CVE-2026-2340"]
+comment = "Real: vfs_worm TOCTOU (>=4.1.0). The vfs_worm module is not configured on any of these hosts — samba ships for the KDE file managers' SMB support. Re-review on the next nixpkgs bump."
+
+["shellcheck-0.11.0"]
+cve = ["CVE-2021-28794"]
+comment = "FP: CVE-2021-28794 is the unofficial VS Code ShellCheck extension, not the ShellCheck binary. (Supersedes a `ShellCheck-0.11.0` section that never matched: whitelist matching is case-sensitive.)"
+
+["snappy-1.2.2"]
+cve = [
+  "CVE-2023-28115",
+  "CVE-2023-41330",
+]
+comment = "FP: NVD `knplabs:snappy` is a PHP snapshot/PDF library; this is Google's snappy compression."
+
+["sqlite-3.53.1"]
+cve = [
+  "CVE-2026-11822",
+  "CVE-2026-11824",
+]
+comment = "Real: FTS5 memory corruption / heap overflow, fixed in 3.53.2. Retire on the next nixpkgs bump."
+
+["taglib-1.13.1"]
+cve = ["CVE-2023-47466"]
+comment = "Real, low (2.9): segfault while *writing* tags to a crafted WAV file, fixed in 2.0. Re-review on the next nixpkgs bump."
+
+["tar-0.6.4.0"]
+cve = [
+  "CVE-2021-20193",
+  "CVE-2021-32803",
+  "CVE-2021-32804",
+  "CVE-2021-37701",
+  "CVE-2021-37712",
+  "CVE-2021-37713",
+  "CVE-2022-48303",
+  "CVE-2023-39804",
+  "CVE-2024-28863",
+  "CVE-2025-45582",
+  "CVE-2026-23745",
+  "CVE-2026-23950",
+  "CVE-2026-24842",
+  "CVE-2026-26960",
+  "CVE-2026-29786",
+  "CVE-2026-31802",
+  "CVE-2026-53655",
+  "CVE-2026-59871",
+  "CVE-2026-59873",
+  "CVE-2026-59874",
+]
+comment = "FP: NVD products are GNU tar (`gnu:tar`) and npm node-tar (`isaacs/npmjs/tar_project:tar`); this is the Haskell tar library (via HLS). Its 0.6.4.0 version merely falls inside node-tar's affected ranges numerically."
+
+["unbound-1.25.1"]
+cve = [
+  "CVE-2026-32665",
+  "CVE-2026-40691",
+  "CVE-2026-41637",
+  "CVE-2026-42955",
+  "CVE-2026-44621",
+  "CVE-2026-44687",
+  "CVE-2026-44690",
+  "CVE-2026-46582",
+  "CVE-2026-50045",
+  "CVE-2026-50046",
+  "CVE-2026-50243",
+  "CVE-2026-50248",
+  "CVE-2026-50251",
+  "CVE-2026-50252",
+  "CVE-2026-52863",
+  "CVE-2026-54478",
+  "CVE-2026-55708",
+  "CVE-2026-55717",
+  "CVE-2026-55973",
+  "CVE-2026-55990",
+  "CVE-2026-55991",
+  "CVE-2026-56416",
+  "CVE-2026-56444",
+]
+comment = "Real: all 23 findings are fixed in unbound 1.25.2 — retire this whole entry (and re-triage) on the next nixpkgs bump."
+
+["yaml-0.11.11.2"]
+cve = [
+  "CVE-2021-4235",
+  "CVE-2022-3064",
+]
+comment = "FP: NVD `yaml_project:yaml` is Go yaml (v2/v3); this is the Haskell yaml library (via HLS)."
+
+["zlib-0.7.1.1"]
+cve = [
+  "CVE-2022-37434",
+  "CVE-2023-45853",
+  "CVE-2023-6992",
+  "CVE-2026-22184",
+  "CVE-2026-27820",
+]
+comment = "FP: NVD products are C zlib (`zlib:zlib`), Cloudflare's zlib fork, and the Ruby zlib gem; this is the Haskell zlib binding (via HLS)."
+
+["zlib-1.3.2"]
+cve = [
+  "CVE-2023-6992",
+  "CVE-2026-27820",
+]
+comment = "FP: CVE-2023-6992 is Cloudflare's zlib fork and CVE-2026-27820 the Ruby zlib gem (`cloudflare:zlib`, `ruby-lang:zlib`); canonical zlib 1.3.2 is affected by neither."

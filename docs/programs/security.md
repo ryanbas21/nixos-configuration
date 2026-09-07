@@ -1,6 +1,6 @@
 # Security
 
-[← program notes](index.md) · modules: `system/sudo.nix`, `system/security.nix`, `system/apparmor.nix`, `system/kernel-hardening.nix`, `system/network-hardening.nix`, `system/nix-access.nix`, `system/cups-hardening.nix`, `system/dns.nix` (llmnr), `system/base.nix` (sshd, known_hosts), `batman/ssh.nix`, `computers/framework/_usbguard.nix` (framework only)
+[← program notes](index.md) · modules: `system/sudo.nix`, `system/security.nix`, `system/apparmor.nix`, `system/kernel-hardening.nix`, `system/network-hardening.nix`, `system/nix-access.nix`, `system/cups-hardening.nix`, `system/dns.nix` (llmnr), `system/base.nix` (sshd, known_hosts), `modules/vulnix.nix`, `batman/ssh.nix`, `computers/framework/_usbguard.nix` (framework only)
 
 ## sudo-rs (`system/sudo.nix`)
 
@@ -181,3 +181,52 @@ Declares what previously lived in a hand-written `~/.ssh/config`:
 
 The key inventory (who holds what, where the private halves are backed
 up) lives in [bootstrap](../bootstrap.md#the-key-inventory-the-only-must-restore-items).
+
+## CVE scanning (`modules/vulnix.nix`, `security/vulnix-whitelist.toml`)
+
+The CI `vulnix` job scans every host's REAL toplevel **runtime
+closure** on each push and fails on any finding not in the whitelist.
+The moving parts and the reasoning:
+
+- **`nix run .#vulnix-scan`**, not a `checks` derivation: vulnix
+  refreshes its cached NVD feed over the network on demand; a sandboxed
+  Nix build has none. CI caches `~/.cache/vulnix` keyed by week so a
+  push usually pays only the scan.
+- **Runtime closure, not derivation closure.** The wrapper bakes in
+  vulnix's `-C`: `nix path-info -r` over the toplevel, mapping each
+  output to its deriver. vulnix's default instead resolves the path to
+  its `.drv` and walks the *build* closure — which flags bootstrap
+  toolchains (gcc 4.6.4, python 2.7, go bootstrap tarballs), FOD
+  sources, and vendored crates that never ship on a machine. On this
+  fleet that was ~60% of findings, pure noise; the runtime scan is
+  what an attacker could actually reach. (The old `yasm` entry in the
+  whitelist used to apologize for exactly this; the switch to `-C`
+  retired it.)
+- **The whitelist is a triage log, not a mute switch.**
+  `security/vulnix-whitelist.toml` entries are version-pinned
+  (`["name-exact.version"]`, case-sensitive) and carry explicit CVE
+  lists — a section without a CVE list would silently suppress
+  *future* vulnerabilities in that package, so the format forbids it
+  by policy. Two kinds of entries:
+  - **FP** — false positive. Usually an NVD product that merely shares
+    a derivation's name (`jenkins:git` is the Jenkins *plugin*, not
+    git; `plesk:obsidian` is the hosting panel; `mozilla:focus` is the
+    iOS browser, not Haskell's `focus`). The other recurring kind is
+    NVD CPE artifacts: date-bounded ranges (`gnu:gcc <2023-09-12`)
+    that released versions compare "below", or name-parse leftovers
+    (`dbus-1` reads as version `1`). The comment cites the vendor.
+  - **Real, accepted risk** — genuinely affected at the pinned version
+    with no fix in the pinned nixpkgs. These are self-retiring: the
+    next lock bump changes the version, the section stops matching,
+    and CI goes red until the new version is triaged. The heavy ones
+    (glibc, unbound, ffmpeg via kodi's unmaintained ffmpeg_6 pin) all
+    have "re-review on the next nixpkgs bump" notes.
+- **How to triage.** Don't eyeball names — dump the NVD CPE nodes
+  vulnix itself matched on, from its own cached feed
+  (`~/.cache/vulnix/Data.fs`, a ZODB store readable with the vulnix
+  package's python): every `Vulnerability` object carries its CPE
+  nodes (`vendor:product` + version ranges), which settles
+  name-collisions and out-of-range versions in seconds. The
+  derivation's parents come from
+  `nix why-depends <toplevel> <out-path>` — needed to judge exposure
+  (initrd busybox vs. HLS's Haskell libraries).

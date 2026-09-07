@@ -365,11 +365,14 @@ jobs:
       - name: Execute and boot the ${{ matrix.host }} disk layout
         run: nix build -L .#checks.x86_64-linux."disko:${{ matrix.host }}"
   vulnix:
-    # CVE scan of every host's REAL toplevel, via nix-community/vulnix
-    # (modules/vulnix.nix explains why this is a flake PACKAGE run with
-    # `nix run`, not a `nix flake check` derivation — vulnix needs live
-    # network access to refresh its NVD feed cache, which a sandboxed
-    # Nix build cannot have). `needs: build-hosts` so this job pays only
+    # CVE scan of every host's REAL toplevel runtime closure, via
+    # nix-community/vulnix (modules/vulnix.nix explains why this is a
+    # flake PACKAGE run with `nix run`, not a `nix flake check`
+    # derivation — vulnix needs live network access to refresh its NVD
+    # feed cache, which a sandboxed Nix build cannot have — and why the
+    # wrapper bakes in `-C`: scanning the runtime closure rather than
+    # the default derivation closure, which would flag bootstrap
+    # toolchains and fixed-output sources that never ship). `needs: build-hosts` so this job pays only
     # for the scan: the closure it scans is already built and sitting in
     # nix-configs by the time this runs. Fails the workflow on any
     # unwhitelisted finding (vulnix exit code 2) — see
