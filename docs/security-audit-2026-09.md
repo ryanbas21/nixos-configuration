@@ -46,6 +46,14 @@
 >   that land in the window fail soft (`|| true`) by design. After
 >   deploying, verify with `scripts/harmonia-warmth.sh` and one manual
 >   `nix copy` (see nix-caches.md "Verify").
+> - **2026-09-07, xeiaso paranoid-nixos read**: adopted `nix.settings.allowed-users`
+>   pinning (`system/nix-access.nix`; harmonia root-only in
+>   `harmonia/_remote-builder.nix`) and ran the article's `systemd-analyze security`
+>   sweep — harmonia.service 0.2 SAFE (nothing to do), sshd inherent-root,
+>   cups 9.2→hardened (`system/cups-hardening.nix`), LLMNR listener off
+>   (`system/dns.nix`). Article's impermanence/noexec/amnesiac path:
+>   considered and rejected (snapper rollback philosophy, single-btrfs
+>   layout, single-user fleet) — see docs/programs/security.md.
 
 ---
 

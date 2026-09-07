@@ -20,6 +20,15 @@
     nrBuildUsers = 64;
     settings = {
       trusted-users = [ "root" ];
+      # Daemon ACL pinned to root (the harmonia half of system/
+      # nix-access.nix, same 2026-09-07 pass; that file has the full
+      # rationale): nixpkgs defaults to ["*"], any local uid could drive
+      # the daemon. Only root uses nix here — builds/pushes arrive as root
+      # through the gated keys, and the box has no wheel users. If the
+      # remotebuild demotion ever happens (see the note above), this list
+      # must gain "remotebuild" or its builds fail daemon auth — the
+      # comment here is the tripwire.
+      allowed-users = [ "root" ];
       min-free = 10 * 1024 * 1024;
       max-free = 200 * 1024 * 1024;
       max-jobs = "auto";

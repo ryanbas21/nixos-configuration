@@ -1,6 +1,6 @@
 # Security
 
-[← program notes](index.md) · modules: `system/sudo.nix`, `system/security.nix`, `system/apparmor.nix`, `system/kernel-hardening.nix`, `system/network-hardening.nix`, `system/base.nix` (sshd, known_hosts), `batman/ssh.nix`
+[← program notes](index.md) · modules: `system/sudo.nix`, `system/security.nix`, `system/apparmor.nix`, `system/kernel-hardening.nix`, `system/network-hardening.nix`, `system/nix-access.nix`, `system/cups-hardening.nix`, `system/dns.nix` (llmnr), `system/base.nix` (sshd, known_hosts), `batman/ssh.nix`
 
 ## sudo-rs (`system/sudo.nix`)
 
@@ -69,6 +69,44 @@ hostile wifi accepted redirects from it. Source routing stays pinned
 off; `rp_filter` is deliberately **loose** (2) — martian sources drop,
 asymmetric routing (docker bridges, Mullvad's fwmark tunnels)
 survives; strict is one edit away. Martians log to the journal.
+
+## Nix daemon ACL (`system/nix-access.nix`)
+
+`nix.settings.allowed-users = [ "root" "@wheel" ]` (base tier) and
+`[ "root" ]` on harmonia (`harmonia/_remote-builder.nix`). nixpkgs
+defaults this to `["*"]` — any local uid could ask the daemon to
+fetch and execute arbitrary derivations as nixbld. The fleet is
+single-user: batman (wheel) + root are the only humans, and nothing
+else invokes nix (post-build-hook runs inside nix-daemon; the
+observability units never touch nix — verified 2026-09-07). Same
+pin-don't-inherit move as sshd auth. `remotebuild` on harmonia is
+explicitly NOT in the list — if the demotion ever happens, it must be
+added or remote builds fail daemon auth (tripwire comment in place).
+Prompted by [xeiaso.net/blog/paranoid-nixos-2021-07-18](https://xeiaso.net/blog/paranoid-nixos-2021-07-18/);
+its impermanence/noexec ideas were considered and rejected (snapper
+rollback is this fleet's philosophy; single-btrfs layout).
+
+## systemd exposure sweep (2026-09-07)
+
+The xeiaso article's `systemd-analyze security` sweep, run live on
+the exposed daemons:
+
+- **harmonia.service — 0.2 SAFE** (verified on the deployed box): the
+  upstream module ships the full set (DynamicUser, SystemCallFilter,
+  IPAddressDeny, ProtectSystem=strict, capability drops). Nothing to
+  add.
+- **sshd — 9.6, inherent**: privilege separation needs root +
+  CAP_SETUID; unit-level sandboxing is not applicable. Its hardening
+  is the key-only auth + LAN-scoped firewall + sysctl floors above.
+- **cups.service — 9.2 → hardened** (`system/cups-hardening.nix`):
+  localhost-bound and firewall-guarded, so the override is the safe
+  subset only (NoNewPrivileges, PrivateTmp, kernel/home/namespace
+  shields). CapabilityBoundingSet/@privileged syscalls and
+  MemoryDenyWriteExecute are deliberately absent — they break cupsd's
+  root→cups drop or the filter chain; the file header documents each.
+- **LLMNR — listener killed** (`system/dns.nix`): resolved's default
+  listens on `0.0.0.0:5355` on every link; `llmnr = "false"` with
+  zero speakers on the fleet (no Windows, hosts addressed by IP/DNS).
 
 ## sshd (`system/base.nix`)
 
