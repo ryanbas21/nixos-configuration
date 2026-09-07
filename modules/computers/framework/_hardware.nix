@@ -58,22 +58,47 @@
   };
 
   # The btrfs inside the container mounts three ways: its top-level
-  # (subvolid 5) at /, plus the `home` and `nix` subvolumes.
+  # (subvolid 5) at /, plus the `home` and `nix` subvolumes. Every
+  # btrfs mount carries the same two options — mount options are
+  # PER-MOUNT, subvolume mounts do not inherit them from / — and the
+  # same list is stated in nixos/_hardware.nix and _disko.nix so the
+  # fleet's btrfs posture is one fact kept identical three places:
+  #   - compress=zstd:3 — heuristic (NOT compress-force) compression,
+  #     level 3 being the kernel default. The explicit level is not
+  #     decoration: this kernel echoes `compress=zstd:3` back in
+  #     /proc/mounts for ANY input spelling (plain compress=zstd
+  #     normalizes to :3), and the disko test compares the booted
+  #     layout's live options against this list option-for-option —
+  #     the plain spelling failed exactly that assert (2026-09,
+  #     disko:framework run). /nix is most of the bytes
+  #     on this disk and generations churn it constantly, so the
+  #     store re-compresses itself through plain use; the heuristic
+  #     also skips the store's already-compressed payloads instead
+  #     of burning CPU on them. New writes only — existing extents
+  #     stay uncompressed until rewritten, and a forced defrag to
+  #     hurry that would un-share every extent the existing snapper
+  #     snapshots hold (usage balloons), so: let churn do it.
+  #   - noatime — kills atime CoW churn: a plain read otherwise
+  #     dirties the page, and thereby every hourly snapshot sharing
+  #     that extent (relatime, the kernel default, still writes once
+  #     a day). Mount options apply at mount time — the reboot after
+  #     `switch` is what activates them; switch never remounts /.
   fileSystems."/" = {
     device = "/dev/mapper/cryptroot";
     fsType = "btrfs";
+    options = [ "compress=zstd:3" "noatime" ];
   };
 
   fileSystems."/nix" = {
     device = "/dev/mapper/cryptroot";
     fsType = "btrfs";
-    options = [ "subvol=nix" ];
+    options = [ "subvol=nix" "compress=zstd:3" "noatime" ];
   };
 
   fileSystems."/home" = {
     device = "/dev/mapper/cryptroot";
     fsType = "btrfs";
-    options = [ "subvol=home" ];
+    options = [ "subvol=home" "compress=zstd:3" "noatime" ];
   };
 
   fileSystems."/boot" = {

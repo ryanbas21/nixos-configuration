@@ -7,7 +7,9 @@
 #
 # Layout (LUKS rework of the installer-mirroring one):
 #   p1  1.0G  vfat  ESP  (fmask=0077/dmask=0077, /boot)
-#   p2  rest  LUKS2 "cryptroot" — btrfs inside: the filesystem
+#   p2  rest  LUKS2 "cryptroot" — btrfs inside (every btrfs mount
+#        carries compress=zstd:3 + noatime — btrfsMountOptions below,
+#        framework/_hardware.nix for the why): the filesystem
 #        TOP-LEVEL (subvolid 5) at /, with subvolumes `home` and `nix`
 #        nested (subvol=/home, subvol=/nix)
 # NO swap partition anymore. The 67G one was a flash-drive-installer
@@ -79,7 +81,19 @@
 # Note the btrfs spelling is the modern disko `type = "btrfs"`
 # (required for subvolumes), while the ESP keeps the repo's
 # `type = "filesystem"` spelling.
-{ ... }: {
+{ ... }:
+let
+  # The fleet btrfs mount options — the same list stated per-mount
+  # in framework/_hardware.nix and nixos/_hardware.nix (btrfs
+  # options are per-mount; subvolume mounts inherit nothing from /).
+  # Here they cover the INSTALL-time mounts AND the fileSystems
+  # entries disko's _config generates for hosts that eval this
+  # layout — the disko test's booted system being the one that
+  # matters, since this host's own eval deliberately does not import
+  # it (see the header).
+  btrfsMountOptions = [ "compress=zstd:3" "noatime" ];
+in
+{
   disko.devices = {
     disk.nvme0n1 = {
       device = "/dev/nvme0n1";
@@ -127,11 +141,18 @@
                 # Content-level mountpoint = the btrfs top-level (subvolid
                 # 5) mounted at /, with NO subvol option — exactly how the
                 # pre-LUKS layout arranged it and how _hardware.nix
-                # mounts it (via the mapper).
+                # mounts it (via the mapper, same options as here).
                 mountpoint = "/";
+                mountOptions = btrfsMountOptions;
                 subvolumes = {
-                  "/nix" = { mountpoint = "/nix"; };
-                  "/home" = { mountpoint = "/home"; };
+                  "/nix" = {
+                    mountpoint = "/nix";
+                    mountOptions = btrfsMountOptions;
+                  };
+                  "/home" = {
+                    mountpoint = "/home";
+                    mountOptions = btrfsMountOptions;
+                  };
                 };
               };
             };

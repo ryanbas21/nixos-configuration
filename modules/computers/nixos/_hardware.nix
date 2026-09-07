@@ -33,9 +33,15 @@
     crypttabExtraOpts = [ "tpm2-device=auto" ];
   };
 
+  # Fleet btrfs mount options — compress=zstd:3 + noatime, the full
+  # why in framework/_hardware.nix — stated per mount because btrfs
+  # mount options do not inherit from / to subvolume mounts. Same
+  # list as _disko.nix's fresh-install layout (contract: metal laid
+  # down by disko and the live mount table agree).
   fileSystems."/" = {
     device = "/dev/mapper/cryptroot";
     fsType = "btrfs";
+    options = [ "compress=zstd:3" "noatime" ];
   };
 
   # The `nix` and `home` subvolumes with their own mounts — the fleet
@@ -50,13 +56,13 @@
   fileSystems."/nix" = {
     device = "/dev/mapper/cryptroot";
     fsType = "btrfs";
-    options = [ "subvol=nix" ];
+    options = [ "subvol=nix" "compress=zstd:3" "noatime" ];
   };
 
   fileSystems."/home" = {
     device = "/dev/mapper/cryptroot";
     fsType = "btrfs";
-    options = [ "subvol=home" ];
+    options = [ "subvol=home" "compress=zstd:3" "noatime" ];
   };
 
   fileSystems."/boot" = {

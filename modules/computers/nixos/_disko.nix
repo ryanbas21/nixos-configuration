@@ -30,7 +30,14 @@
 # (p3) and root (p4). Those satisfy nothing and are wiped by any
 # disko run; they cannot be merged into root (wrong side of the
 # partition table).
-{ ... }: {
+{ ... }:
+let
+  # Fleet btrfs mount options — same list as framework/_disko.nix
+  # (and the per-mount lists in both hosts' _hardware.nix); the
+  # disko test compares these against the host's tracked table.
+  btrfsMountOptions = [ "compress=zstd:3" "noatime" ];
+in
+{
   disko.devices = {
     disk.nvme0n1 = {
       device = "/dev/nvme0n1";
@@ -67,11 +74,19 @@
                 type = "btrfs";
                 # the filesystem TOP-LEVEL (subvolid 5) at /, with
                 # `nix` and `home` nested subvolumes — identical to
-                # the pre-LUKS layout, now behind the mapper.
+                # the pre-LUKS layout, now behind the mapper (and
+                # with the fleet btrfs options, like the framework).
                 mountpoint = "/";
+                mountOptions = btrfsMountOptions;
                 subvolumes = {
-                  "/nix" = { mountpoint = "/nix"; };
-                  "/home" = { mountpoint = "/home"; };
+                  "/nix" = {
+                    mountpoint = "/nix";
+                    mountOptions = btrfsMountOptions;
+                  };
+                  "/home" = {
+                    mountpoint = "/home";
+                    mountOptions = btrfsMountOptions;
+                  };
                 };
               };
             };
