@@ -35,10 +35,20 @@
   #
   # Fingerprint logins leave kwallet locked (no password captured) —
   # exactly like a fingerprint login before this change; only the
-  # password path got faster. Console `login`, sudo, polkit and
-  # hyprlock stacks are untouched. mkForce because the sddm module
-  # assigns rules.auth wholesale (autoOrderRules substack); nothing
-  # else contributes auth rules to this service.
+  # password path got faster. That residual gap (every fingerprint
+  # login prompted for kdewallet the moment 1Password's Secret
+  # Service call landed) was closed 2026-09-07 at the WALLET, not
+  # here: kdewallet was given a blank password (ksecretd
+  # changePassword; KNewPasswordDialog explicitly allows empty), so
+  # ksecretd — which tries an empty password before ever prompting —
+  # unlocks it silently on first access after ANY login path.
+  # At-rest exposure accepted: / is LUKS and the wallet holds only
+  # the 1Password browser-handshake secret and one qtkeychain 2FA
+  # entry. Pre-change wallet backup:
+  # ~/.local/share/kwalletd/backup-20260907/. Console `login`, sudo,
+  # polkit and hyprlock stacks are untouched. mkForce because the
+  # sddm module assigns rules.auth wholesale (autoOrderRules
+  # substack); nothing else contributes auth rules to this service.
   security.pam.services.sddm.rules.auth = lib.mkForce {
     # Prompts for (and caches) the submitted password. `optional`
     # keeps the stack alive on failure so the fingerprint path
