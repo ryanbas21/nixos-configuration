@@ -50,171 +50,173 @@
         '';
       in
       {
-      # Host-specific data.
-      networking.hostName = "harmonia";
-      # nixpkgs.hostPlatform is deliberately NOT set here: the real
-      # eval gets it from the eval wiring (modules/nixos.nix
-      # extraModules), and the VM test (harmonia/vm-test.nix) imports
-      # this module under the test framework's read-only pkgs, where
-      # any definition collides ("set multiple times").
+        # Host-specific data.
+        networking.hostName = "harmonia";
+        # nixpkgs.hostPlatform is deliberately NOT set here: the real
+        # eval gets it from the eval wiring (modules/nixos.nix
+        # extraModules), and the VM test (harmonia/vm-test.nix) imports
+        # this module under the test framework's read-only pkgs, where
+        # any definition collides ("set multiple times").
 
-      # Verified 2026-09-04 against the live box (root@192.168.1.82,
-      # /etc/nixos/configuration.nix on `nix-cache`): installed at
-      # 26.05. Never change it afterwards.
-      system.stateVersion = "26.05";
+        # Verified 2026-09-04 against the live box (root@192.168.1.82,
+        # /etc/nixos/configuration.nix on `nix-cache`): installed at
+        # 26.05. Never change it afterwards.
+        system.stateVersion = "26.05";
 
-      imports = [
-        ./harmonia/_hardware.nix
-        ./harmonia/_remote-builder.nix
-        inputs.agenix.nixosModules.default
-      ];
+        imports = [
+          ./harmonia/_hardware.nix
+          ./harmonia/_remote-builder.nix
+          inputs.agenix.nixosModules.default
+        ];
 
-      # --- minimal headless base (instead of nixos.modules.base) ---
-      # NOTE(adoption, learned on the first switch 2026-09-04): the
-      # hand-configured box ran PermitRootLogin "yes" + password auth,
-      # and root-by-password was the human's access path. The switch
-      # applied the module default PermitRootLogin "prohibit-password"
-      # and killed that path in one step. NixOS does NOT default
-      # PasswordAuthentication off (upstream default true — verified
-      # on the deployed box), so it is closed explicitly here: no
-      # non-root users exist anyway, making the box fully key-only.
-      # Human access: batman's id_borg (authorized_keys below); ops
-      # access: sudo ssh from the desktop (the deploy key); last resort:
-      # the VM console.
-      services.openssh.enable = true;
-      services.openssh.settings.PasswordAuthentication = false;
-      # Local time for logs and the timers that remain (digest, sysstat;
-      # the GC timer is deliberately absent — see the assertions below);
-      # base sets this but is skipped here, so carry it explicitly.
-      # Parity with the hand-configured box (America/Denver).
-      time.timeZone = "America/Denver";
-      # Compressed RAM swap as an OOM cushion — same rationale as
-      # system/hardware.nix for the desktop, restated here because this host
-      # skips nixos.modules.base (would move with it if a server tier
-      # ever gets promoted, per the header comment). The sysctl
-      # quartet there rides along for the same reason: swap here is
-      # zram-only, and the disk-swap defaults fight in-memory devices.
-      zramSwap.enable = true;
-      boot.kernel.sysctl = {
-        "vm.swappiness" = 180;
-        "vm.watermark_boost_factor" = 0;
-        "vm.watermark_scale_factor" = 125;
-        "vm.page-cluster" = 0;
-      };
-      # harmonia itself. Both listeners are LAN-only concerns — the
-      # desktop's substituter hits 192.168.1.82:5000 and deploys arrive
-      # over ssh from the same subnet — so instead of the module-default
-      # global opens (sshd's openFirewall, blanket allowedTCPPorts) the
-      # ports are scoped to the home subnet via extraInputRules: the box
-      # stays dark on any other network, which matters given the signing
-      # key it holds. IPv6 stays default-dropped (everything addresses
-      # this box by its v4 literal). extraInputRules needs the nftables
-      # backend, which cannot be inherited from nixos.modules.base
-      # (deliberately not imported here), so it is set in place.
-      services.openssh.openFirewall = false;
-      networking.nftables.enable = true;
-      networking.firewall.extraInputRules = ''
-        ip saddr 192.168.1.0/24 tcp dport { 22, 5000 } accept
-      '';
-      # Flakes for local nix ops on the box; remote rebuilds arrive as
-      # ready closures from the desktop and don't even need this.
-      nix.settings.experimental-features = [ "nix-command" "flakes" ];
-
-      # Parity with the box's hand-rolled package list — a console-only
-      # rescue/debug kit for incidents (the cache path itself needs
-      # none of these; harmonia's store is served, not built, there).
-      environment.systemPackages = with pkgs; [ git curl wget htop vim ];
-
-      # --- the cache ---
-      services.harmonia.cache = {
-        enable = true;
-        # The key is loaded via systemd LoadCredential= (root reads the
-        # file at service start; the DynamicUser service receives a copy
-        # under /run/credentials), so the agenix secret stays root-owned
-        # 0400 — no ownership juggling.
-        signKeyPaths = [ config.age.secrets.harmonia-signing-key.path ];
-        # settings stay at module defaults (bind [::]:5000, priority 50)
-        # — deliberately NOT the hand config's virtual_nix_store/
-        # real_nix_store pair: setting those activates harmonia's
-        # virtual-store mode, which 404s every narinfo in the VM test
-        # (2026-09-04, three hypotheses deep). Defaults were proven on
-        # the deployed box itself: the first --target-host switch served
-        # a signed system-toplevel narinfo immediately after.
-      };
-      # System-level agenix: decrypt with the host's own ssh host key,
-      # so the server needs no user identity at all.
-      age.identityPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
-      age.secrets.harmonia-signing-key.file = ../../secrets/harmonia-signing-key.age;
-
-      # --- root access: one admin key + two gated machine keys ---
-      # "framework-remote-build" is every NixOS host's shared
-      # ~/.ssh/harmonia (the post-build-hook push key and the
-      # distributed-builds key): LAN-scoped, no forwarding, and forced
-      # through nixStoreServeOnly — store protocol ONLY, no shell. This
-      # is the crown-jewel boundary: that key rides the whole fleet
-      # (traveling laptop included), and this box signs what they all
-      # substitute.
-      # "desktop-nix-cache-push" (adopted verbatim 2026-09-04 from the
-      # box's then-only entry) carries sudo nixos-rebuild --target-host
-      # deploys, which need nix copy + remote activation — so no forced
-      # command, but LAN-scoped with no forwarding. batman's id_borg —
-      # the agenix identity (secrets.nix); only the public half ships
-      # here — is the one unrestricted admin path, so plain
-      # `ssh root@192.168.1.82` from the desktop works without sudo.
-      # NOTE: this writes /etc/ssh/authorized_keys.d/root — it does NOT
-      # touch /root/.ssh/authorized_keys (which sshd honors FIRST). The
-      # box's pre-adoption legacy file carried the old unrestricted
-      # keys past every switch, silently bypassing the gating above
-      # (found live 2026-09-06 during audit verification) — the
-      # activation script below archives it so this list is the only
-      # authority. New keys get added HERE, never on the box.
-      users.users.root.openssh.authorizedKeys.keys = [
-        "from=\"192.168.1.0/24\",no-pty,no-X11-forwarding,no-agent-forwarding,no-port-forwarding,command=\"${nixStoreServeOnly}\" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHfLjVoQb6UFKvs5mo4PdTBWILJksyQytl6/vjJWG01y framework-remote-build"
-        "from=\"192.168.1.0/24\",no-X11-forwarding,no-agent-forwarding,no-port-forwarding ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIlMK7jt86TlHnzvths3bWymyEZfmfxJcUQ1PkuJ/HEJ desktop-nix-cache-push"
-        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIELiz8KiOJ2x7L1J2yx3X8RZkZ3bd/uHcsUH5rzVw8Cl batman@nixos"
-      ];
-
-      # Single source of truth for root's keys: archive any legacy
-      # /root/.ssh/authorized_keys at activation (sshd reads it before
-      # the managed file, so an old unrestricted entry there would
-      # bypass the gating above). Idempotent — a no-op once archived;
-      # the dated copy stays for forensics.
-      system.activationScripts.harmoniaRootLegacyAuthorizedKeys =
-        lib.stringAfter [ "users" ] ''
-          if [ -f /root/.ssh/authorized_keys ]; then
-            mv /root/.ssh/authorized_keys /root/.ssh/authorized_keys.pre-managed
-            echo "harmonia: archived legacy /root/.ssh/authorized_keys — root keys are owned by /etc/ssh/authorized_keys.d/root" >&2
-          fi
+        # --- minimal headless base (instead of nixos.modules.base) ---
+        # NOTE(adoption, learned on the first switch 2026-09-04): the
+        # hand-configured box ran PermitRootLogin "yes" + password auth,
+        # and root-by-password was the human's access path. The switch
+        # applied the module default PermitRootLogin "prohibit-password"
+        # and killed that path in one step. NixOS does NOT default
+        # PasswordAuthentication off (upstream default true — verified
+        # on the deployed box), so it is closed explicitly here: no
+        # non-root users exist anyway, making the box fully key-only.
+        # Human access: batman's id_borg (authorized_keys below); ops
+        # access: sudo ssh from the desktop (the deploy key); last resort:
+        # the VM console.
+        services.openssh.enable = true;
+        services.openssh.settings.PasswordAuthentication = false;
+        # Local time for logs and the timers that remain (digest, sysstat;
+        # the GC timer is deliberately absent — see the assertions below);
+        # base sets this but is skipped here, so carry it explicitly.
+        # Parity with the hand-configured box (America/Denver).
+        time.timeZone = "America/Denver";
+        # Compressed RAM swap as an OOM cushion — same rationale as
+        # system/hardware.nix for the desktop, restated here because this host
+        # skips nixos.modules.base (would move with it if a server tier
+        # ever gets promoted, per the header comment). The sysctl
+        # quartet there rides along for the same reason: swap here is
+        # zram-only, and the disk-swap defaults fight in-memory devices.
+        zramSwap.enable = true;
+        boot.kernel.sysctl = {
+          "vm.swappiness" = 180;
+          "vm.watermark_boost_factor" = 0;
+          "vm.watermark_scale_factor" = 125;
+          "vm.page-cluster" = 0;
+        };
+        # harmonia itself. Both listeners are LAN-only concerns — the
+        # desktop's substituter hits 192.168.1.82:5000 and deploys arrive
+        # over ssh from the same subnet — so instead of the module-default
+        # global opens (sshd's openFirewall, blanket allowedTCPPorts) the
+        # ports are scoped to the home subnet via extraInputRules: the box
+        # stays dark on any other network, which matters given the signing
+        # key it holds. IPv6 stays default-dropped (everything addresses
+        # this box by its v4 literal). extraInputRules needs the nftables
+        # backend, which cannot be inherited from nixos.modules.base
+        # (deliberately not imported here), so it is set in place.
+        services.openssh.openFirewall = false;
+        networking.nftables.enable = true;
+        networking.firewall.extraInputRules = ''
+          ip saddr 192.168.1.0/24 tcp dport { 22, 5000 } accept
         '';
+        # Flakes for local nix ops on the box; remote rebuilds arrive as
+        # ready closures from the desktop and don't even need this.
+        nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
-      # Adoption tripwire: an empty authorized_keys is not an eval error
-      # by itself, so it is cross-locked against the hardware placeholder
-      # — while _hardware.nix still carries the REPLACE-ME device,
-      # deploys fail at activation anyway and the empty list is
-      # harmless; once real hardware lands, this assertion turns a
-      # still-empty list into an eval error, so `nix flake check`
-      # (and CI, on every push including the timer's) catches it before
-      # any deploy can lock out remote access.
-      assertions = [
-        {
-          assertion =
-            lib.hasInfix "REPLACE-ME" config.fileSystems."/".device
-            || config.users.users.root.openssh.authorizedKeys.keys != [ ];
-          message = "harmonia: root authorized_keys is empty — a switch would replace the server's key file and lock out remote access. Paste the desktop push key (docs/programs/nix-caches.md, adoption runbook).";
-        }
-        {
-          # The cache host must never auto-collect: every cached path
-          # is unreachable by definition, so any nix-collect-garbage
-          # sweeps the cache itself (--delete-older-than gates
-          # generations, not the sweep). The first weekly run after
-          # adoption deleted 7,304 paths / 38.4 GiB on 2026-09-07.
-          # Retention without the collector ships via
-          # system/maintenance.nix; disk pressure is guarded by min-free
-          # in harmonia/_remote-builder.nix.
-          assertion = !config.nix.gc.automatic;
-          message = "harmonia: nix.gc.automatic is on — a collector on the LAN cache host deletes the cache itself (2026-09-07: 7,304 paths / 38.4 GiB). See modules/system/maintenance.nix.";
-        }
-      ];
-    };
+        # Parity with the box's hand-rolled package list — a console-only
+        # rescue/debug kit for incidents (the cache path itself needs
+        # none of these; harmonia's store is served, not built, there).
+        environment.systemPackages = with pkgs; [ git curl wget htop vim ];
+        # --- the cache ---
+        services.harmonia.cache = {
+          enable = true;
+          settings = {
+            priority = 10;
+          };
+          # The key is loaded via systemd LoadCredential= (root reads the
+          # file at service start; the DynamicUser service receives a copy
+          # under /run/credentials), so the agenix secret stays root-owned
+          # 0400 — no ownership juggling.
+          signKeyPaths = [ config.age.secrets.harmonia-signing-key.path ];
+          # settings stay at module defaults (bind [::]:5000, priority 50)
+          # — deliberately NOT the hand config's virtual_nix_store/
+          # real_nix_store pair: setting those activates harmonia's
+          # virtual-store mode, which 404s every narinfo in the VM test
+          # (2026-09-04, three hypotheses deep). Defaults were proven on
+          # the deployed box itself: the first --target-host switch served
+          # a signed system-toplevel narinfo immediately after.
+        };
+        # System-level agenix: decrypt with the host's own ssh host key,
+        # so the server needs no user identity at all.
+        age.identityPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
+        age.secrets.harmonia-signing-key.file = ../../secrets/harmonia-signing-key.age;
+
+        # --- root access: one admin key + two gated machine keys ---
+        # "framework-remote-build" is every NixOS host's shared
+        # ~/.ssh/harmonia (the post-build-hook push key and the
+        # distributed-builds key): LAN-scoped, no forwarding, and forced
+        # through nixStoreServeOnly — store protocol ONLY, no shell. This
+        # is the crown-jewel boundary: that key rides the whole fleet
+        # (traveling laptop included), and this box signs what they all
+        # substitute.
+        # "desktop-nix-cache-push" (adopted verbatim 2026-09-04 from the
+        # box's then-only entry) carries sudo nixos-rebuild --target-host
+        # deploys, which need nix copy + remote activation — so no forced
+        # command, but LAN-scoped with no forwarding. batman's id_borg —
+        # the agenix identity (secrets.nix); only the public half ships
+        # here — is the one unrestricted admin path, so plain
+        # `ssh root@192.168.1.82` from the desktop works without sudo.
+        # NOTE: this writes /etc/ssh/authorized_keys.d/root — it does NOT
+        # touch /root/.ssh/authorized_keys (which sshd honors FIRST). The
+        # box's pre-adoption legacy file carried the old unrestricted
+        # keys past every switch, silently bypassing the gating above
+        # (found live 2026-09-06 during audit verification) — the
+        # activation script below archives it so this list is the only
+        # authority. New keys get added HERE, never on the box.
+        users.users.root.openssh.authorizedKeys.keys = [
+          "from=\"192.168.1.0/24\",no-pty,no-X11-forwarding,no-agent-forwarding,no-port-forwarding,command=\"${nixStoreServeOnly}\" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHfLjVoQb6UFKvs5mo4PdTBWILJksyQytl6/vjJWG01y framework-remote-build"
+          "from=\"192.168.1.0/24\",no-X11-forwarding,no-agent-forwarding,no-port-forwarding ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIlMK7jt86TlHnzvths3bWymyEZfmfxJcUQ1PkuJ/HEJ desktop-nix-cache-push"
+          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIELiz8KiOJ2x7L1J2yx3X8RZkZ3bd/uHcsUH5rzVw8Cl batman@nixos"
+        ];
+
+        # Single source of truth for root's keys: archive any legacy
+        # /root/.ssh/authorized_keys at activation (sshd reads it before
+        # the managed file, so an old unrestricted entry there would
+        # bypass the gating above). Idempotent — a no-op once archived;
+        # the dated copy stays for forensics.
+        system.activationScripts.harmoniaRootLegacyAuthorizedKeys =
+          lib.stringAfter [ "users" ] ''
+            if [ -f /root/.ssh/authorized_keys ]; then
+              mv /root/.ssh/authorized_keys /root/.ssh/authorized_keys.pre-managed
+              echo "harmonia: archived legacy /root/.ssh/authorized_keys — root keys are owned by /etc/ssh/authorized_keys.d/root" >&2
+            fi
+          '';
+
+        # Adoption tripwire: an empty authorized_keys is not an eval error
+        # by itself, so it is cross-locked against the hardware placeholder
+        # — while _hardware.nix still carries the REPLACE-ME device,
+        # deploys fail at activation anyway and the empty list is
+        # harmless; once real hardware lands, this assertion turns a
+        # still-empty list into an eval error, so `nix flake check`
+        # (and CI, on every push including the timer's) catches it before
+        # any deploy can lock out remote access.
+        assertions = [
+          {
+            assertion =
+              lib.hasInfix "REPLACE-ME" config.fileSystems."/".device
+              || config.users.users.root.openssh.authorizedKeys.keys != [ ];
+            message = "harmonia: root authorized_keys is empty — a switch would replace the server's key file and lock out remote access. Paste the desktop push key (docs/programs/nix-caches.md, adoption runbook).";
+          }
+          {
+            # The cache host must never auto-collect: every cached path
+            # is unreachable by definition, so any nix-collect-garbage
+            # sweeps the cache itself (--delete-older-than gates
+            # generations, not the sweep). The first weekly run after
+            # adoption deleted 7,304 paths / 38.4 GiB on 2026-09-07.
+            # Retention without the collector ships via
+            # system/maintenance.nix; disk pressure is guarded by min-free
+            # in harmonia/_remote-builder.nix.
+            assertion = !config.nix.gc.automatic;
+            message = "harmonia: nix.gc.automatic is on — a collector on the LAN cache host deletes the cache itself (2026-09-07: 7,304 paths / 38.4 GiB). See modules/system/maintenance.nix.";
+          }
+        ];
+      };
   };
 }
