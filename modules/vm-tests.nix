@@ -70,6 +70,10 @@
 #   neutralization as the dropped mounts above; the disko test
 #   (disko-tests.nix) exercises the REAL unlock path on a REAL
 #   LUKS-formatted disk instead.
+# - lanzaboote is dropped (mkForce false) and the stock systemd-boot
+#   forced back on: the signing keys are per-machine metal state
+#   (/var/lib/sbctl — computers/framework/_secure-boot.nix) a test VM
+#   has none of, and lzbt's install hook would fail signing.
 { config, lib, inputs, ... }:
 let
   # Desktop-style hosts: full nixos.modules.base (Plasma + home-manager)
@@ -116,6 +120,10 @@ in
           # See header: metal-only LUKS device (framework, desktop) —
           # the VM has neither the partition nor a TPM to unlock with.
           boot.initrd.luks.devices = lib.mkForce { };
+          # See header: Lanzaboote's keys exist only on metal — boot
+          # the stock systemd-boot path the base module declares.
+          boot.lanzaboote.enable = lib.mkForce false;
+          boot.loader.systemd-boot.enable = lib.mkForce true;
           # The throwaway identity must exist BEFORE home activation —
           # exactly like a real install, where the runbook restores
           # ~/.ssh/id_borg onto the target before first boot. It cannot

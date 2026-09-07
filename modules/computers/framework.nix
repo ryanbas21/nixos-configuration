@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, inputs, ... }:
 
 {
   nixos.configurations.framework = {
@@ -57,6 +57,11 @@
         ./framework/_mullvad.nix
         ./framework/_power.nix
         ./framework/_ups.nix
+        # Secure Boot: the upstream module declares the
+        # boot.lanzaboote options; this host's policy and the metal
+        # runbook live in _secure-boot.nix (its header).
+        inputs.lanzaboote.nixosModules.lanzaboote
+        ./framework/_secure-boot.nix
         config.nixos.modules.base
         config.users.batman.nixos.base
       ];

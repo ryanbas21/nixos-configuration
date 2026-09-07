@@ -12,8 +12,13 @@
   options.nixos.modules.base = mkModuleOption { key = "base"; };
 
   config.nixos.modules.base = { lib, pkgs, ... }: {
-    # Bootloader.
-    boot.loader.systemd-boot.enable = true;
+    # Bootloader. mkDefault rather than a hard true: a host can hand
+    # the loader seat to something else with a plain assignment — the
+    # framework does exactly that for Lanzaboote
+    # (computers/framework/_secure-boot.nix), which installs a signed
+    # systemd-boot instead; the VM tests force the stock loader back
+    # for their own boots (modules/vm-tests.nix).
+    boot.loader.systemd-boot.enable = lib.mkDefault true;
     boot.loader.efi.canTouchEfiVariables = true;
 
     # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.

@@ -28,6 +28,17 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Secure Boot for the framework (computers/framework/
+    # _secure-boot.nix): Lanzaboote's lzbt signs everything written to
+    # the ESP at switch time with the sbctl key set in /var/lib/sbctl.
+    # Release-tagged per upstream docs (their examples pin the current
+    # tag); follows our nixpkgs so the tool and module ride one
+    # revision.
+    lanzaboote = {
+      url = "github:nix-community/lanzaboote/v1.1.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     ryan-nvim = {
       url = "github:ryanbas21/dotfiles";
       flake = false;

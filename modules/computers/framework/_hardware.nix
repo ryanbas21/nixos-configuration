@@ -43,18 +43,51 @@
   #     PCR7 only (the systemd-cryptenroll default): generation/kernel
   #     churn never shifts it; a firmware update flipping Secure Boot
   #     state does — which is what the fallback slots are for.
+  #     (Caveat observed 2026-09-07, during Secure Boot enrollment: this
+  #     firmware does NOT extend SB-policy changes into the SHA256
+  #     PCR7 bank — the whole PK swap + SB-enforce transition booted
+  #     promptless, the 2026-09-06 seal still matching. See
+  #     _secure-boot.nix's runbook step 7 for what that means.)
   #   - fallbacks, deliberately kept (never --wipe-slot them): the
   #     original passphrase slot plus the enrolled recovery key, typed
   #     at the console only when the TPM refuses.
+  #   - fido2-device=auto: a YubiKey touch tier between the TPM and
+  #     the typed passphrase. systemd-cryptsetup tries unlock methods
+  #     in the order keyfile → tpm2 → fido2 → pkcs11 → passphrase, so
+  #     the daily boot still unlocks zero-touch via the TPM; the key
+  #     only matters when the TPM refuses (the SB-policy/firmware-
+  #     update case above) — plug it in, touch it when it blinks, no
+  #     passphrase typing. Touch-only by design: cryptenroll's fido2
+  #     defaults ask for user presence, not a PIN (possession factor;
+  #     the passphrase remains the knowledge factor). USB plug
+  #     required — NFC does not work at boot. Key absent? cryptsetup
+  #     shows an insert-token prompt for token-timeout= (30s default),
+  #     then falls through to the passphrase — same UX as before the
+  #     key existed.
   # crypttabExtraOpts — NOT crypttabExtraOptions — is the crypttab(5)
   # options spelling (luksroot.nix); allowDiscards keeps
   # services.fstrim working through the mapping. On this nixpkgs there
   # is only the systemd stage 1 anyway (scripted initrd removed in
-  # 26.11), which is what speaks tpm2-device at all.
+  # 26.11), which is what speaks tpm2-device/fido2-device at all
+  # (luksroot.nix asserts exactly this pairing — the legacy
+  # luks.fido2Support path is scripted-initrd-only and refuses to
+  # eval here).
+  #
+  # YubiKey enrollment (metal, once per key — with the key plugged
+  # in; ADDS a slot, touches nothing else — passphrase/recovery/TPM
+  # slots all stay):
+  #   sudo systemd-cryptenroll --fido2-device=auto \
+  #     /dev/disk/by-partlabel/framework-root
+  #   # touch the key when it blinks. A spare YubiKey = run it again
+  #   # with that key plugged in = its own slot, same ceremony.
+  # Non-destructive test from the booted system (no reboot needed):
+  #   sudo systemd-cryptsetup attach fido2test \
+  #     /dev/disk/by-partlabel/framework-root - fido2-device=auto
+  #   sudo systemd-cryptsetup detach fido2test
   boot.initrd.luks.devices."cryptroot" = {
     device = "/dev/disk/by-partlabel/framework-root";
     allowDiscards = true;
-    crypttabExtraOpts = [ "tpm2-device=auto" ];
+    crypttabExtraOpts = [ "tpm2-device=auto" "fido2-device=auto" ];
   };
 
   # The btrfs inside the container mounts three ways: its top-level

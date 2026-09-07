@@ -28,8 +28,10 @@
 # boot UX as before: plymouth straight into SDDM), with the typed
 # passphrase and an enrolled recovery key kept as fallbacks for the
 # one case that breaks TPM sealing, a firmware update shifting PCR7.
-# The boot-chain half of the threat model (Secure Boot/lanzaboote) is
-# deliberately still future work — this file is the data-at-rest half.
+# The boot-chain half of the threat model (Secure Boot) now lives in
+# _secure-boot.nix (Lanzaboote) — this file stays the data-at-rest
+# half, and the passphrase fallback below is also what carries the
+# one boot where Secure Boot's PCR7 change outruns the re-seal.
 #
 # Fresh-metal flow (docs/bootstrap.md): boot the ISO, then
 #   umask 077
