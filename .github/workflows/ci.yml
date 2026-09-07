@@ -9,14 +9,21 @@
 # each non-NixOS machine pulls — ryan-linux on an x86_64-linux runner,
 # ryan-intel-mac on GitHub's Intel macOS runners (the last x86_64 images
 # Actions offers) — catching build failures that evaluation cannot see.
-# The NixOS toplevels are built too, but only inside the VM tests: bare
-# `nix build`s of them on unpersisted runners would cost hours for
-# little signal, while the test jobs' closures substitute almost
-# entirely from the caches AND add a boot proof on top. The harmonia
-# host additionally gets build-harmonia: its closure is tiny
-# and almost entirely substitutable from cache.nixos.org, so building
-# it costs minutes and warms nix-configs — every later `--target-host`
-# deploy substitutes instead of building. test-harmonia goes further:
+# build-hosts goes one step further still: it builds the REAL toplevel
+# of every NixOS host (nixos, framework, harmonia) and pushes the
+# built paths to nix-configs. The VM-test closures prove the hosts
+# boot but are not these closures — VM guest hardware, throwaway key
+# material, and test-friendly overrides all move store paths — so
+# without build-hosts a local `nixos-rebuild switch`, a `--target-host`
+# deploy, or a fresh-metal install still built its own delta. With it
+# they substitute end-to-end. The cost is bounded: nearly every path
+# substitutes from nix-configs (earlier runs) or cache.nixos.org, and
+# the remainder — the real initrd, the committed .age secret paths,
+# the toplevel composition itself — is minutes, not hours. Matrix
+# jobs do not share stores, so on a large nixpkgs bump build-hosts
+# and test-hosts may build the same new delta in parallel; that is
+# the accepted price of substitution on every push. test-harmonia
+# goes further:
 # it BOOTS the real harmonia module as a UEFI QEMU guest and proves
 # the cache serves signed narinfos (modules/computers/harmonia/
 # vm-test.nix) — the resurrection guarantee, on every push.
@@ -186,18 +193,40 @@ jobs:
       - name: Build the ${{ matrix.home }} activation package
         run: nix build .#homeConfigurations.${{ matrix.home }}.activationPackage
 
-  build-harmonia:
-    # The cache server's own NixOS closure. Small and almost entirely
-    # substitutable from cache.nixos.org, so this composes the system
-    # (minutes, not hours) and pushes the few new paths to nix-configs:
-    # later `--target-host` deploys then substitute instead of build.
-    # This warms the PUBLIC cache — runners cannot reach the LAN
-    # server (and must not; see the header). Steps mirror build-homes;
-    # the hard-won cachix settings are explained in that job's comments.
+  build-hosts:
+    # The REAL toplevel of every NixOS host, built and pushed to
+    # nix-configs. The VM tests (test-hosts / test-harmonia) prove the
+    # hosts boot, but their closures are not these closures: VM guest
+    # hardware, throwaway key material, and test-friendly overrides all
+    # move store paths. This job is what makes the consumer side
+    # substitute — a local `nixos-rebuild switch`, a `--target-host`
+    # deploy, a fresh-metal `nixos-install` — with nothing left to build
+    # on the machine. The harmonia entry is the old build-harmonia job
+    # (small closure, mostly substitutable upstream, warms --target-host
+    # deploys); the desktop entries add the full closures. Nearly
+    # everything substitutes even on the first run — the VM-test pushes
+    # already cover the shared paths — leaving minutes of real build
+    # (the real initrd, the committed .age files, the composition).
+    # Matrix jobs do not share stores, so on a large nixpkgs bump this
+    # job and test-hosts may each build the same new delta in parallel:
+    # the accepted price of end-to-end substitution on every push.
+    # Steps mirror build-homes/test-hosts; the hard-won cachix settings
+    # are explained in build-homes' comments.
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [nixos, framework, harmonia]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      # Full desktop closures can outgrow the ~14GB free on stock
+      # ubuntu runners (same reason as build-homes / test-hosts).
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
 
       - name: Install Nix
         uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
@@ -206,8 +235,12 @@ jobs:
           install_url: https://releases.nixos.org/nix/nix-2.34.8/install
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-            substituters = https://nix-configs.cachix.org https://cache.nixos.org https://cache.numtide.com https://psysonic.cachix.org
-            trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA=
+            # The repo's full public substituter set (as test-hosts):
+            # the desktop closures include the vicinae launcher, and
+            # numtide/psysonic carry the pinned-input packages that
+            # otherwise compile from source.
+            substituters = https://nix-configs.cachix.org https://cache.nixos.org https://cache.numtide.com https://psysonic.cachix.org https://vicinae.cachix.org
+            trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= psysonic.cachix.org-1:M9cQyQ7tgvUWOQ5Pyt8ozlMoPLtOZir6MfRuTH9/VYA= vicinae.cachix.org-1:1kDrfienkGHPYbkpNj1mWTr7Fm1+zcenzgTizIcI3oc=
 
       - name: Configure cachix
         # Same env-routed skip as build-homes: `secrets` is not allowed
@@ -222,8 +255,8 @@ jobs:
           signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
           useDaemon: false
 
-      - name: Build the harmonia system closure
-        run: nix build --no-link .#nixosConfigurations.harmonia.config.system.build.toplevel
+      - name: Build the ${{ matrix.host }} system closure
+        run: nix build --no-link .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel
 
   test-harmonia:
     # Boots the REAL harmonia host module as a UEFI QEMU guest and
@@ -231,7 +264,7 @@ jobs:
     # (modules/computers/harmonia/vm-test.nix). Standard runners have
     # no /dev/kvm, so the VM runs under TCG emulation — slower than
     # locally, but the whole closure substitutes from the caches
-    # (build-harmonia warms nix-configs; the rest comes from
+    # (build-hosts warms nix-configs; the rest comes from
     # cache.nixos.org), so the job is build-light, boot-heavy.
     runs-on: ubuntu-latest
     timeout-minutes: 45

@@ -51,8 +51,8 @@ trusted-public-keys = nix-cache-1:SpVt1hjpAaEgQqnY1cIm5tjTETZbG5dQmGZ3rDbTyJc= n
 
 Away from the LAN, drop the harmonia URL **and** its `nix-cache-1`
 key from the two lines — an unreachable first substituter just adds
-latency, and `nix-configs` still carries what CI builds (including,
-since the `test-hosts` job, the host closures themselves).
+latency, and `nix-configs` still carries what CI builds (including
+the real host toplevels, since the `build-hosts` job).
 
 Paste it through `sudo -E` where sudo is involved (`sudo -E
 nixos-install …`, `sudo -E nixos-rebuild …` — sudo scrubs the
@@ -65,8 +65,9 @@ system's own `nix.settings` take over permanently — the export is
 install-time only.
 
 CI's `test-hosts` job builds and boots both desktop-style hosts and
-pushes what it builds to `nix-configs`, so both bare-metal paths
-above substitute in minutes.
+pushes what it builds to `nix-configs`; `build-hosts` builds the
+real host toplevels on top of that — so both bare-metal paths above
+substitute in minutes.
 
 ## The harmonia post-build hook (warm the LAN cache)
 
@@ -295,7 +296,8 @@ LAN-only by design, and a CI→LAN tunnel would trade the firewall
 posture for a cache cachix already covers. The split is the
 architecture: **CI warms the public cache, the desktop's
 post-build-hook warms the LAN cache.** Since the harmonia host's
-adoption, CI additionally builds that host's toplevel
-(`build-harmonia`) — its closure is small and mostly substitutable
-upstream, so the job costs minutes and makes every later
-`--target-host` deploy a pure substitution.
+adoption, CI builds that host's toplevel (now the `harmonia` entry
+of the `build-hosts` matrix, alongside both desktop toplevels) —
+its closure is small and mostly substitutable upstream, so the
+entry costs minutes and makes every later `--target-host` deploy a
+pure substitution.

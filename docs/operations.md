@@ -108,9 +108,13 @@ CI runs on every push to main and on every pull request, in six jobs:
   each standalone machine pulls: `ryan-linux` on an x86_64-linux runner,
   `ryan-intel-mac` on GitHub's Intel macOS runners (the last x86_64 images
   Actions offers).
-- **build-harmonia** — builds the cache server's small, almost fully
-  substitutable closure so every later `--target-host` deploy substitutes
-  instead of building (the full story in
+- **build-hosts** — a matrix job that builds the **real** toplevel of
+  every NixOS host (`nixos`, `framework`, `harmonia`) and pushes the
+  built paths to `nix-configs`. The VM-test closures are close but
+  not identical (VM guest hardware, throwaway key material), so this
+  is the job that makes a local `nixos-rebuild switch`, a
+  `--target-host` deploy, and a fresh-metal install substitute
+  end-to-end (the full story in
   [nix caches](programs/nix-caches.md)).
 - **test-harmonia** — boots the real harmonia module as a UEFI QEMU guest
   and proves the cache serves signed narinfos
