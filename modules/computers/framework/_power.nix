@@ -36,6 +36,19 @@ in
   # framework_tool, which rides along in the module's path.
   services.framework-control.enable = true;
 
+  # Lid close → suspend. This is logind's own stock default, stated
+  # explicitly because the two desktop sessions on this machine split
+  # the job: under Plasma, powerdevil holds the handle-lid-switch
+  # inhibitor and implements the lid itself (its LidAction default is
+  # Sleep, with kscreenlocker locking on resume); under Hyprland no
+  # daemon inhibits logind, so *this* line is the lid handler and
+  # hypridle (batman/hyprland.nix) supplies the lock-before-sleep
+  # half via logind's PrepareForSleep signal. Docked-with-external-
+  # monitor keeps the stock "ignore" (lidSwitchDocked) — closing the
+  # lid on a dock leaves the external display alive; flip
+  # lidSwitchDocked to "suspend" here if that's not wanted.
+  services.logind.lidSwitch = "suspend";
+
   # Pin suspend-to-idle: the sleep mode this platform actually
   # supports. "deep" (S3) is broken on AMD Frameworks — fails to
   # resume reliably — and s2idle is already the kernel default; pinned

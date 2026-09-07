@@ -27,7 +27,8 @@
 #    sed and sqlite3, which fights this repo's declarative setup. The
 #    everforest dark variant is baked in statically.
 #
-# Session daemons (waybar, dunst, hyprpaper, gammastep) are started by
+# Session daemons (waybar, dunst, hyprpaper, gammastep, hypridle)
+# are started by
 # an hl.on("hyprland.start") hook, NOT home-manager systemd services:
 # HM services bind to graphical-session.target, which also activates
 # inside the Plasma session — dunst would fight Plasma's notification
@@ -157,6 +158,10 @@
         hyprpaper
         dunst
         gammastep
+        # Locks the session around sleep (see hypridle.conf below):
+        # under Hyprland logind's lid-switch suspend has no locking
+        # companion unless hypridle runs one.
+        hypridle
         grim
         slurp
         wl-clipboard
@@ -207,6 +212,7 @@
                     hl.exec_cmd("dunst")
                     hl.exec_cmd("hyprpaper")
                     hl.exec_cmd("gammastep")
+                    hl.exec_cmd("hypridle")
                     hl.exec_cmd("nm-applet --indicator")
                     hl.exec_cmd("${pkgs.kdePackages.polkit-kde-agent-1}/libexec/polkit-kde-authentication-agent-1")
                     hl.exec_cmd("wl-paste --type text --watch cliphist store")
@@ -668,6 +674,37 @@
           ];
         };
       };
+
+      # Lid-close behavior under Hyprland, in three moving parts:
+      #
+      # 1. The lid switch itself is logind's job here — no powerdevil
+      #    runs in this session, so nothing inhibits HandleLidSwitch
+      #    and logind's lidSwitch=suspend (framework/_power.nix)
+      #    fires: close the lid, the machine sleeps (s2idle, pinned
+      #    in _power.nix), the panel goes dark with it.
+      # 2. hypridle subscribes to logind's PrepareForSleep signal and
+      #    runs before_sleep_cmd *before the system sleeps* — whoever
+      #    asked for the suspend (lid close, the exit menu's
+      #    `systemctl suspend`, an ssh `systemctl suspend` from the
+      #    desktop). Result: wake up to hyprlock (fprint works — see
+      #    the PAM stack in computers/framework/_pam.nix).
+      # 3. Idle-timeout listeners are left out on purpose; add e.g.
+      #    `listener { timeout = 600  on-timeout = ... }` blocks for
+      #    idle lock/dpms if wanted — the general block below is the
+      #    lid/suspend half only.
+      #
+      # Under Plasma this same role belongs to powerdevil
+      # (LidAction=Sleep is its default) plus kscreenlocker's
+      # LockOnResume=true default, which is why this file keeps it
+      # session-scoped to Hyprland.
+      xdg.configFile."hypr/hypridle.conf".text = ''
+        general {
+            lock_cmd = pidof hyprlock || hyprlock
+            unlock_cmd = pkill -xu "$USER" -USR1 hyprlock
+            before_sleep_cmd = pidof hyprlock || hyprlock
+            after_sleep_cmd = hyprctl dispatch dpms on
+        }
+      '';
 
       programs.waybar = {
         enable = true;

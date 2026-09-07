@@ -33,6 +33,19 @@ the other half of that fight) start from a known floor. Symptom to
 watch: abnormal battery drain while suspended → check
 `journalctl | grep -i suspend`, update BIOS via fwupd, re-measure.
 
+## Lid close
+
+`services.logind.lidSwitch = "suspend"` — logind's stock default,
+stated explicitly because the two desktop sessions split the job:
+under Plasma, powerdevil holds the handle-lid-switch inhibitor and
+implements the lid itself (kscreenlocker locks on resume); under
+Hyprland no daemon inhibits logind, so this line IS the lid handler
+and hypridle (`batman/hyprland.nix`) supplies the lock-before-sleep
+half via logind's PrepareForSleep — see
+[Hyprland](hyprland.md#lock-before-sleep-hypridle). Docked keeps the
+stock ignore (`lidSwitchDocked`): lid closed on a dock leaves the
+external display alive.
+
 ## power-profiles-daemon
 
 amd_pstate (kernel default on this Ryzen) is the driver;

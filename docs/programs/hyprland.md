@@ -18,8 +18,8 @@ not consumed raw).
   portal, security wrapper) plus the uwsm-session strip below.
 - **`batman/hyprland.nix`** (`home.pc`, desktop-only): the compositor
   settings, keybinds, window rules, and the whole session stack —
-  waybar, wofi, dunst, hyprpaper, hyprlock, gammastep, grim/slurp
-  screenshots, clipboard history.
+  waybar, wofi, dunst, hyprpaper, hyprlock, hypridle, gammastep,
+  grim/slurp screenshots, clipboard history.
 
 ## The uwsm session (black-screen war story)
 
@@ -75,7 +75,7 @@ are belt-and-braces behind hyprpaper.
 
 ## Session daemons: start hook, not home-manager services
 
-Waybar, dunst, hyprpaper, and gammastep are started by an
+Waybar, dunst, hyprpaper, hypridle, and gammastep are started by an
 `hl.on("hyprland.start", function() ... end)` hook, deliberately
 **not** via HM systemd services: those bind to
 `graphical-session.target`, which also activates inside the Plasma
@@ -95,6 +95,21 @@ gammastep is the deliberate exception to the KWin Night Light story:
 under Hyprland it works again (Hyprland implements
 wlr-gamma-control), so the session runs the same Denver 5500/3700 K
 schedule the Plasma session gets from Night Light.
+
+## Lock before sleep (hypridle)
+
+Under Plasma, suspend locks via powerdevil + kscreenlocker; under
+Hyprland nothing did — the exit menu's `systemctl suspend` (or an
+ssh'd suspend, or the lid) slept an **unlocked** session. hypridle
+now starts with the session and subscribes to logind's
+PrepareForSleep: `before_sleep_cmd` raises hyprlock before the
+system sleeps, whoever asked for the suspend; wake shows hyprlock
+(fprint unlocks on the framework — PAM in
+`computers/framework/_pam.nix`), and `after_sleep_cmd` turns the
+displays back on. Idle-timeout listeners are deliberately absent —
+the lid/suspend half is the whole contract. The lid itself is
+logind's (`services.logind.lidSwitch = "suspend"`, stated in
+`framework/_power.nix` with the two-session split).
 
 ## The keymap (xmonad translation)
 
