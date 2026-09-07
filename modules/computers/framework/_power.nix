@@ -47,7 +47,7 @@ in
   # monitor keeps the stock "ignore" (lidSwitchDocked) — closing the
   # lid on a dock leaves the external display alive; flip
   # lidSwitchDocked to "suspend" here if that's not wanted.
-  services.logind.lidSwitch = "suspend";
+  services.logind.settings.Login.HandleLidSwitch = "suspend";
 
   # Pin suspend-to-idle: the sleep mode this platform actually
   # supports. "deep" (S3) is broken on AMD Frameworks — fails to

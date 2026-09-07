@@ -95,7 +95,6 @@ imported only by `nvf.nix`) is the full settings module:
 
 ## Updating
 
-nvf follows the root nixpkgs input; bumping nvf means `nix flake update
-nvf` (plus nixpkgs/home-manager together per the
+nvf follows the root nixpkgs input; bumping nvf means `nix flake update nvf` (plus nixpkgs/home-manager together per the
 [operations ritual](../operations.md)). The dotfiles lua moves
 independently via the `ryan-nvim` input.

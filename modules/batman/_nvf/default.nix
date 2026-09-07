@@ -1215,7 +1215,7 @@ in
       # luasnip is always loaded before snippets are expanded at actual
       # runtime.
       haskell-snippets-nvim.package =
-        vp.haskell-snippets-nvim.overrideAttrs (_: {dependencies = []; doCheck = false;});
+        vp.haskell-snippets-nvim.overrideAttrs (_: { dependencies = [ ]; doCheck = false; });
       # blink sources available for opt-in (deps of the old blink spec).
       # blink-emoji-nvim is gone: no blink source enables it, and its
       # nixpkgs dependency on blink.cmp forced the same /opt + /start
@@ -1232,15 +1232,15 @@ in
       # the neotest lazy spec guarantees neotest is loaded before any
       # adapter is required.
       neotest-elixir.package =
-        vp.neotest-elixir.overrideAttrs (_: {dependencies = []; doCheck = false;});
+        vp.neotest-elixir.overrideAttrs (_: { dependencies = [ ]; doCheck = false; });
       neotest-haskell.package =
-        vp.neotest-haskell.overrideAttrs (_: {dependencies = []; doCheck = false;});
+        vp.neotest-haskell.overrideAttrs (_: { dependencies = [ ]; doCheck = false; });
       neotest-jest.package =
-        vp.neotest-jest.overrideAttrs (_: {dependencies = []; doCheck = false;});
+        vp.neotest-jest.overrideAttrs (_: { dependencies = [ ]; doCheck = false; });
       neotest-playwright.package =
-        vp.neotest-playwright.overrideAttrs (_: {dependencies = []; doCheck = false;});
+        vp.neotest-playwright.overrideAttrs (_: { dependencies = [ ]; doCheck = false; });
       neotest-vitest.package =
-        vp.neotest-vitest.overrideAttrs (_: {dependencies = []; doCheck = false;});
+        vp.neotest-vitest.overrideAttrs (_: { dependencies = [ ]; doCheck = false; });
       # eager on purpose: lsp/*.lua resolve require("schemastore") when a
       # server config loads (jsonls/yamlls), which can precede any LspAttach
       schemastore-nvim.package = schemastore-nvim;
@@ -1256,8 +1256,8 @@ in
     extraPackages = with pkgs; [
       # LSP servers
       lua-language-server
-      typescript-language-server
-      typescript-go # tsgo fallback; the lsp/tsgo.lua config prefers local node_modules
+      # typescript-language-server
+      typescript # tsgo fallback; the lsp/tsgo.lua config prefers local node_modules
       vscode-langservers-extracted # json/html/css/eslint servers
       tailwindcss-language-server
       svelte-language-server
