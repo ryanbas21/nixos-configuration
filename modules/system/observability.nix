@@ -182,13 +182,81 @@ let
       serviceConfig = {
         Type = "oneshot";
         ExecStart = "${lib.getExe notifyFailed} %i";
+        # Sandbox: the template runs with the ntfy secret in hand and
+        # needs nothing but the network, the journal socket, and
+        # /run/agenix (read — ProtectSystem=strict leaves reads fine).
+        # This unit must NEVER visibly fail (an OnFailure hook that
+        # fails just stops notifying — nothing watches the watcher),
+        # so the directive set is the conservative systemd-documented
+        # safe set for shell+curl oneshots; if one ever bites, delete
+        # that line, not the block.
+        NoNewPrivileges = true;
+        ProtectSystem = "strict";
+        ProtectHome = true;
+        PrivateTmp = true;
+        PrivateDevices = true;
+        ProtectClock = true;
+        ProtectHostname = true;
+        ProtectKernelTunables = true;
+        ProtectKernelModules = true;
+        ProtectKernelLogs = true;
+        ProtectControlGroups = true;
+        RestrictNamespaces = true;
+        RestrictRealtime = true;
+        RestrictSUIDSGID = true;
+        LockPersonality = true;
+        MemoryDenyWriteExecute = true;
+        SystemCallArchitectures = "native";
+        RestrictAddressFamilies = [
+          "AF_INET"
+          "AF_INET6"
+          "AF_UNIX"
+        ];
+        CapabilityBoundingSet = "";
+        SystemCallFilter = [ "@system-service" ];
       };
       path = [ pkgs.curl pkgs.util-linux ];
     };
 
     systemd.services.health-digest = {
       description = "Weekly fleet health digest (observability)";
-      serviceConfig.Type = "oneshot";
+      # Sandbox, tuned to what the digest actually touches (see the
+      # script above): runuser needs CAP_SETUID/SETGID + the @setuid
+      # syscall group (in @system-service); smartctl needs the real
+      # /dev/nvme0n1 (so NO PrivateDevices); snapper/systemctl need
+      # the system and user D-Bus sockets (AF_UNIX); upsc needs
+      # AF_INET. The agenix secret and journal are reads — strict
+      # ProtectSystem covers them.
+      serviceConfig = {
+        Type = "oneshot";
+        NoNewPrivileges = true;
+        ProtectSystem = "strict";
+        ProtectHome = true;
+        PrivateTmp = true;
+        ProtectClock = true;
+        ProtectHostname = true;
+        ProtectKernelTunables = true;
+        ProtectKernelModules = true;
+        ProtectKernelLogs = true;
+        ProtectControlGroups = true;
+        RestrictNamespaces = true;
+        RestrictRealtime = true;
+        RestrictSUIDSGID = true;
+        LockPersonality = true;
+        MemoryDenyWriteExecute = true;
+        SystemCallArchitectures = "native";
+        RestrictAddressFamilies = [
+          "AF_INET"
+          "AF_INET6"
+          "AF_UNIX"
+        ];
+        CapabilityBoundingSet = [
+          "CAP_SETUID" # runuser -u batman
+          "CAP_SETGID"
+          "CAP_DAC_OVERRIDE" # journal + 0400 reads as root
+        ];
+        SystemCallFilter = [ "@system-service" ];
+      };
       path = with pkgs; [
         curl
         util-linux # logger, runuser

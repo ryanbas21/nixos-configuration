@@ -63,6 +63,28 @@ the hardware, so one script serves all three NixOS boxes.
 A host that stops posting digests is a host in trouble — the digest is
 its own dead-man signal.
 
+## Unit sandboxing
+
+Both custom units run as root (they must — the OnFailure template and
+the digest's `runuser` half), so they carry their own jail instead:
+`systemd-analyze security --offline` scores `notify-failed@` at **2.0**
+and `health-digest` at **2.7** (both “OK”, from the ~9.x of bare root).
+The directive sets differ per unit, deliberately:
+
+- `notify-failed@` gets the full strict set (strict ProtectSystem,
+  PrivateDevices, empty CapabilityBoundingSet, `@system-service`
+  syscall filter) — it needs only the network, the journal socket,
+  and a read of the agenix secret.
+- `health-digest` keeps the syscall filter and strict ProtectSystem
+  but keeps the real `/dev/nvme0n1` (smartctl — so no PrivateDevices)
+  and a `CAP_SETUID/SETGID/DAC_OVERRIDE` bounding set (`runuser -u
+  batman` for the user-manager half of the digest).
+
+Rollback rule if a directive ever breaks a run: delete that line, not
+the block. The VM tests prove the units load and the system boots;
+the first live firing after a switch (next Sunday digest, next unit
+failure) is the exec proof — watch for it once.
+
 ## The rack UPS (Synology, NUT on 192.168.1.30:3493)
 
 The UPS feeds the network rack only — router, switch, NAS, the
