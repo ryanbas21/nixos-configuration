@@ -10,7 +10,17 @@
     # precedes profiles in PATH, so the CLI package here only actually
     # serves the standalone Linux laptop.
     home.packages = lib.mkMerge [
-      (with pkgs; [ fd bat xclip cachix ripgrep tree ])
+      (with pkgs; [
+        fd
+        bat
+        xclip
+        cachix
+        ripgrep
+        tree
+        # the repo's ops surface — Justfile recipes (just check, just
+        # rebuild, just usbguard-add, …); see docs/operations.md
+        just
+      ])
 
       # Linux-only
       (lib.mkIf pkgs.stdenv.hostPlatform.isLinux [

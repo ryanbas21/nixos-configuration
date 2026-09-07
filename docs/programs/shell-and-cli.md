@@ -29,6 +29,14 @@ from the `fzf-git-sh` flake input and dropped into
 `~/.config/fish/conf.d/` — pinned, not packaged, because upstream ships
 raw scripts.
 
+## just (`batman/packages.nix`)
+
+The repo's operations surface — every workflow is a Justfile recipe
+(`just check`, `just rebuild`, `just usbguard-add`, …); docs/operations.md
+is the ritual behind them. Installed for batman on every host, so the
+Mac and CachyOS can at least run the eval-only recipes against the
+same flake.
+
 ## fzf
 
 `fzf.nix` sets the default/file-widget command to

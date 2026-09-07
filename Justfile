@@ -1,6 +1,6 @@
-# just is a command runner (nix shell nixpkgs#just). The repo's
-# operational surface as one-word commands; the ritual behind them is
-# docs/operations.md, the agent contract is AGENTS.md.
+# just is a command runner (installed via batman/packages.nix; the
+# Justfile is the repo's operational surface as one-word commands; the ritual
+# behind them is docs/operations.md, the agent contract is AGENTS.md).
 
 set shell := ["bash", "-c"]
 
@@ -47,6 +47,43 @@ rebuild host:
 [group('deploy')]
 boot host:
     sudo nixos-rebuild boot --flake .#{{host}}
+
+# usbguard: allow a just-plugged device — prints its generated rule,
+# appends it to the host's _usbguard.nix (above the marker), and
+# runtime-allows it so it works before the next rebuild
+[group('deploy')]
+usbguard-add host="framework":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    file="modules/computers/{{host}}/_usbguard.nix"
+    [[ -f "$file" ]] || { echo "no usbguard module for {{host}} at $file"; exit 1; }
+    current="$(nix eval --raw .#nixosConfigurations.{{host}}.config.services.usbguard.rules)"
+    new="$(sudo usbguard generate-policy | grep -vFxf <(printf '%s\n' "$current") || true)"
+    if [[ -z "${new//[[:space:]]/}" ]]; then
+        echo "usbguard: every connected device is already allowed"
+        exit 0
+    fi
+    echo "new device rule(s):"
+    echo "$new"
+    while IFS= read -r rule; do
+        [[ -z "${rule//[[:space:]]/}" ]] && continue
+        sudo usbguard allow-device "$rule" \
+            || echo "(runtime allow failed — rule still appended; works after rebuild)"
+        # insert as a list element above the in-file marker — Nix `''…''`
+        # string delimiters (a lone ' is an invalid Nix token), via
+        # ENVIRON rather than -v: the rule text's quotes make -v fragile
+        export INS="  ''$rule''"
+        tmpf=$(mktemp)
+        awk '
+            /usbguard-add appends new rules above this marker/ { print ENVIRON["INS"] }
+            { print }
+        ' "$file" > "$tmpf" && mv "$tmpf" "$file"
+    done <<< "$new"
+    # self-check: an appended rule that breaks eval fails HERE, not at
+    # rebuild time (this once shipped a lone-quote string form)
+    nix eval --raw .#nixosConfigurations.{{host}}.config.services.usbguard.rules >/dev/null \
+        || { echo "appended rule broke the eval — fix $file before rebuilding"; exit 1; }
+    echo "appended to $file — review with git diff, then: just rebuild {{host}}"
 
 # Deploy the cache server from the desktop (never rebuild on the box)
 [group('deploy')]

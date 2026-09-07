@@ -1,6 +1,6 @@
 # Security
 
-[← program notes](index.md) · modules: `system/sudo.nix`, `system/security.nix`, `system/apparmor.nix`, `system/kernel-hardening.nix`, `system/network-hardening.nix`, `system/nix-access.nix`, `system/cups-hardening.nix`, `system/dns.nix` (llmnr), `system/base.nix` (sshd, known_hosts), `batman/ssh.nix`
+[← program notes](index.md) · modules: `system/sudo.nix`, `system/security.nix`, `system/apparmor.nix`, `system/kernel-hardening.nix`, `system/network-hardening.nix`, `system/nix-access.nix`, `system/cups-hardening.nix`, `system/dns.nix` (llmnr), `system/base.nix` (sshd, known_hosts), `batman/ssh.nix`, `computers/framework/_usbguard.nix` (framework only)
 
 ## sudo-rs (`system/sudo.nix`)
 
@@ -120,6 +120,35 @@ the base closes both explicitly (`PasswordAuthentication = false`,
 `KbdInteractiveAuthentication = false`): every host is key-only. This
 matters most for the framework, which joins untrusted networks with
 port 22 open.
+
+## USBGuard (`computers/framework/_usbguard.nix`, framework only)
+
+Allowlist-only USB policy against evil-maid / malicious-charger
+attacks while traveling: implicit policy **blocks** anything not
+matched by a rule, so the rules must cover every legitimate device —
+including the internals (fingerprint reader, camera, keyboard, hubs)
+whose absence would brick the PAM login path. The policy is
+NixOS-managed (`services.usbguard.rules` → store-immutable);
+nixpkgs's mutable `ruleFile` escape hatch (`usbguard allow-device -p`
+appends without a rebuild) is deliberately not used — policy would
+drift out of git, and this repo is the source of truth.
+
+Gotcha that cost a debug session: usbguard requires rules at column
+0; one indented line fails the WHOLE file with a misleading `:1:1
+parse error` (Nix `''`-strings dedent only the shared minimum, so
+lines pasted at mixed indentation keep leading spaces). The rules
+are therefore a Nix list of per-device strings joined with
+`builtins.concatStringsSep "\n"` — each element dedents
+independently, making the trap structurally impossible.
+
+Adding a device: plug it in, `just usbguard-add` (prints the
+generated rule, appends it above the in-file marker, runtime-allows
+until the rebuild), review `git diff`, `just rebuild framework`.
+Device not at hand: hand-write a partial rule (`allow id 046d:c52b
+name "..."`) — every omitted condition is a wildcard; tighten to
+the hashed form once plugged. A trusted dock can be covered
+wholesale with one `allow via-port "1-2"` rule (everything behind
+that hub port) — a desk judgment call, never for hostile ports.
 
 ## Pre-trusted GitHub host key
 

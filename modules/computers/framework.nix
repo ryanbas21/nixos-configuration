@@ -69,6 +69,7 @@
         ./framework/_mullvad.nix
         ./framework/_power.nix
         ./framework/_ups.nix
+        ./framework/_usbguard.nix
         # Secure Boot: the upstream module declares the
         # boot.lanzaboote options; this host's policy and the metal
         # runbook live in _secure-boot.nix (its header).
