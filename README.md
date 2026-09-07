@@ -179,6 +179,8 @@ program does, why it is there, and the war stories:
 .
 ├── flake.nix / outputs.nix      inputs only; mkFlake + import-tree of ./modules
 ├── flake.lock                   locked input revisions (the reproducibility anchor)
+├── AGENTS.md                    the contract for coding agents in this repo
+├── Justfile                     the operational surface as one-word commands
 ├── modules/                     every .nix file = one feature (auto-imported)
 │   ├── computers/               per-host data (+ _hardware.nix mounts,
 │   │                            _disko.nix layouts, harmonia vm-test)
@@ -200,4 +202,5 @@ Rules in one breath: drop a file to enable it; `/_` in a path means
 manual-import; feature files never import each other, they only assign to
 option namespaces; lower-level modules are stored as data
 (`deferredModule`) and fed to the real evaluations by the machinery files.
-The full explanation is in [architecture](docs/architecture.md).
+The full explanation is in [architecture](docs/architecture.md); the same
+rules, aimed at coding agents, live in [AGENTS.md](AGENTS.md).
