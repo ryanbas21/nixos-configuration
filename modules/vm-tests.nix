@@ -70,10 +70,11 @@
 #   neutralization as the dropped mounts above; the disko test
 #   (disko-tests.nix) exercises the REAL unlock path on a REAL
 #   LUKS-formatted disk instead.
-# - lanzaboote is dropped (mkForce false) and the stock systemd-boot
-#   forced back on: the signing keys are per-machine metal state
-#   (/var/lib/sbctl — computers/framework/_secure-boot.nix) a test VM
-#   has none of, and lzbt's install hook would fail signing.
+# - lanzaboote is dropped (mkForce false, framework host only — the
+#   option exists only where the module is imported) and the stock
+#   systemd-boot forced back on: the signing keys are per-machine
+#   metal state (/var/lib/sbctl — computers/framework/_secure-boot.nix)
+#   a test VM has none of, and lzbt's install hook would fail signing.
 { config, lib, inputs, ... }:
 let
   # Desktop-style hosts: full nixos.modules.base (Plasma + home-manager)
@@ -101,7 +102,20 @@ in
         name = "${host}-vm-test";
         node.pkgsReadOnly = false;
         nodes.machine = { ... }: {
-          imports = [ hostEval.module ];
+          imports = [ hostEval.module ]
+            # See header: Lanzaboote's keys exist only on metal — boot
+            # the stock systemd-boot path the base module declares
+            # instead. Framework-only, and via imports rather than a
+            # plain assignment, because the option exists only on
+            # hosts that import the lanzaboote module: assigning it on
+            # the nixos host (which does not) is an eval error, not a
+            # neutralization.
+            ++ lib.optionals (host == "framework") [
+              {
+                boot.lanzaboote.enable = lib.mkForce false;
+                boot.loader.systemd-boot.enable = lib.mkForce true;
+              }
+            ];
           # systemd-boot requires UEFI on real metal, so boot UEFI here
           # too. The generous memory/cores: the Plasma-era closure runs
           # under TCG emulation on CI runners (no /dev/kvm there), and
@@ -120,10 +134,6 @@ in
           # See header: metal-only LUKS device (framework, desktop) —
           # the VM has neither the partition nor a TPM to unlock with.
           boot.initrd.luks.devices = lib.mkForce { };
-          # See header: Lanzaboote's keys exist only on metal — boot
-          # the stock systemd-boot path the base module declares.
-          boot.lanzaboote.enable = lib.mkForce false;
-          boot.loader.systemd-boot.enable = lib.mkForce true;
           # The throwaway identity must exist BEFORE home activation —
           # exactly like a real install, where the runbook restores
           # ~/.ssh/id_borg onto the target before first boot. It cannot
