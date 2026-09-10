@@ -4,12 +4,13 @@
     programs.git = {
       enable = true;
       signing = {
-        # Full primary fingerprint — gpg resolves it to the signing
-        # SUBKEY on the subkey-only keyring (gpg.nix); the primary
-        # secret is a stub and cannot sign. Deliberately NOT the
-        # "<fpr>!" form — the ! suffix pins the PRIMARY itself and
-        # would break signing entirely.
-        key = "D1ADFE3B04FA3CE2";
+        # The dedicated signing SUBKEY fingerprint (rsa4096, [S],
+        # 2026-09-09) — pinned explicitly, so git signs with exactly
+        # this key rather than relying on gpg's newest-subkey
+        # preference. The primary's secret never touches a host
+        # (gpg.nix's stub-only contract); rotating the subkey means
+        # updating this fingerprint.
+        key = "0818A0D4E91914B4265FD243D1ADFE3B04FA3CE2";
         signByDefault = true;
       };
       settings = {

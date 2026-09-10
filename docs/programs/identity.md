@@ -11,13 +11,11 @@ Everywhere (`home.base`):
 
 - identity: `ryan bas <ryanbas21@gmail.com>`; `init.defaultBranch =
   "main"`;
-- **signing by default** — `signing.key` is the full primary
-  fingerprint
-  (`BEB93A0F2837F4D1CCDDF341F3EB6A9821002B2C`),
-  `signByDefault = true`; on the subkey-only keyring gpg resolves
-  that fingerprint to the signing **subkey** (see GPG below — the
-  `"<fpr>!"` pin-the-primary form is deliberately NOT used, it
-  would break signing);
+- **signing by default** — `signing.key` pins the signing **subkey**
+  fingerprint (`0818A0D4E91914B4265FD243D1ADFE3B04FA3CE2`, rsa4096,
+  2026-09-09), `signByDefault = true`; the primary secret never
+  touches a host (see GPG below), so every signature comes from the
+  subkey — rotating it means updating the fingerprint here;
 - `pull.rebase` + `rebase.autoStash` (rebase-style pulls, dirty tree
   tolerated);
 - `push.autoSetupRemote` (no more `--set-upstream` on new branches);
