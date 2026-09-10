@@ -76,10 +76,15 @@ gpg --edit-key "$FPR"
 #    it is the only place the primary's secret exists
 gpg --export-secret-keys -a "$FPR" | <store in 1Password>
 
-# 4. re-encrypt the repo secret with the SUBKEYS-ONLY export
-#    (agenix -r reads the plaintext from secrets/gpg)
-gpg --export-secret-subkeys "$FPR" > secrets/gpg
-agenix -r secrets/gpg.age && rm secrets/gpg
+# 4. replace the repo secret's plaintext with the SUBKEYS-ONLY export.
+#    Piping makes agenix -e non-interactive (EDITOR becomes
+#    "cp /dev/stdin") — verified against a throwaway rules file.
+#    NOTE: agenix -r would NOT work: it re-encrypts the OLD plaintext
+#    to the current recipients and takes no new content.
+gpg --export-secret-subkeys "$FPR" | agenix -e secrets/gpg.age
+# sanity: 1 = stubbed primary (good); 0 = full export (do not proceed)
+nix shell nixpkgs#rage -c sh -c 'rage -d -i ~/.ssh/id_borg secrets/gpg.age' \
+  | gpg --list-packets | grep -c gnu-dummy
 
 # 5. delete the full key BEFORE switching, or the (correct) stub
 #    assert fails the activation on purpose
