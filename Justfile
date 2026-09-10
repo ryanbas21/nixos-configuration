@@ -38,14 +38,33 @@ test-disko host:
 build host:
     nix build --no-link .#nixosConfigurations.{{host}}.config.system.build.toplevel
 
-# Switch the desktop or laptop in place (nixos|framework)
+# Switch the desktop or laptop in place (nixos|framework). Refuses to
+# build another host's config: 2026-09-09 a `just rebuild nixos` run
+# ON THE FRAMEWORK switched the desktop's config onto the laptop —
+# black screen (desktop GPU stack on AMD iGPU), unbootable default
+# entry (desktop's LUKS/ESP mounts), and secure boot rejecting the
+# unsigned desktop bootloader. Rollback took a firmware-menu SB
+# disable + booting an older generation.
 [group('deploy')]
 rebuild host:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [[ "{{host}}" == "$(hostname)" ]] || {
+      echo "refusing: this machine is '$(hostname)', not '{{host}}' — build the host you are ON" >&2
+      exit 1
+    }
     sudo nixos-rebuild switch --flake .#{{host}}
 
-# Set the next-boot profile without switching now
+# Set the next-boot profile without switching now (same wrong-host
+# guard as rebuild)
 [group('deploy')]
 boot host:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [[ "{{host}}" == "$(hostname)" ]] || {
+      echo "refusing: this machine is '$(hostname)', not '{{host}}' — build the host you are ON" >&2
+      exit 1
+    }
     sudo nixos-rebuild boot --flake .#{{host}}
 
 # usbguard: allow a just-plugged device — prints its generated rule,
