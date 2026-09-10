@@ -81,7 +81,10 @@ gpg --export-secret-keys -a "$FPR" | <store in 1Password>
 #    "cp /dev/stdin") — verified against a throwaway rules file.
 #    NOTE: agenix -r would NOT work: it re-encrypts the OLD plaintext
 #    to the current recipients and takes no new content.
-gpg --export-secret-subkeys "$FPR" | agenix -e secrets/gpg.age
+gpg --export-secret-subkeys "$FPR" | agenix -e secrets/gpg.age -i ~/.ssh/id_borg
+# (-i is required when REPLACING an existing secret: agenix -e
+# decrypts the current content first and only probes id_rsa /
+# id_ed25519 by default, not id_borg)
 # sanity: 1 = stubbed primary (good); 0 = full export (do not proceed)
 nix shell nixpkgs#rage -c sh -c 'rage -d -i ~/.ssh/id_borg secrets/gpg.age' \
   | gpg --list-packets | grep -c gnu-dummy
