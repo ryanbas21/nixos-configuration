@@ -4,7 +4,12 @@
     programs.git = {
       enable = true;
       signing = {
-        key = "F3EB6A9821002B2C";
+        # Full primary fingerprint — gpg resolves it to the signing
+        # SUBKEY on the subkey-only keyring (gpg.nix); the primary
+        # secret is a stub and cannot sign. Deliberately NOT the
+        # "<fpr>!" form — the ! suffix pins the PRIMARY itself and
+        # would break signing entirely.
+        key = "D1ADFE3B04FA3CE2";
         signByDefault = true;
       };
       settings = {

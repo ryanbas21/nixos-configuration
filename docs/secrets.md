@@ -20,7 +20,7 @@ secrets.nix                     recipients (public keys only) — safe to commit
 secrets/
 ├── borg-passphrase.age         user-level (borgmatic, via EnvironmentFile)
 ├── zai-api-key.age             user-level (fish exports ZAI_API_KEY from it)
-├── gpg.age                     user-level (GPG private-key import at activation)
+├── gpg.age                     user-level (subkey-only GPG import at activation — batman/gpg.nix)
 ├── cachix-auth-token.age       user-level (cachix CLI + CI secret sync)
 ├── cachix-signing-key.age      user-level (cachix CLI + CI secret sync)
 └── harmonia-signing-key.age    system-level (the cache server's signing key,

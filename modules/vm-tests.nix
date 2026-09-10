@@ -19,7 +19,7 @@
 # one's private half lives only in 1Password and must never reach a CI
 # runner) and .age files encrypted to it; the three production modules
 # expose their hook inputs as `activationSecrets.*` options
-# (batman/agenix.nix, cachix.nix, hypnotix.nix — defaults are the real
+# (batman/gpg.nix, cachix.nix, hypnotix.nix — defaults are the real
 # 1Password-bound secrets), which the test points at the throwaway
 # files. The hooks themselves are the production code, unmodified: rage
 # decrypt with the identity file, GPG import + ownertrust pin, cachix
@@ -31,7 +31,13 @@
 # Regenerating the material in vm-tests/ (all throwaway; regenerate
 # freely — update testGpgFingerprint below if the GPG key changes):
 #   ssh-keygen -t ed25519 -N "" -C "vm-test-identity: throwaway" -f test-identity
-#   ...gpg --batch --quick-gen-key "VM Test <vm-test@invalid>" ed25519 cert never
+#   ...gpg --batch --pinentry-mode loopback --passphrase '' \
+#        --quick-generate-key "VM Test <vm-test@invalid>" ed25519 cert never
+#   ...gpg --batch --pinentry-mode loopback --passphrase '' \
+#        --quick-add-key <fpr> ed25519 sign never
+#   # subkeys-ONLY export (stubbed primary) — the real gpg.age contract
+#   ...gpg --batch --pinentry-mode loopback --passphrase '' \
+#        --export-secret-subkeys <fpr> | rage -R test-identity.pub > test-gpg.age
 #   printf <plaintext> | rage -R test-identity.pub > test-<name>.age
 # The .age files MUST be encrypted with rage to the SSH PUBLIC key
 # (`rage -R test-identity.pub`) — that is the exact counterpart of the
@@ -83,9 +89,11 @@ let
 
   pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
 
-  # The throwaway GPG key inside vm-tests/test-gpg.age (its fingerprint
-  # is the ownertrust pin the test asserts).
-  testGpgFingerprint = "007C335566F316CE65AD976B5BFC43D7801A9AF3";
+  # The throwaway GPG key inside vm-tests/test-gpg.age (cert-only
+  # primary + [S] subkey, exported SUBKEYS-ONLY — the same stub shape
+  # the production gpg.age must have; its fingerprint is the
+  # ownertrust pin the test asserts).
+  testGpgFingerprint = "BCB847C56E49C73AB5EA4EFDF2A3CD24F27B2319";
 in
 {
   flake.checks.x86_64-linux = lib.genAttrs
@@ -186,6 +194,12 @@ in
           # The REAL identity-shaped hooks ran with the throwaway
           # identity (throwaway plaintexts, safe to assert on):
           machine.succeed("su - batman -c 'gpg --list-secret-keys ${testGpgFingerprint} >/dev/null'")
+          # Subkey-only contract: the imported primary must be a STUB
+          # ('#' flag field in --with-colons output; '+' would mean real
+          # secret material on disk) — mirrors gpg.nix's activation
+          # assert, which itself already gates this test: a failed
+          # assert aborts home-manager-batman and wait_for_unit fails.
+          machine.succeed("su - batman -c 'gpg --list-secret-keys --with-colons ${testGpgFingerprint}' | grep -q ':#::'")
           trust = machine.succeed("su - batman -c 'gpg --export-ownertrust'")
           assert "${testGpgFingerprint}:6:" in trust, trust
           machine.succeed("grep -q test-token-vm-tests /home/batman/.config/cachix/cachix.dhall")
