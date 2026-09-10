@@ -78,6 +78,16 @@ default. To see what exists:
 sudo nix-env -p /nix/var/nix/profiles/system --list-generations
 ```
 
+**Never rebuild another host's config on the machine you're on.**
+2026-09-09: `just rebuild nixos` run ON the framework switched the
+*desktop's* config onto the laptop — black screen (desktop GPU stack
+on the iGPU), unbootable default entry (desktop LUKS/ESP mounts),
+secure boot rejecting the unsigned desktop bootloader; recovery took
+a firmware SB disable plus a manual older-generation boot.
+`just rebuild`/`just boot` now refuse a host that doesn't match
+`hostname` (deploy-harmonia is exempt — it targets the server from
+the desktop by design).
+
 **Data.** A rollback reverts configuration, not data — the borg
 repository is the recovery path for files
 ([backups](programs/backup.md)).
