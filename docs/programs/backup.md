@@ -13,11 +13,20 @@ pushed by hand; the desktop's checkout also rides along in borg's
 
 A daily user-level borgmatic run:
 
-- **Sources:** `$HOME` (the whole home — no excludes) and the repo path
-  (`repoPath` = `/etc/nixos`). On the desktop that path is a symlink
-  into the home checkout at `~/programming/nixos` (so the home source
-  is the real one); on the framework `/etc/nixos` **is** the checkout —
-  a real directory — and is archived directly.
+- **Sources:** `$HOME` (the whole home — one exclusion, below) and
+  the repo path (`repoPath` = `/etc/nixos`). On the desktop that path
+  is a symlink into the home checkout at `~/programming/nixos` (so
+  the home source is the real one); on the framework `/etc/nixos`
+  **is** the checkout — a real directory — and is archived directly.
+- **The one exclude:** `~/.local/share/docker` — rootless dockerd's
+  data root. Its containerd overlayfs snapshot `work` dirs are
+  deliberately mode 000 (unreadable even to their owner), and borg
+  exits 105 — a hard failure under borgmatic's modern exit codes —
+  when the stat walk hits them (2026-09-10, framework: days of
+  restart-looping on it). Everything in the tree is rebuildable
+  (layers, buildkit cache, anonymous volumes; no named volumes), so
+  `backup.nix` excludes it whole as a no-recurse pattern — borg
+  never descends into it.
 - **Destination:** `/mnt/nix-backups` — an NFS automount from the
   Synology NAS, declared per host in `modules/computers/<host>.nix`
   with an identical stanza shape (mounts on access, unmounts after
@@ -126,10 +135,12 @@ git clone, `~/.ssh/id_borg` from 1Password, and one borg extract
 covers the rest of `$HOME`. Two properties of the archive matter
 there:
 
-- **No excludes:** the whole home rides along — `~/.cache` included
-  (5k+ entries; borg's dedup and zstd keep it cheap) — and with it
-  `~/.ssh`, which holds the agenix identities: a restored home can
-  decrypt its own secrets again.
+- **Effectively no excludes:** the whole home rides along — `~/.cache`
+  included (5k+ entries; borg's dedup and zstd keep it cheap), the
+  only exception being the docker data root
+  ([above](#borgmatic-data), deliberately unreadable and rebuildable)
+  — and with the home comes `~/.ssh`, which holds the agenix
+  identities: a restored home can decrypt its own secrets again.
 - **The `/etc/nixos` source is vestigial:** it is a symlink into the
   home checkout (`/etc/nixos -> /home/batman/programming/nixos`), so
   the real config restore path is the checkout's GitHub remote —

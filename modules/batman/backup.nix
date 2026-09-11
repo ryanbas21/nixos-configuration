@@ -53,6 +53,26 @@
           repositories = [
             repository
           ];
+
+          # Rootless dockerd's data root (2026-09-10, framework): its
+          # containerd overlayfs snapshot "work" dirs are deliberately
+          # mode 000 — unreadable even to their owner — so borg's stat
+          # walk dies on them, borg exits 105 ("backup permission
+          # issue"; borgmatic runs borg with modern exit codes, where
+          # that is a hard failure, not the warning it used to be) and
+          # the nightly backup restart-looped on it for days. The tree
+          # is all rebuildable docker state (image layers, buildkit
+          # cache, anonymous volumes — there are no named volumes), so
+          # exclude it whole. borgmatic lowers exclude_patterns into
+          # no-recurse (`!`) fnmatch patterns: borg never descends into
+          # the tree at all — no stat, no EACCES. (The rootless daemon
+          # itself is a hand-run user service, not repo state — see
+          # docs/programs/virtualization.md.)
+          extraConfig = {
+            exclude_patterns = [
+              "${config.home.homeDirectory}/.local/share/docker"
+            ];
+          };
         };
 
         retention = {
