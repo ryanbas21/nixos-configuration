@@ -239,6 +239,8 @@ Read the repo in this order:
 │   │   ├── framework/
 │   │   │   ├── _hardware.nix    mounts (partlabel + /dev/mapper/cryptroot),
 │   │   │   │                    LUKS/TPM unlock policy, kernel facts
+│   │   │   ├── _battery-alert.nix  low-battery dunst alerts, user session
+│   │   │   │                    (see programs/laptop-power)
 │   │   │   ├── _disko.nix       declarative layout (LUKS2 + btrfs subvols)
 │   │   │   ├── _pam.nix         fprintd PAM integrations
 │   │   │   ├── _power.nix       charge ceiling, p-p-d, framework-control,

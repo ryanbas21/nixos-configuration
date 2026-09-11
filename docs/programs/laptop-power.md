@@ -23,6 +23,22 @@ it matters: the framework-control CLI sets the limit through the EC
 directly — if the sysfs knob doesn't appear after a BIOS/fwupd
 update, move the ceiling to a framework-tool invocation instead.
 
+## Low-battery alerts (`_battery-alert.nix`)
+
+Dunst alerts on the laptop battery: a one-minute **user-session**
+poll (batman's systemd user manager) that fires `notify-send` on
+threshold transitions only — 20% low, 10% critical (sticky, never
+expires — the dunstrc's 5s global timeout would swallow it), one
+quiet note on recovery, nothing while on AC. It runs under BOTH
+sessions (`graphical-session.target`): dunst answers under Hyprland,
+Plasma's own notifier under Plasma — `notify-send` reaches whoever
+owns the notification name. Off-session drains (greeter, logged
+out) are silent by construction; that's ntfy's lane. Why a user
+unit and not a system service like the UPS watcher: only the user
+manager sits on the session bus. State:
+`~/.local/state/battery-watch/level`. Thresholds are two `let`
+numbers at the top of the file.
+
 ## Sleep
 
 `mem_sleep_default=s2idle` pinned: `deep`/S3 is broken on AMD

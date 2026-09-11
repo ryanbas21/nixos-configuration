@@ -65,6 +65,7 @@
 
       imports = [
         ./framework/_hardware.nix
+        ./framework/_battery-alert.nix
         ./framework/_pam.nix
         ./framework/_mullvad.nix
         ./framework/_power.nix

@@ -102,13 +102,16 @@
 
         enableInstallTelemetry = false;
         theme = "catppuccin-mocha";
-        defaultProvider = "zai-coding-plan";
-        # Start every session on the model-router's logical provider:
-        # model-router.json profiles register as router/<profile>
-        # models, so "router/auto" means per-turn tier selection from
-        # the first prompt. defaultProvider above stays as the fallback
-        # for runs where the router extension is absent.
-        defaultModel = "router/auto";
+        # Start every session on the model-router's logical provider.
+        # pi resolves the startup model as getModel(defaultProvider,
+        # defaultModel) — a bare model-id lookup *inside* the named
+        # provider — so the pair must be "router" + "auto": the
+        # extension registers each model-router.json profile as a model
+        # with id <profile> under provider "router". A defaultModel of
+        # "router/auto" under another provider never resolves and pi
+        # silently falls back to an arbitrary authenticated model.
+        defaultProvider = "router";
+        defaultModel = "auto";
         defaultThinkingLevel = "high";
         hideThinkingBlock = true;
       };
