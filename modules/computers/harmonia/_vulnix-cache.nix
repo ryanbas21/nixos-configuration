@@ -9,11 +9,7 @@
 # same role it already plays for nix store paths:
 #
 #   - vulnix-nvd-warm.timer refreshes /var/lib/vulnix-nvd/nvd nightly
-#     (09:10 local, after NIST's overnight enrichment). The vehicle
-#     is a drift-scan of harmonia's own closure with the repo
-#     whitelist — exit 2 (findings) is logged and normalized: the
-#     authoritative drift detector is the GitHub vulnix-drift
-#     workflow; this is a free second opinion in the journal.
+#     (09:10 local, after NIST's overnight enrichment).
 #   - nginx serves the cache directory read-only on :8088, scoped to
 #     the home subnet by nftables like sshd/harmonia themselves
 #     (runners cannot reach the LAN by design — CI keeps its own
@@ -23,6 +19,18 @@
 #     runs vulnix as usual: last_update < 7d means clients fetch only
 #     the `modified` feed from NIST directly, keeping freshness
 #     between warm runs.
+#
+# Why the warm job is `-f /dev/null` and NOT a closure scan: this box
+# never builds its own system — deploys arrive as copied OUTPUT paths
+# (`nixos-rebuild --target-host`), which carry deriver *metadata* but
+# no .drv files, so vulnix's -C mode (it shells `nix derivation show`)
+# dies with DeriverLookupError on the toplevel (proven 2026-09-20,
+# 385ms into the first run; the DynamicUser variant also lost to the
+# root-only daemon ACL). Shipping .drv closures or building on the
+# cache host were both rejected; the NVD update is the only thing this
+# job needs, and it runs before the (empty) scan regardless. Drift
+# detection for harmonia's pin stays where it already lives: CI's
+# build-hosts + vulnix jobs scan the exact pin nightly.
 #
 # The cache is public data (a parsed NVD mirror), so the directory is
 # world-readable for nginx; growth is ZODB-append-only but tiny after
@@ -34,7 +42,7 @@
 
 {
   systemd.services.vulnix-nvd-warm = {
-    description = "Refresh the shared vulnix NVD feed cache (and drift-scan this host)";
+    description = "Refresh the shared vulnix NVD feed cache";
     documentation = [ "https://github.com/ryanbas21/nixos-configuration/blob/main/docs/programs/security.md" ];
     # Timer-driven only, never wanted at boot: the fresh-boot VM test
     # (harmonia/vm-test.nix) has no NIST reachability, and warmth is
@@ -47,14 +55,10 @@
       StateDirectory = "vulnix-nvd";
       StateDirectoryMode = "0755"; # nginx traverses+reads; the data is public
     };
+    # No closure to walk → no nix daemon → no root: the feed update is
+    # the entire job (see header).
     script = ''
-      rc=0
-      ${pkgs.vulnix}/bin/vulnix -C --cache-dir /var/lib/vulnix-nvd/nvd -w ${../../../security/vulnix-whitelist.toml} /run/current-system || rc=$?
-      if [ "$rc" -eq 2 ]; then
-        echo "vulnix-nvd-warm: feed refreshed; unwhitelisted findings above — triage per docs/programs/security.md (exit 2 normalized, the vulnix-drift workflow owns detection)" >&2
-        exit 0
-      fi
-      exit "$rc"
+      ${pkgs.vulnix}/bin/vulnix --cache-dir /var/lib/vulnix-nvd/nvd -f /dev/null
     '';
   };
 

@@ -252,13 +252,14 @@ The moving parts and the reasoning:
   CI runs.
 - **Self-hosted NVD warmth (harmonia, :8088).** The wrapper's first
   act is to copy the shared feed cache from the LAN mirror that
-  `modules/computers/harmonia/_vulnix-cache.nix` serves: a timer on
-  harmonia refreshes the ZODB nightly (the vehicle being a
-  drift-scan of its own closure — a journal-visible second opinion
-  alongside the vulnix-drift workflow) and nginx serves the file
-  read-only, LAN-scoped like every other port on that box. A cold
-  fleet machine thus starts from a parsed ~190 MB copy over the LAN
-  instead of ~2 GB of NIST feeds, and warm checks are 304s
+  `modules/computers/harmonia/_vulnix-cache.nix` serves: a
+  rootless nightly timer refreshes the ZODB (a pure feed update —
+  no closure walk, because the box's deploy-copied store carries
+  no .drv files for vulnix's -C mode; harmonia's pin is
+  drift-scanned by CI's build-hosts + vulnix jobs) and nginx serves
+  the file read-only, LAN-scoped like every other port on that box.
+  A cold fleet machine thus starts from a parsed ~190 MB copy over
+  the LAN instead of ~2 GB of NIST feeds, and warm checks are 304s
   (curl -z). GitHub runners cannot reach the LAN by design, so both
   CI scans set `VULNIX_NVD_MIRROR=""` and keep the NIST +
   actions/cache path; off-LAN laptops fall through to it the same
