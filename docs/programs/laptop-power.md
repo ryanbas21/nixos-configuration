@@ -49,6 +49,23 @@ the other half of that fight) start from a known floor. Symptom to
 watch: abnormal battery drain while suspended → check
 `journalctl | grep -i suspend`, update BIOS via fwupd, re-measure.
 
+## GPU stability (PSR → DMCUB hard freeze)
+
+`amdgpu.dcdebugmask=0x10` (DC_DISABLE_PSR, incl. PSR-SU) rides in
+`_power.nix` beside the sleep pin — same philosophy: the known AMD
+display bug, pinned off. 2026-09-19 this box hit the Phoenix/780M
+DMCUB crash class: one hour after a clean scheduled backup, with
+memory 94% free, no IO in flight and no suspend that boot, the
+display microcontroller errored (`dc_dmub_srv_log_diagnostic_data:
+DMCUB error` ×3) and `[CRTC:80:crtc-0] flip_done timed out` — hard
+freeze, journal dead 40s later, power-cycle to recover. It LOOKED
+borgmatic-triggered (manual start 5s earlier) but the unit was still
+in its 3-minute ExecStartPre sleep — display firmware, not the
+backup. Same signature: Pop!_OS #3987, Red Hat #2359116, Framework
+community freeze threads. Cost of disabling PSR: slightly higher
+idle display power. Escalation if it recurs: +0x40 (DC_DISABLE_MPO),
+fwupd BIOS update, kernels past 6.18/6.19 carrying DMUB fixes.
+
 ## Lid close
 
 `services.logind.lidSwitch = "suspend"` — logind's stock default,

@@ -75,9 +75,11 @@
 # (shrink btrfs, encrypt, regrow, chroot rebuild, enroll TPM): the
 # step-by-step lives in docs/bootstrap.md, "Encrypting the live
 # framework disk in place". Afterwards the disk satisfies this
-# layout's contract exactly (same labels, LUKS2, same subvolumes) —
-# modulo the dead 67G swap partition, whose reclaim runbook is in
-# the same doc section. The disko wipe remains the fallback if the
+# layout's contract exactly (same labels, LUKS2, same subvolumes);
+# the installer-era 67G swap partition sat outside that contract
+# until its reclaim (2026-09-19, runbook in the same doc section) —
+# the live disk is now exactly this layout: ESP + LUKS root, nothing
+# else. The disko wipe remains the fallback if the
 # reencrypt path ever goes sideways and borg has to earn its keep.
 #
 # Note the btrfs spelling is the modern disko `type = "btrfs"`

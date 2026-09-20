@@ -55,7 +55,25 @@ in
   # here so the choice is deliberate and sleep-drain regressions
   # (BIOS/kernel updates shift this; fwupdmgr in system/hardware.nix
   # is the other half of that fight) start from a known floor.
-  boot.kernelParams = [ "mem_sleep_default=s2idle" ];
+  #
+  # Disable Panel Self Refresh: the eDP panel negotiates PSR (sink
+  # ver 1), and PSR↔DMCUB is the pair behind this box's one hard
+  # freeze (2026-09-19 16:02: DMCUB error ×3, then
+  # [CRTC:80:crtc-0] flip_done timed out, journal dead 40s later —
+  # with memory 94% free, zero swap in use, no IO in flight and no
+  # suspend that boot; the "borgmatic triggered it" read was
+  # coincidence, the unit was still in its 3-minute ExecStartPre
+  # sleep, and the same borgmatic had run clean at 15:02 that boot).
+  # Same signature as the Phoenix/780M DMCUB crash class (Pop!_OS
+  # #3987, Red Hat #2359116, Framework community freeze threads).
+  # 0x10 = DC_DISABLE_PSR incl. PSR-SU, the standard mitigation, at
+  # a small idle-display-power cost. If freezes recur anyway: add
+  # 0x40 (DC_DISABLE_MPO), fwupd BIOS update, and watch for kernels
+  # past 6.18/6.19 where DMUB fixes are landing.
+  boot.kernelParams = [
+    "mem_sleep_default=s2idle"
+    "amdgpu.dcdebugmask=0x10"
+  ];
 
   systemd.services.framework-charge-threshold = {
     description = "Framework battery charge ceiling (${toString chargeThreshold}%)";

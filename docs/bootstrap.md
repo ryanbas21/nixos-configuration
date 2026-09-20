@@ -441,14 +441,22 @@ plaintext→LUKS conversion.
    with no prompt; Pareto Security's disk-encryption check goes
    green. The old pre-LUKS boot entries age out via the 10-entry cap
    on later rebuilds (or force it: `sudo nix-collect-garbage -d`).
-   The 67G `framework-swap` partition is now dead weight nothing
-   mounts — leave it, or reclaim it into the root from the running
-   system:
+   The 67G `framework-swap` partition was dead weight nothing
+   mounts — EXECUTED 2026-09-19: reclaimed into the root from the
+   running system exactly as below, with two corrections learned
+   live: `swapoff` FIRST (systemd-gpt-auto-generator had the
+   partition active as swap despite `swapDevices = [ ]` and no
+   fstab entry — GPT type GUID is enough), and parted via `nix run`
+   (it's not in the system PATH). Root grew 863.8G → 930.5G; the
+   next boot's `/proc/swaps` showed zram0 only.
 
    ```sh
+   sudo swapoff /dev/nvme0n1p3                # gpt-auto had it active
    lsblk -o NAME,PARTLABEL,SIZE /dev/nvme0n1   # confirm p2=root, p3=swap-last
-   sudo parted /dev/nvme0n1 rm 3               # GPT-header "Fix" prompt: Fix
-   sudo parted /dev/nvme0n1 resizepart 2 100%  # grows INTO freed tail space
+   sudo nix run nixpkgs#parted -- /dev/nvme0n1 rm 3   # GPT "Fix" prompt: Fix
+   sudo nix run nixpkgs#parted -- /dev/nvme0n1 resizepart 2 100%  # in-use prompt: Yes
+   cat /sys/block/nvme0n1/nvme0n1p2/size      # must jump ~139.9M sectors
+   sudo partx -u --nr 2 /dev/nvme0n1          # ONLY if it didn't jump
    sudo cryptsetup resize cryptroot            # mapper follows the partition
    sudo btrfs filesystem resize max /
    ```
