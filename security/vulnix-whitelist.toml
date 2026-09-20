@@ -25,10 +25,16 @@
 # Do not add entries just to make a red job green: triage first.
 #
 # Triaged 2026-09-11 against nixpkgs 26.11.20260907.dc5d91f.
+# Incremental triage 2026-09-20, same pin: NVD enrichment (not a lock
+# change) surfaced new findings — curl, openssl, strongswan, libxml2,
+# pcre2 ×2, vim, plus one more Drupal-Diff FP.
 
 ["Diff-1.0.2"]
-cve = ["CVE-2024-13278"]
-comment = "FP: NVD `diff_project:diff` is the Drupal Diff module; this is the Haskell Diff library (via HLS)."
+cve = [
+  "CVE-2024-13278",
+  "CVE-2026-73478",
+]
+comment = "FP: NVD `diff_project:diff` is the Drupal Diff module (both CVEs — unsafe deserialization, forceful browsing); this is the Haskell Diff library (via HLS)."
 
 ["ada-3.4.4"]
 cve = ["CVE-2024-9410"]
@@ -93,6 +99,20 @@ comment = "FP: fixed in 2.4.2; the only matching NVD node is apple:cups `<499.4`
 ["cups-filters-2.0.1"]
 cve = ["CVE-2025-64524"]
 comment = "Real, low (3.3). Re-review on the next nixpkgs bump."
+
+["curl-8.21.0"]
+cve = [
+  "CVE-2026-13608",
+  "CVE-2026-18924",
+  "CVE-2026-19931",
+  "CVE-2026-80229",
+  "CVE-2026-80230",
+  "CVE-2026-80231",
+  "CVE-2026-80255",
+  "CVE-2026-82208",
+  "CVE-2026-82209",
+]
+comment = "Real, fixed in 8.22.0 (2026-09-06 batch): Negotiate auth connection reuse across users (9.8), HTTP/2 server-push UAF with shared handles, libpsl public-suffix cookie bypass, multi-interface OpenSSL libctx UAF, public-key pinning bypass when verification is disabled, NATIVE_CA connection reuse, Set-Cookie tab-before-Secure parsing, SASL-LDAP MITM. CVE-2026-82208 (wolfSSL CA-cache) is wolfSSL-backend-only and nixpkgs' curl links OpenSSL — listed for completeness. The pin predates 8.22.0. Re-review on the next nixpkgs bump."
 
 ["dash-0.5.13.5"]
 cve = ["CVE-2024-21485"]
@@ -385,8 +405,18 @@ cve = [
 comment = "Real through 1.11.1: ten flaws, several pre-auth and reachable from any client that fetches ssh: URLs (git over ssh, cargo, ...). Fixes are upstream commits/1.11.2. Re-review on the next nixpkgs bump."
 
 ["libxml2-2.15.3"]
-cve = ["CVE-2026-11979"]
-comment = "Real through 2.15.3: stack overflows in `xmlcatalog --shell` mode. Re-review on the next nixpkgs bump."
+cve = [
+  "CVE-2026-11979",
+  "CVE-2026-86137",
+  "CVE-2026-86138",
+  "CVE-2026-86139",
+  "CVE-2026-86140",
+  "CVE-2026-86141",
+  "CVE-2026-86142",
+  "CVE-2026-86143",
+  "CVE-2026-86144",
+]
+comment = "Real through 2.15.3, all fixed in 2.15.4: xmlcatalog --shell stack overflows (CVE-2026-11979) plus the 2026-09-05 batch — valid.c strcat overflow, dict.c/uri.c integer overflows, xpointer heap overflow, xmlIO negative-length writes, xinclude parseFlags not propagated (XXE/SSRF), xmlregexp OOB. Reached at runtime via pipewire→ffmpeg. Re-review on the next nixpkgs bump."
 
 ["lua-5.2.4"]
 cve = ["CVE-2021-43519"]
@@ -463,6 +493,19 @@ comment = "FP: NVD `opentelemetry` entries are the OTel Go/.NET/C++/JS SDKs and 
 cve = ["CVE-2026-11604"]
 comment = "FP: CVE-2026-11604 is in ovpn-dco-win, OpenVPN's *Windows* kernel driver — not shipped here."
 
+["openssl-3.6.3"]
+cve = [
+  "CVE-2026-14457",
+  "CVE-2026-54874",
+  "CVE-2026-63072",
+  "CVE-2026-63073",
+  "CVE-2026-63074",
+  "CVE-2026-63075",
+  "CVE-2026-63076",
+  "CVE-2026-75803",
+]
+comment = "Real: the 2026-08-25 security drop, fixed in 3.6.4 — AEAD empty-ciphertext tag bypass via EVP_Cipher (9.1), CMP format-string crash + PBMParameter confusion + extraCerts growth (CMP users only), CMS AES-WRAP-PAD 8-byte OOB write, QUIC ACK-metadata growth, DTLS epoch buffering DoS, RPK NULL deref. Published 2026-08-25 but NVD CPE-enriched after the 2026-09-11 triage. The pin predates 3.6.4. Retire on the next nixpkgs bump."
+
 ["orc-0.4.42"]
 cve = ["CVE-2025-47436"]
 comment = "FP: NVD `apache:orc` is the Apache ORC column store; this is the Oil Runtime Compiler used by GStreamer."
@@ -480,6 +523,28 @@ cve = [
   "CVE-2026-56289",
 ]
 comment = "Same build as patch-2.8 (completions output). Re-review on the next nixpkgs bump."
+
+["pcre2-10.46"]
+cve = [
+  "CVE-2026-89156",
+  "CVE-2026-89157",
+  "CVE-2026-89158",
+  "CVE-2026-89160",
+  "CVE-2026-89161",
+  "CVE-2026-89162",
+]
+comment = "Same findings as pcre2-10.47 (second pcre2 version in the same closure, held by older package sets in the pin). Re-review on the next nixpkgs bump."
+
+["pcre2-10.47"]
+cve = [
+  "CVE-2026-89156",
+  "CVE-2026-89157",
+  "CVE-2026-89158",
+  "CVE-2026-89160",
+  "CVE-2026-89161",
+  "CVE-2026-89162",
+]
+comment = "Real, fixed in 10.48 (2026-09-11 batch): JIT-fallback OOB read after invalid UTF, incorrect free on copied subject+context in pcre2_jit_match, invalid-UTF match OOB read, 2-byte serialize disclosure; CVE-2026-89157/89158 are 32-bit-only — not applicable on this x86_64 fleet, listed for completeness. 10.47 is the systemd-linked build. Re-review on the next nixpkgs bump."
 
 ["perl-5.42.0"]
 cve = [
@@ -550,6 +615,22 @@ cve = [
 ]
 comment = "Real: FTS5 memory corruption / heap overflow, fixed in 3.53.2. Retire on the next nixpkgs bump."
 
+["strongswan-6.0.7"]
+cve = [
+  "CVE-2026-78123",
+  "CVE-2026-78124",
+  "CVE-2026-78126",
+  "CVE-2026-78127",
+  "CVE-2026-78129",
+  "CVE-2026-78130",
+  "CVE-2026-78131",
+  "CVE-2026-78132",
+  "CVE-2026-78133",
+  "CVE-2026-78134",
+  "CVE-2026-78135",
+]
+comment = "Real, fixed in 6.1.0 (2026-09-11 batch): eleven parser/rekeying flaws, incl. IKEv2 rekey-collision UAF (CVE-2026-78133) and a CREATE_CHILD_SA auth bypass (CVE-2026-78135). Ships at runtime only via plasma-nm's VPN plugin: services.strongswan is not enabled, the fleet's VPN is WireGuard, and esp4/esp6 are blacklisted+stubbed (system/kernel-hardening.nix) — no IPsec tunnel can establish. Re-review on the next nixpkgs bump."
+
 ["taglib-1.13.1"]
 cve = ["CVE-2023-47466"]
 comment = "Real, low (2.9): segfault while *writing* tags to a crafted WAV file, fixed in 2.0. Re-review on the next nixpkgs bump."
@@ -606,6 +687,10 @@ cve = [
   "CVE-2026-56444",
 ]
 comment = "Real: all 23 findings are fixed in unbound 1.25.2 — retire this whole entry (and re-triage) on the next nixpkgs bump."
+
+["vim-9.2.0782"]
+cve = ["CVE-2026-73070"]
+comment = "Real, fixed in 9.2.0842: the socketserver backend accepts unbounded client connections, overflowing fd_set/pollfd (stack corruption) — local attacker that can reach the socket. Harmonia-only (vim is in its admin package set); the socket server is opt-in (--servername). Re-review on the next nixpkgs bump."
 
 ["yaml-0.11.11.2"]
 cve = [

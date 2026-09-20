@@ -16,8 +16,8 @@
 # which ship on the machines; on this fleet it roughly tripled the
 # findings with build-time-only noise. Runtime-closure scanning matches
 # what is actually deployed, and security/vulnix-whitelist.toml is
-# triaged against exactly this mode (71 sections at last triage; see
-# docs/programs/security.md).
+# triaged against exactly this mode (77 sections at last triage
+# 2026-09-20; see docs/programs/security.md).
 { ... }:
 {
   perSystem =
