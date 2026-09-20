@@ -25,12 +25,20 @@
 # (`nixos-rebuild --target-host`), which carry deriver *metadata* but
 # no .drv files, so vulnix's -C mode (it shells `nix derivation show`)
 # dies with DeriverLookupError on the toplevel (proven 2026-09-20,
-# 385ms into the first run; the DynamicUser variant also lost to the
-# root-only daemon ACL). Shipping .drv closures or building on the
-# cache host were both rejected; the NVD update is the only thing this
-# job needs, and it runs before the (empty) scan regardless. Drift
-# detection for harmonia's pin stays where it already lives: CI's
-# build-hosts + vulnix jobs scan the exact pin nightly.
+# 385ms into the first run). Shipping .drv closures or building on
+# the cache host were both rejected; the NVD update is the only thing
+# this job needs, and it runs before the (empty) scan regardless.
+# Drift detection for harmonia's pin stays where it already lives:
+# CI's build-hosts + vulnix jobs scan the exact pin nightly.
+#
+# Why root with a plain directory, not DynamicUser + StateDirectory
+# (both burned on first deploy, 2026-09-20): systemd routes dynamic
+# users' state dirs to /var/lib/private — mode 0700 root — behind a
+# compatibility symlink at /var/lib/<name>, so nginx (or any non-root
+# reader) gets EACCES through the symlink no matter the file modes.
+# With no closure walk there is no daemon need either, so the unit is
+# simply root + a strict sandbox pinned to one writable path; the
+# directory is world-readable because the data is public.
 #
 # The cache is public data (a parsed NVD mirror), so the directory is
 # world-readable for nginx; growth is ZODB-append-only but tiny after
@@ -51,13 +59,17 @@
     wants = [ "network-online.target" ];
     serviceConfig = {
       Type = "oneshot";
-      DynamicUser = true;
-      StateDirectory = "vulnix-nvd";
-      StateDirectoryMode = "0755"; # nginx traverses+reads; the data is public
+      NoNewPrivileges = true;
+      PrivateTmp = true;
+      ProtectHome = "read-only";
+      ProtectSystem = "strict";
+      ReadWritePaths = [ "/var/lib/vulnix-nvd" ];
+      RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_UNIX" ];
     };
-    # No closure to walk → no nix daemon → no root: the feed update is
-    # the entire job (see header).
+    # No closure to walk → no nix daemon: the feed update is the
+    # entire job (see header).
     script = ''
+      mkdir -p /var/lib/vulnix-nvd/nvd
       ${pkgs.vulnix}/bin/vulnix --cache-dir /var/lib/vulnix-nvd/nvd -f /dev/null
     '';
   };
