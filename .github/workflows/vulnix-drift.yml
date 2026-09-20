@@ -1,0 +1,132 @@
+---
+# Nightly CVE-drift scan — decouples NVD feed movement from pushes.
+#
+# Why: the whitelist (security/vulnix-whitelist.toml) moves only at
+# triage, but the NVD feed moves daily. With only the push-triggered
+# scan in ci.yml, feed drift lands as a red X on commits that changed
+# nothing security-relevant (2026-09-20: 44 findings from CVEs
+# enriched after the 09-11 triage; the triggering commit touched docs
+# and laptop power settings). This workflow scans main's three host
+# closures nightly (and on demand) and funnels any unwhitelisted
+# finding into ONE `vulnix-drift` tracking issue — the triage queue —
+# instead. Triage the batch the same day (see the "CVE drift" ritual
+# in docs/operations.md); the issue closes itself on the first green
+# run afterwards.
+#
+# The push job stays BLOCKING on purpose: a lock bump changes package
+# versions and must surface its findings for fresh triage before
+# merging — the whitelist's self-retiring design depends on it. With
+# this nightly loop the whitelist is already current by the time you
+# push, so a red push scan means the push itself moved the closure.
+#
+# No cachix-action: this job only substitutes (build-hosts pushes),
+# and the substituters below already include nix-configs. The NVD feed
+# cache is shared with the push job via the same weekly key — this
+# nightly run keeps it warm, so pushes usually pay only the scan.
+name: vulnix-drift
+
+on:
+  schedule:
+    - cron: "37 13 * * *" # 07:37 America/Denver, deliberately off the hour
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: vulnix-drift
+  cancel-in-progress: false
+
+jobs:
+  drift-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Install Nix
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+        with:
+          # Same pin as ci.yml's vulnix job: evaluator parity with the desktop.
+          install_url: https://releases.nixos.org/nix/nix-2.34.8/install
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+            substituters = https://nix-configs.cachix.org https://cache.nixos.org
+            trusted-public-keys = nix-configs.cachix.org-1:7Ujoj71uBp3xoxOBwPF8CTJAmoaz0+I/Dm1yK0dNyBw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+      - name: Week number for cache key
+        id: date
+        run: echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
+      - name: Cache the vulnix NVD feed
+        # Same key as the push job's vulnix step (pinned by SHA, unlike
+        # ci.yml's still-floating actions/cache@v4 TODO).
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/vulnix
+          key: vulnix-nvd-${{ steps.date.outputs.week }}
+      - name: Scan every host closure
+        id: scan
+        # Runners cannot reach the LAN mirror (by design) — disable the
+        # wrapper's warm-up so it goes straight to NIST + the cache above.
+        env:
+          VULNIX_NVD_MIRROR: ""
+        # Findings do NOT fail the step — they are the payload. The
+        # `failed` output drives the tracking issue below; only an
+        # infrastructure failure (nix build/run error) reddens the run.
+        run: |
+          set -euo pipefail
+          failed=0
+          : > /tmp/drift-body.md
+          for host in nixos framework harmonia; do
+            path=$(nix build --no-link --print-out-paths ".#nixosConfigurations.$host.config.system.build.toplevel")
+            if nix run .#vulnix-scan -- -w security/vulnix-whitelist.toml "$path" > "/tmp/scan-$host.txt" 2>&1; then
+              echo "$host: clean"
+            else
+              failed=1
+              echo "$host: findings —"
+              cat "/tmp/scan-$host.txt"
+              {
+                echo "## $host"
+                echo
+                echo '```'
+                cat "/tmp/scan-$host.txt"
+                echo '```'
+                echo
+              } >> /tmp/drift-body.md
+            fi
+          done
+          echo "failed=$failed" >> "$GITHUB_OUTPUT"
+      - name: Open, update, or close the drift issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          failed: ${{ steps.scan.outputs.failed }}
+          run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          commit: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          gh label create vulnix-drift --color D93F0B \
+            --description "Untriaged vulnix findings on main (nightly drift scan)" >/dev/null 2>&1 || true
+          num=$(gh issue list --label vulnix-drift --state open --json number --jq '.[0].number' || true)
+          if [ "$failed" = "1" ]; then
+            {
+              echo "The nightly vulnix scan found unwhitelisted findings on \`main\` (commit $commit)."
+              echo
+              echo "Triage per docs/programs/security.md: dump the NVD CPE nodes with"
+              echo "\`just triage-vulnix CVE-…\`, judge exposure with \`nix why-depends\`, then"
+              echo "extend security/vulnix-whitelist.toml (FP or accepted-risk with a"
+              echo "re-review note). Do not add entries just to make this go green."
+              echo
+              cat /tmp/drift-body.md
+              echo "---"
+              echo "_scan run: $run_url_"
+            } > /tmp/drift-issue.md
+            if [ -z "$num" ]; then
+              gh issue create --label vulnix-drift \
+                --title "vulnix: untriaged findings on main (NVD drift)" \
+                --body-file /tmp/drift-issue.md
+            else
+              gh issue edit "$num" --body-file /tmp/drift-issue.md
+              gh issue comment "$num" --body "Nightly scan still failing: $run_url"
+            fi
+          elif [ -n "$num" ]; then
+            gh issue close "$num" --comment "Nightly scan green — the batch is triaged. $run_url"
+          fi

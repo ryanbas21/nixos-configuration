@@ -66,6 +66,9 @@
         imports = [
           ./harmonia/_hardware.nix
           ./harmonia/_remote-builder.nix
+          # Self-hosted vulnix NVD feed warmth (serves :8088 LAN-only;
+          # see the file header for the design).
+          ./harmonia/_vulnix-cache.nix
           inputs.agenix.nixosModules.default
         ];
 

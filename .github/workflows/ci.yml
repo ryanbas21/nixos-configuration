@@ -432,6 +432,10 @@ jobs:
           path: ~/.cache/vulnix
           key: vulnix-nvd-${{ steps.date.outputs.week }}
       - name: Scan for known CVEs (vulnix)
+        # Runners cannot reach the LAN mirror (by design) — disable the
+        # wrapper's warm-up so it goes straight to NIST + actions/cache.
+        env:
+          VULNIX_NVD_MIRROR: ""
         run: >-
           nix run .#vulnix-scan --
           -w security/vulnix-whitelist.toml

@@ -106,6 +106,31 @@ Caveats worth knowing:
   `boot.loader.systemd-boot.configurationLimit = 10` caps the boot menu —
   the two guardrails are one policy.
 
+## CVE drift (vulnix)
+
+The NVD feed moves daily; the whitelist moves only at triage. The
+nightly `vulnix-drift` workflow scans main's host closures and opens
+(or updates) one `vulnix-drift` tracking issue when anything
+unwhitelisted appears. The ritual when it fires — same day, while the
+batch is small:
+
+1. `just triage-vulnix CVE-… --pin name=version` for each finding
+   dumps the NVD CPE nodes with affected/not-affected verdicts — the
+   data that separates false positives from real accepted risk
+   (docs/programs/security.md).
+2. `nix why-depends <toplevel> <out-path>` judges exposure.
+3. Extend `security/vulnix-whitelist.toml` with the verdict, commit,
+   push — the issue auto-closes on the next green nightly run.
+
+`just vulnix [host]` runs the same scan locally before pushing (the
+wrapper warms `~/.cache/vulnix` from harmonia's LAN mirror first —
+see the "Self-hosted NVD warmth" note in
+[security](programs/security.md)). The push CI job stays blocking: a
+lock bump must surface its new package versions for fresh triage.
+The mirror lands on the server with the next `just deploy-harmonia`
+(from the desktop), after which the first `vulnix-nvd-warm` run pulls
+the full feed into `/var/lib/vulnix-nvd/nvd`.
+
 ## CI (.github/workflows/ci.yml)
 
 CI runs on every push to main and on every pull request, in six jobs:

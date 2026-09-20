@@ -86,6 +86,22 @@ in
           )
         narinfo = machine.succeed("cat /tmp/narinfo")
         assert "Sig: harmonia-test-1:" in narinfo, narinfo[:500]
+        # The self-hosted vulnix NVD mirror (harmonia/_vulnix-cache.nix):
+        # nginx answers on :8088 at boot (read-only static server for
+        # /var/lib/vulnix-nvd/nvd), the nightly warm timer is armed, and
+        # its service has NOT run at boot — warmth needs NIST reachability
+        # the VM does not have; only the timer may invoke it.
+        machine.wait_for_unit("nginx.service")
+        machine.wait_for_open_port(8088)
+        code = machine.succeed(
+          "curl -s -o /dev/null -w '%{http_code}' http://localhost:8088/Data.fs"
+        ).strip()
+        assert code == "404", "vulnix mirror: expected 404 for a not-yet-warmed Data.fs, got " + code
+        machine.succeed("systemctl is-active --quiet vulnix-nvd-warm.timer")
+        machine.fail("systemctl is-active --quiet vulnix-nvd-warm.service")
+        # And nothing else regressed either: the booted box runs no
+        # failed units at all.
+        machine.fail("systemctl --failed --no-legend | grep .")
       '';
     };
 }

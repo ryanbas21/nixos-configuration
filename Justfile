@@ -38,6 +38,24 @@ test-disko host:
 build host:
     nix build --no-link .#nixosConfigurations.{{host}}.config.system.build.toplevel
 
+# Scan a host's runtime closure with the CI whitelist (default: this
+# machine's live closure) — local parity with CI's vulnix job
+[group('nix')]
+vulnix host="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -z "{{host}}" ]; then
+      target=/run/current-system
+    else
+      target=$(nix build --no-link --print-out-paths .#nixosConfigurations.{{host}}.config.system.build.toplevel)
+    fi
+    nix run .#vulnix-scan -- -w security/vulnix-whitelist.toml "$target"
+
+# Triage helper: NVD description + CPE ranges (+ --pin verdicts) for CVE ids
+[group('nix')]
+triage-vulnix +cves:
+    python3 scripts/vulnix-triage.py {{cves}}
+
 # Switch the desktop or laptop in place (nixos|framework). Refuses to
 # build another host's config: 2026-09-09 a `just rebuild nixos` run
 # ON THE FRAMEWORK switched the desktop's config onto the laptop —

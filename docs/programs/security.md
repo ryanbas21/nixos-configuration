@@ -222,11 +222,44 @@ The moving parts and the reasoning:
     (glibc, unbound, ffmpeg via kodi's unmaintained ffmpeg_6 pin) all
     have "re-review on the next nixpkgs bump" notes.
 - **How to triage.** Don't eyeball names — dump the NVD CPE nodes
-  vulnix itself matched on, from its own cached feed
-  (`~/.cache/vulnix/Data.fs`, a ZODB store readable with the vulnix
-  package's python): every `Vulnerability` object carries its CPE
-  nodes (`vendor:product` + version ranges), which settles
-  name-collisions and out-of-range versions in seconds. The
-  derivation's parents come from
+  vulnix itself matched on. `just triage-vulnix CVE-…`
+  (scripts/vulnix-triage.py) fetches the NVD records (cached under
+  `~/.cache/vulnix-triage`) and prints every CPE node
+  (`vendor:product` + version ranges); with `--pin name=version` it
+  verdicts affected / not-affected, which settles name-collisions
+  and out-of-range versions in seconds. (Equivalent, offline: the
+  same nodes sit in vulnix's own cached feed
+  `~/.cache/vulnix/Data.fs`, a ZODB store readable with the vulnix
+  package's python.) The derivation's parents come from
   `nix why-depends <toplevel> <out-path>` — needed to judge exposure
   (initrd busybox vs. HLS's Haskell libraries).
+- **Drift is the nightly scan's problem, not your push's.** The NVD
+  feed moves daily (and enriches CPE data days after publication —
+  that lag is how 44 findings landed on 2026-09-20, none caused by
+  the pushed commit), while the whitelist moves only at triage. The
+  `vulnix-drift` workflow (.github/workflows/vulnix-drift.yml) scans
+  main's closures nightly and funnels findings into one
+  `vulnix-drift` tracking issue — the triage queue — which
+  auto-closes on the first green run (ritual in
+  docs/operations.md). The push job stays blocking on purpose: a
+  lock bump must surface its new versions for fresh triage; the
+  nightly loop just ensures the whitelist is already current by the
+  time you push.
+- **Local parity.** `just vulnix [host]` runs the exact CI scan
+  against this machine's (or a named host's) runtime closure before
+  you push — first run pays the NVD feed download into
+  `~/.cache/vulnix`, after which it is the same minutes-cheap scan
+  CI runs.
+- **Self-hosted NVD warmth (harmonia, :8088).** The wrapper's first
+  act is to copy the shared feed cache from the LAN mirror that
+  `modules/computers/harmonia/_vulnix-cache.nix` serves: a timer on
+  harmonia refreshes the ZODB nightly (the vehicle being a
+  drift-scan of its own closure — a journal-visible second opinion
+  alongside the vulnix-drift workflow) and nginx serves the file
+  read-only, LAN-scoped like every other port on that box. A cold
+  fleet machine thus starts from a parsed ~190 MB copy over the LAN
+  instead of ~2 GB of NIST feeds, and warm checks are 304s
+  (curl -z). GitHub runners cannot reach the LAN by design, so both
+  CI scans set `VULNIX_NVD_MIRROR=""` and keep the NIST +
+  actions/cache path; off-LAN laptops fall through to it the same
+  way when the mirror is unreachable.
