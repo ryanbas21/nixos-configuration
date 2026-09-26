@@ -117,6 +117,12 @@
             IdentityFile = "~/.ssh/id_borg";
             IdentitiesOnly = true;
           };
+          "actual" = {
+            HostName = "192.168.1.132";
+            User = "root";
+            IdentityFile = "~/.ssh/id_borg";
+            IdentitiesOnly = true;
+          };
         };
       };
     };
