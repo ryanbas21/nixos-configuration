@@ -445,11 +445,14 @@ in
 
       # ---- blink.cmp (spec opts kept verbatim, including lua functions;
       # nvf's blink module is not used because its forced sources/keymap
-      # defaults would alter the spec)
+      # defaults would alter the spec). setupModule must be "blink.cmp": the
+      # plugin ships lua/blink/cmp/init.lua only — there is no top-level
+      # "blink" module, so require('blink') fails inside lzn-auto-require and
+      # the after hook errors.
       "${vp.blink-cmp.pname}" = {
         package = vp.blink-cmp;
         event = "InsertEnter";
-        setupModule = "blink";
+        setupModule = "blink.cmp";
         setupOpts = mkLuaInline ''
           {
             appearance = {
