@@ -36,6 +36,12 @@
               # PATH in every launch context (herdr panes, desktop
               # launchers), not just login shells.
               pkgs.which
+              # oh-my-pi's pi-rewind auto-checkpoint spawns `git` via
+              # node child_process (posix_spawn, no shell) at every
+              # turn start; without git on pi's own PATH those
+              # checkpoints fail with "ENOENT: posix_spawn 'git'" in
+              # the same PATH-poor launch contexts as rtk above.
+              pkgs.git
             ]
           }
         '';
