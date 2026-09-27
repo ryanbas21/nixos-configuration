@@ -28,6 +28,13 @@
 # Incremental triage 2026-09-20, same pin: NVD enrichment (not a lock
 # change) surfaced new findings — curl, openssl, strongswan, libxml2,
 # pcre2 ×2, vim, plus one more Drupal-Diff FP.
+# Incremental triage 2026-09-27, same pin: NVD enrichment again —
+# libssh ×3 (RedHat 0.11.x batch, FPs), openssl ×1 (QUIC, Real), and
+# the 2026-09-16 unbound security drop ×9 on BOTH closure versions
+# (1.25.1-lib via psysonic's pinned gnutls, 1.26.0-lib via main
+# nixpkgs' qrca → gnutls). The nightly drift workflow was meant to
+# queue this batch days earlier but died on a shell typo (fixed same
+# day); the push scan surfaced it instead.
 
 ["Diff-1.0.2"]
 cve = [
@@ -386,8 +393,13 @@ cve = [
 comment = "Real through 1.2.2 (vorbis OOB read, reachable assertion, IRCAM buffer overflow, L3 encoder leak, IMA ADPCM). Re-review on the next nixpkgs bump."
 
 ["libssh-0.12.0"]
-cve = ["CVE-2026-59847"]
-comment = "Real, affects exactly 0.12.0: incorrect AES-GCM finalization checks with the OpenSSL backend can drop integrity protection. Re-review on the next nixpkgs bump."
+cve = [
+  "CVE-2026-15370",
+  "CVE-2026-59842",
+  "CVE-2026-59847",
+  "CVE-2026-59849",
+]
+comment = "CVE-2026-59847 Real, affects exactly 0.12.0: incorrect AES-GCM finalization checks with the OpenSSL backend can drop integrity protection. The other three are FPs from the same-day RedHat batch: NVD ranges top out at 0.11.5 (fixes landed there; 0.12.0 branched after them) and the match is the catch-all `== libssh` CPE node — exposure anyway is ffmpeg's sftp:// client, never a server. Re-review on the next nixpkgs bump."
 
 ["libssh2-1.11.1"]
 cve = [
@@ -496,6 +508,7 @@ comment = "FP: CVE-2026-11604 is in ovpn-dco-win, OpenVPN's *Windows* kernel dri
 ["openssl-3.6.3"]
 cve = [
   "CVE-2026-14457",
+  "CVE-2026-18798",
   "CVE-2026-54874",
   "CVE-2026-63072",
   "CVE-2026-63073",
@@ -504,7 +517,7 @@ cve = [
   "CVE-2026-63076",
   "CVE-2026-75803",
 ]
-comment = "Real: the 2026-08-25 security drop, fixed in 3.6.4 — AEAD empty-ciphertext tag bypass via EVP_Cipher (9.1), CMP format-string crash + PBMParameter confusion + extraCerts growth (CMP users only), CMS AES-WRAP-PAD 8-byte OOB write, QUIC ACK-metadata growth, DTLS epoch buffering DoS, RPK NULL deref. Published 2026-08-25 but NVD CPE-enriched after the 2026-09-11 triage. The pin predates 3.6.4. Retire on the next nixpkgs bump."
+comment = "Real: the 2026-08-25 security drop, fixed in 3.6.4 — AEAD empty-ciphertext tag bypass via EVP_Cipher (9.1), CMP format-string crash + PBMParameter confusion + extraCerts growth (CMP users only), CMS AES-WRAP-PAD 8-byte OOB write, QUIC ACK-metadata growth, DTLS epoch buffering DoS, RPK NULL deref, and (added 2026-09-27, late-enriched) the 18798 QUIC-server QRX double-free — QUIC server code, which nothing on the fleet runs. Published 2026-08-25 but NVD CPE-enriched after the 2026-09-11 triage. The pin predates 3.6.4. Retire on the next nixpkgs bump."
 
 ["orc-0.4.42"]
 cve = ["CVE-2025-47436"]
@@ -685,8 +698,31 @@ cve = [
   "CVE-2026-55991",
   "CVE-2026-56416",
   "CVE-2026-56444",
+  "CVE-2026-77860",
+  "CVE-2026-77955",
+  "CVE-2026-78227",
+  "CVE-2026-80225",
+  "CVE-2026-81634",
+  "CVE-2026-81642",
+  "CVE-2026-82717",
+  "CVE-2026-82720",
+  "CVE-2026-85501",
 ]
-comment = "Real: all 23 findings are fixed in unbound 1.25.2 — retire this whole entry (and re-triage) on the next nixpkgs bump."
+comment = "Real: the first 23 findings are fixed in unbound 1.25.2; the 2026-09-16 batch (77860–85501, added 2026-09-27) needs 1.26.1. Lib-only in the closure (psysonic's pinned gnutls links it for DANE) — see unbound-1.26.0 for exposure. Retire this whole entry (and re-triage) on the next nixpkgs bump."
+
+["unbound-1.26.0"]
+cve = [
+  "CVE-2026-77860",
+  "CVE-2026-77955",
+  "CVE-2026-78227",
+  "CVE-2026-80225",
+  "CVE-2026-81634",
+  "CVE-2026-81642",
+  "CVE-2026-82717",
+  "CVE-2026-82720",
+  "CVE-2026-85501",
+]
+comment = "Real: the 2026-09-16 security drop (DNSKEY digest-buffer overflow 81642 and CNAME-synthesis TTL heap corruption 82717, both 9.8 with possible RCE, plus DNSSEC complexity + DoS batch), all fixed in 1.26.1. Exposure is thin: the closure ships unbound-1.26.0-lib only (no daemon) — gnutls links it for DANE validation (via main-nixpkgs qrca and psysonic's older gnutls), and nothing on the fleet consumes DANE; resolvers here are not unbound. No fix in the pinned nixpkgs (dc5d91f tops out at 1.26.0). Retire on the next nixpkgs bump — that bump should also collapse the two unbound versions into one section."
 
 ["vim-9.2.0782"]
 cve = ["CVE-2026-73070"]

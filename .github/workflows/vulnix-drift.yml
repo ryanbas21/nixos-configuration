@@ -117,7 +117,7 @@ jobs:
               echo
               cat /tmp/drift-body.md
               echo "---"
-              echo "_scan run: $run_url_"
+              echo "_scan run: ${run_url}_"
             } > /tmp/drift-issue.md
             if [ -z "$num" ]; then
               gh issue create --label vulnix-drift \

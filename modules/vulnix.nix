@@ -16,8 +16,8 @@
 # which ship on the machines; on this fleet it roughly tripled the
 # findings with build-time-only noise. Runtime-closure scanning matches
 # what is actually deployed, and security/vulnix-whitelist.toml is
-# triaged against exactly this mode (77 sections at last triage
-# 2026-09-20; see docs/programs/security.md).
+# triaged against exactly this mode (78 sections at last triage
+# 2026-09-27; see docs/programs/security.md).
 #
 # LAN NVD warmth: before scanning, the wrapper copies the shared feed
 # cache (harmonia's nginx on :8088 — modules/computers/harmonia/
