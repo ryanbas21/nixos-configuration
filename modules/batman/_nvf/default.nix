@@ -1117,9 +1117,16 @@ in
         lazy = false;
       };
 
-      # ---- canola (oil fork; the fork renamed the lua module
-      # oil -> canola, so every require() targets "canola" — calling
-      # require("oil") throws "module 'oil' not found" at startup)
+      # ---- canola (oil fork). The fork has NO setup(): config is a
+      # plain serializable table in vim.g.canola, read by its own
+      # plugin/canola.lua (require("canola").init()) as the pack is
+      # sourced — so the old spec's require("canola").setup({...})
+      # throws "attempt to call field 'setup' (a nil value)". The table
+      # is assigned in `before`, which lz.n runs before sourcing the
+      # pack. Two old options are not portable: default_file_explorer
+      # (canola always takes over netrw) and g\ toggle_trash (moved to
+      # the unpackaged canola-collection); table-form keymaps use the
+      # fork's callback= spelling.
       "${vp.canola-nvim.pname}" = {
         package = vp.canola-nvim;
         lazy = false;
@@ -1132,28 +1139,26 @@ in
             desc = "Open Oil Directory";
           }
         ];
-        after = ''
-          require("canola").setup({
-            default_file_explorer = false,
+        before = ''
+          vim.g.canola = {
             keymaps = {
-              ["g?"] = { "actions.show_help", mode = "n" },
+              ["g?"] = { callback = "actions.show_help", mode = "n" },
               ["<CR>"] = "actions.select",
-              ["<C-s>"] = { "actions.select", opts = { vertical = true } },
-              ["<C-h>"] = { "actions.select", opts = { horizontal = true } },
-              ["<C-t>"] = { "actions.select", opts = { tab = true } },
+              ["<C-s>"] = { callback = "actions.select", opts = { vertical = true } },
+              ["<C-h>"] = { callback = "actions.select", opts = { horizontal = true } },
+              ["<C-t>"] = { callback = "actions.select", opts = { tab = true } },
               ["<C-p>"] = "actions.preview",
-              ["<C-c>"] = { "actions.close", mode = "n" },
-              ["C-q"] = { "actions.close", mode = "n" },
+              ["<C-c>"] = { callback = "actions.close", mode = "n" },
+              ["C-q"] = { callback = "actions.close", mode = "n" },
               ["<C-l>"] = "actions.refresh",
-              ["_"] = { "actions.open_cwd", mode = "n" },
-              ["`"] = { "actions.cd", mode = "n" },
-              ["g~"] = { "actions.cd", opts = { scope = "tab" }, mode = "n" },
-              ["gs"] = { "actions.change_sort", mode = "n" },
+              ["_"] = { callback = "actions.open_cwd", mode = "n" },
+              ["`"] = { callback = "actions.cd", mode = "n" },
+              ["g~"] = { callback = "actions.cd", opts = { scope = "tab" }, mode = "n" },
+              ["gs"] = { callback = "actions.change_sort", mode = "n" },
               ["gx"] = "actions.open_external",
-              ["g."] = { "actions.toggle_hidden", mode = "n" },
-              ["g\\"] = { "actions.toggle_trash", mode = "n" },
+              ["g."] = { callback = "actions.toggle_hidden", mode = "n" },
             },
-          })
+          }
         '';
       };
 
