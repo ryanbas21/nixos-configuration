@@ -29,6 +29,13 @@
               pkgs.python3
               pkgs.gnumake
               pkgs.gcc
+              llm-agents.rtk
+              # pi-rtk-optimizer resolves and runs `rtk rewrite` via
+              # pi.exec — a direct spawn, no shell — so rtk (and the
+              # `which` the resolver probes with) must be on pi's own
+              # PATH in every launch context (herdr panes, desktop
+              # launchers), not just login shells.
+              pkgs.which
             ]
           }
         '';
@@ -232,6 +239,14 @@
       };
       home.file.".pi/agent/mcp.json".text =
         builtins.toJSON piMcp;
+
+      # herdr config sourced from the dotfiles repo, same as the pi
+      # files above — one source of truth for agent tooling config.
+      # herdr is in the Linux-only package list; the config is
+      # unconditional like the pi files (harmless where the binary is
+      # absent).
+      home.file.".config/herdr/config.toml".source =
+        "${inputs.ryan-nvim}/herdr/.config/herdr/config.toml";
 
       # Route pi-lsp-tools' typescript server through the shim above.
       # autoInstall stays enabled for the other language servers; the
