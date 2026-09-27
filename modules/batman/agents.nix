@@ -24,6 +24,7 @@
             pkgs.lib.makeBinPath [
               pkgs.bun # npmCommand = [ "bun" ]
               pkgs.nodejs
+              pkgs.typescript-language-server # pi-lsp-tools TS LSP (loads tsconfig plugins: @effect/language-service)
               nodeGyp
               pkgs.python3
               pkgs.gnumake
@@ -32,6 +33,71 @@
           }
         '';
       };
+
+      # Stdio proxy for typescript-language-server that injects the
+      # @effect/language-service tsserver plugin into the client's
+      # initialize request, resolved from the workspace node_modules
+      # (the process cwd pi-lsp-tools spawns it with).
+      # pi-lsp-tools cannot send initializationOptions itself, and tls
+      # only loads tsserver plugins declared there — tsconfig.json
+      # compilerOptions.plugins alone does not survive the tls hop.
+      elsTlsShim = pkgs.writeText "els-tls-shim.mjs" ''
+        import { spawn } from "node:child_process";
+        import { existsSync } from "node:fs";
+        import path from "node:path";
+
+        const elsDir = path.join(process.cwd(), "node_modules", "@effect", "language-service");
+        const hasEls = existsSync(path.join(elsDir, "package.json"));
+
+        const child = spawn("typescript-language-server", ["--stdio"], {
+          stdio: ["pipe", "pipe", "pipe"],
+        });
+        child.stdout.pipe(process.stdout);
+        child.stderr.pipe(process.stderr);
+        child.on("exit", (code) => process.exit(code ?? 1));
+
+        let pending = Buffer.alloc(0);
+        let injected = false;
+
+        const frame = (body) => "Content-Length: " + Buffer.byteLength(body) + "\r\n\r\n" + body;
+
+        process.stdin.on("data", (chunk) => {
+          pending = Buffer.concat([pending, chunk]);
+          for (;;) {
+            const sep = pending.indexOf("\r\n\r\n");
+            if (sep < 0) return;
+            const header = pending.subarray(0, sep).toString("latin1");
+            const m = header.match(/Content-Length:\s*(\d+)/i);
+            if (!m) { pending = pending.subarray(sep + 4); continue; }
+            const len = Number(m[1]);
+            const start = sep + 4;
+            if (pending.length < start + len) return;
+            let body = pending.subarray(start, start + len).toString("utf8");
+            pending = pending.subarray(start + len);
+            if (!injected && hasEls) {
+              try {
+                const msg = JSON.parse(body);
+                if (msg.method === "initialize") {
+                  injected = true;
+                  const io = msg.params?.initializationOptions ?? {};
+                  io.plugins = [
+                    ...(io.plugins ?? []),
+                    {
+                      name: "@effect/language-service",
+                      location: elsDir,
+                      enableForWorkspaceTypeOperation: true,
+                    },
+                  ];
+                  msg.params = { ...(msg.params ?? {}), initializationOptions: io };
+                  body = JSON.stringify(msg);
+                }
+              } catch { /* malformed frame: pass through untouched */ }
+            }
+            child.stdin.write(frame(body));
+          }
+        });
+        process.stdin.on("end", () => child.stdin.end());
+      '';
       piMcp = { };
       piModelRouter = {
         maxSessionBudget = 1.0;
@@ -126,6 +192,7 @@
         pkgs.bun
         inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.openskills
         inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.plannotator
+        inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.plannotator-tui
         inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.herdr
         inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.rtk
       ];
@@ -165,6 +232,17 @@
       };
       home.file.".pi/agent/mcp.json".text =
         builtins.toJSON piMcp;
+
+      # Route pi-lsp-tools' typescript server through the shim above.
+      # autoInstall stays enabled for the other language servers; the
+      # typescript entry only overrides the command (extensions stay
+      # default). Without this, pi's TS LSP runs bare tls with no
+      # effect plugin.
+      home.file.".pi/lsp-config.yaml".text = ''
+        servers:
+          typescript:
+            command: [ "node", "${elsTlsShim}", "--stdio" ]
+      '';
 
 
     };

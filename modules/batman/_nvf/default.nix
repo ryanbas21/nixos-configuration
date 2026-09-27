@@ -53,6 +53,7 @@ let
     "stylelint_lsp"
     "svelte"
     "tailwindcss"
+    "ts_ls"
     "tsgo"
     "yamlls"
   ];
@@ -439,6 +440,28 @@ in
           -- handlers.lua discovers servers via stdpath("config")/lsp, which
           -- does not exist under NVIM_APPNAME=nvf; enable them explicitly.
           -- Configs resolve from the prepended runtimepath above.
+          --
+          -- Effect LSP: typescript-language-server only loads tsserver
+          -- plugins declared in initializationOptions.plugins (a tsconfig
+          -- compilerOptions.plugins entry loads in raw tsserver but is not
+          -- surfaced through tls), and the location must point at the
+          -- workspace's node_modules — resolved per root_dir here.
+          vim.lsp.config("ts_ls", {
+            before_init = function(init_params, config)
+              local els = (config.root_dir or "") .. "/node_modules/@effect/language-service"
+              if vim.uv.fs_stat(els) then
+                init_params.initializationOptions = vim.tbl_deep_extend("force", init_params.initializationOptions or {}, {
+                  plugins = {
+                    {
+                      name = "@effect/language-service",
+                      location = els,
+                      enableForWorkspaceTypeOperation = true,
+                    },
+                  },
+                })
+              end
+            end,
+          })
           vim.lsp.enable({${lib.concatStringsSep ", " (map (s: "\"" + s + "\"") lspServers)}})
         '';
       };
@@ -1264,7 +1287,15 @@ in
     extraPackages = with pkgs; [
       # LSP servers
       lua-language-server
-      # typescript-language-server
+      # tsserver-backed TS LSP: tsgo cannot load JS tsserver plugins
+      # (e.g. @effect/language-service, declared per-project in
+      # tsconfig.json compilerOptions.plugins), so ts_ls stays enabled
+      # alongside tsgo; both attach in tsgo projects.
+      typescript-language-server
+      # node for project-local node_modules/.bin shims (env-shebang):
+      # nvim-lspconfig's ts_ls prefers <root>/node_modules/.bin over
+      # PATH, and those npm shims exec `#!/usr/bin/env node`.
+      nodejs
       typescript # tsgo fallback; the lsp/tsgo.lua config prefers local node_modules
       vscode-langservers-extracted # json/html/css/eslint servers
       tailwindcss-language-server
@@ -1320,6 +1351,17 @@ in
     # module-loaded
     ########################################################################
     keymaps = [
+      # selection-based LSP code actions — handlers.lua's <leader>ca is
+      # normal-mode only, and selection-gated refactors (e.g.
+      # @effect/language-service "Wrap with pipe(...)" rejects zero-width
+      # ranges) need the visual selection as the request range
+      {
+        mode = "x";
+        key = "<leader>ca";
+        action = "vim.lsp.buf.code_action";
+        lua = true;
+        desc = "LSP code action (selection)";
+      }
       # which-key <leader>?
       {
         mode = "n";
